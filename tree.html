@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <HTML>
 <HEAD>
-<TITLE> ZTREE DEMO - beforeClick / onClick</TITLE>
+<TITLE>PDFClient</TITLE>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8">
 <meta name="apple-touch-fullscreen" content="yes"/>
 <meta name="format-detection" content="telephone=no"/>
@@ -99,7 +99,7 @@
 
 
 var isPC = false;
-var host = "http://1111hui.com:3000";
+var host = "http://1111hui.com:88";
 var rootName = 'yangjiming';
 var root=[];
 var fileData=null;
@@ -709,6 +709,31 @@ var curSrcNode, curType;
 		//-->
 	</SCRIPT>
 
+
+
+
+<script type="text/javascript">
+	
+var companyTree = null;
+var companyNode = null;
+var companySetting = {
+	check:{
+		enable:true
+	}
+}
+$(function  () {
+	$.post(host+'/getCompanyTree', { company:'lianrun' }, function  (data) {
+		companyNode = JSON.parse( data );
+		console.log(data);
+		companyTree = $.fn.zTree.init($("#treeDemo2"), companySetting, companyNode);
+	});
+});
+
+
+</script>
+
+
+
 <style type="text/css">
 	div#rMenu {position:absolute; z-index: 9999; visibility:hidden; top:0; background-color: #555;text-align: left;padding: 2px;}
 	div#rMenu ul li{
@@ -804,5 +829,13 @@ var curSrcNode, curType;
 
 
 </div>
+
+
+<div class="company_wrap">
+	<div class="zTreeDemoBackground left">
+		<ul id="treeDemo2" class="ztree"></ul>
+	</div>
+</div>
+
 </BODY>
 </HTML>
