@@ -19,6 +19,7 @@
 	<SCRIPT type="text/javascript">
 		<!--
 		var curMenu = null, treeObj = null;
+		var curTree = treeObj;
 		var rMenu;
 		var addCount = 1;
 		var log, className = "dark", curDragNodes, autoExpandNode;
@@ -106,7 +107,6 @@ var fileData=null;
 var fileKeys=null;
 var addCount = 1;
 var DragParentNode = null;
-var curNode=null;
 
 function pathToObj (v) {
 	var path = v.path;
@@ -300,7 +300,7 @@ var formatDate = function(format) {
 		}
 		function resetTree() {
 			hideRMenu();
-			$.fn.zTree.init($("#treeDemo"), setting, zNodes);
+			$.fn.zTree.init($("#fileTree"), setting, zNodes);
 		}
 
 
@@ -450,15 +450,9 @@ var formatDate = function(format) {
 
 			if(!treeNode.isParent) {
 				$('.fView').attr( 'href', ('http://1111hui.com/pdf/webpdf/viewer.html?file=http://7xkeim.com1.z0.glb.clouddn.com/'+treeNode.key) );
-
-				curNode = treeNode;
-				$('.botmenu>div').hide();
-				$('.fileMenu').show().parent().show();
-			}else{
-				curNode = treeNode;
-				$('.botmenu>div').hide();
-				$('.dirMenu').show().parent().show();
 			}
+
+			updateMenu(treeNode);
 
 		}
 		function showLog(str) {
@@ -483,7 +477,7 @@ var formatDate = function(format) {
 
 				document.title = "";
 				//document.title = JSON.stringify({action:"openPDF", url:'http://1111hui.com/pdf/dragShape/path.html', text:text });
-				document.title = JSON.stringify({action:"openPDF", url:'http://1111hui.com/pdf/webpdf/viewer.html?file=http://7xkeim.com1.z0.glb.clouddn.com/'+url, text:text });	
+				document.title = JSON.stringify({action:"openPDF", url:'http://1111hui.com/pdf/webpdf/viewer.html?file=http://7xkeim.com1.z0.glb.clouddn.com/'+url, text:text });
 			} else{
 
 
@@ -504,15 +498,19 @@ var formatDate = function(format) {
 			//fileKeys = fileKeys.concat( ['path', 'hash'].filter(function (item) { return fileKeys.indexOf(item) < 0 }) );
 			//fileKeys.splice( fileKeys.indexOf('_id'), 1 );
 
-			$.fn.zTree.init($("#treeDemo"), setting, zNodes);
+			$.fn.zTree.init($("#fileTree"), setting, zNodes);
 
-			treeObj = $.fn.zTree.getZTreeObj("treeDemo");
+			treeObj = $.fn.zTree.getZTreeObj("fileTree");
 
 			curMenu = treeObj.getNodes()[0].children[0];
 
 			treeObj.selectNode(curMenu);
 
 			rMenu = $("#rMenu");
+
+			updateMenu(curMenu);
+
+			curTree = treeObj;
 
 		}
 
@@ -547,9 +545,10 @@ var formatDate = function(format) {
 
 			var nodes = [];
 			$.each(theNodes, function  (i,v) {
+				if( nodes.indexOf(v)>-1 ) return true;
 				if(v.isParent) {
 					if( !v.children || v.children.length==0 ) nodes.push(v);
-					else nodes = nodes.concat( treeObj.getNodesByFilter(filter, false, v) );
+					else nodes = nodes.concat( curTree.getNodesByFilter(filter, false, v) );
 				} else {
 					nodes.push(v);
 				}
@@ -557,7 +556,11 @@ var formatDate = function(format) {
 			return (nodes);
 		}
 
-
+		function getAllFiles ( theNodes ) {
+			return getAllLeafs(theNodes).filter(function  (v) {
+				return !v.isParent;
+			});
+		}
 
 
 function breakIntoPath(path){
@@ -611,7 +614,7 @@ function breakIntoPath(path){
 
 
 
-var curSrcNode, curType;
+		var curSrcNode, curType;
 
 		function fontCss(treeNode) {
 			var aObj = $("#" + treeNode.tId + "_a");
@@ -621,7 +624,7 @@ var curSrcNode, curType;
 					aObj.addClass(curType);
 				} else {
 					aObj.addClass(curType);
-				}			
+				}
 			}
 		}
 		function setCurSrcNode(treeNode) {
@@ -635,7 +638,7 @@ var curSrcNode, curType;
 			curSrcNode = treeNode;
 			if (!treeNode) return;
 
-			curSrcNode.isCur = true;			
+			curSrcNode.isCur = true;
 			zTree.cancelSelectedNode();
 			fontCss(curSrcNode);
 			$('.botmenu>div').hide();
@@ -688,8 +691,7 @@ var curSrcNode, curType;
 			setCurSrcNode();
 			delete targetNode.isCur;
 			zTree.selectNode(targetNode);
-			$('.botmenu>div').hide();
-			targetNode.isParent ? $('.dirMenu').show() :  $('.fileMenu').show();
+			updateMenu(targetNode);
 		}
 
 		function moveTreeNodeCancel(){
@@ -697,14 +699,23 @@ var curSrcNode, curType;
 			delete curSrcNode.isCur;
 			setCurSrcNode();
 			treeObj.selectNode( targetNode );
-			$('.botmenu>div').hide();
-			targetNode.isParent ? $('.dirMenu').show() :  $('.fileMenu').show();
-
+			updateMenu(targetNode);
 		}
 
-		function newFolder(){
-
+		function updateMenu (targetNode) {
+			if( typeof targetNode=='string' ) {
+				$('.botmenu>div').hide().parent().show();
+				$(targetNode).show();
+				return;
+			}
+			if(targetNode){
+				$('.botmenu>div').hide().parent().show();
+				targetNode.isParent ? $('.dirMenu').show() :  $('.fileMenu').show();
+			} else {
+				$('.botmenu').hide();
+			}
 		}
+
 
 		//-->
 	</SCRIPT>
@@ -713,21 +724,66 @@ var curSrcNode, curType;
 
 
 <script type="text/javascript">
-	
+
 var companyTree = null;
 var companyNode = null;
 var companySetting = {
-	check:{
-		enable:true
+
+	view: {
+		showLine: true,
+		dblClickExpand: false,
+		expandSpeed: ""
+	},
+
+	check: {
+		enable:true,
+		chkboxType:{ "Y": "s", "N": "s" }
+	},
+
+	callback: {
+		beforeClick: beforeClick,
+		onClick: onClick,
+
 	}
 }
+
 $(function  () {
 	$.post(host+'/getCompanyTree', { company:'lianrun' }, function  (data) {
 		companyNode = JSON.parse( data );
 		console.log(data);
-		companyTree = $.fn.zTree.init($("#treeDemo2"), companySetting, companyNode);
+		companyTree = $.fn.zTree.init($("#companyTree"), companySetting, companyNode);
 	});
 });
+
+
+function beforeClick(treeId, treeNode, clickFlag) {
+	className = (className === "dark" ? "":"dark");
+	if (treeNode.isParent && treeNode.click!==false) {
+		companyTree.expandNode(treeNode);
+	}
+	return (treeNode.click != false);
+}
+
+
+function onClick(event, treeId, treeNode, clickFlag) {
+
+	if( !treeNode.isParent ) companyTree.checkNode(treeNode, null, true);
+
+}
+
+
+function shareNode(){
+	var nodes = companyTree.getCheckedNodes();
+	console.log(  getAllFiles(nodes)  );
+}
+
+function shareFile(){
+	$('.company_wrap').show();
+	$('.tree2').animate({left:-1}, 300, 'linear');
+	updateMenu('.shareMenu');
+	curTree = companyTree;
+}
+
 
 
 </script>
@@ -735,6 +791,8 @@ $(function  () {
 
 
 <style type="text/css">
+
+
 	div#rMenu {position:absolute; z-index: 9999; visibility:hidden; top:0; background-color: #555;text-align: left;padding: 2px;}
 	div#rMenu ul li{
 		margin: 1px 0;
@@ -780,6 +838,25 @@ $(function  () {
 	}
 
 
+	.company_wrap {
+	  position: absolute;
+	  top: 0;
+	  left: 0;
+	  width: 500px;
+	  height: 100%;
+	  overflow: hidden;
+	  display: none;
+	}
+	.tree2 {
+	  position: absolute;
+	  background-color: white;
+	  left: 500px;
+	  top: 0;
+	  height: 100%;
+	  width: 100%;
+	  border-left: 1px solid #ccc;
+	}
+
 </style>
 
 </HEAD>
@@ -796,46 +873,56 @@ $(function  () {
 
 
 <div class="content_wrap">
-	<div class="zTreeDemoBackground left">
-		<ul id="treeDemo" class="ztree"></ul>
+	<div class="tree1">
+		<ul id="fileTree" class="ztree"></ul>
 	</div>
-
-	<nav class="botmenu">
-		<div class="fileMenu">
-			<a class="fView" href="#">查看</a>
-			<a class="fRename" href="#" onclick="renameTreeNode()">改名</a>
-			<a class="fRemove" href="#" onclick="removeTreeNode()">删除</a>
-			<a class="fRemove" href="#" onclick="cutNode()">移动</a>
-			<a class="fShare" href="#">分享</a>
-		</div>
-
-		<div class="dirMenu">
-			<a class="fRename" href="#" onclick="addTreeNode()">新建</a>
-			<a class="fRename" href="#" onclick="renameTreeNode()">改名</a>
-			<a class="fRemove" href="#" onclick="removeTreeNode()">删除</a>
-			<a class="fRemove" href="#" onclick="cutNode()">移动</a>
-		</div>
-
-		<div class="moveMenu">
-			<a class="fRename" href="#">选择目标目录：</a>
-			<a class="fRemove" href="#" onclick="moveTreeNodeCancel()">取消</a>
-			<a class="fPaste" href="#" onclick="pasteNode()">确定</a>
-		</div>
-
-
-
-	</nav>
-
-
 
 </div>
 
 
 <div class="company_wrap">
-	<div class="zTreeDemoBackground left">
-		<ul id="treeDemo2" class="ztree"></ul>
+	<div class="tree2">
+		<ul id="companyTree" class="ztree"></ul>
 	</div>
 </div>
+
+
+
+<nav class="botmenu">
+	<div class="fileMenu">
+		<a class="fView" href="#">查看</a>
+		<a class="fRename" href="#" onclick="renameTreeNode()">改名</a>
+		<a class="fRemove" href="#" onclick="removeTreeNode()">删除</a>
+		<a class="fRemove" href="#" onclick="cutNode()">移动</a>
+		<a class="fShare" href="#" onclick="shareFile()">分享</a>
+	</div>
+
+	<div class="dirMenu">
+		<a class="fRename" href="#" onclick="addTreeNode()">新建</a>
+		<a class="fRename" href="#" onclick="renameTreeNode()">改名</a>
+		<a class="fRemove" href="#" onclick="removeTreeNode()">删除</a>
+		<a class="fRemove" href="#" onclick="cutNode()">移动</a>
+		<a class="fShare" href="#" onclick="shareFile()">分享</a>
+
+	</div>
+
+	<div class="moveMenu">
+		<a class="fRename" href="#">选择目标目录：</a>
+		<a class="fRemove" href="#" onclick="moveTreeNodeCancel()">取消</a>
+		<a class="fPaste" href="#" onclick="pasteNode()">确定</a>
+	</div>
+
+	<div class="shareMenu">
+		<a class="fRename" href="#">分享给：</a>
+		<a class="fRemove" href="#" onclick="shareTreeNodeCancel()">取消</a>
+		<a class="fPaste" href="#" onclick="shareNode()">确定</a>
+	</div>
+
+
+
+</nav>
+
+
 
 </BODY>
 </HTML>
