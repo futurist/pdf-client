@@ -545,7 +545,7 @@ var formatDate = function(format) {
 
 			var nodes = [];
 			$.each(theNodes, function  (i,v) {
-				if( nodes.indexOf(v)>-1 ) return true;
+				if(!v || nodes.indexOf(v)>-1 ) return true;
 				if(v.isParent) {
 					if( !v.children || v.children.length==0 ) nodes.push(v);
 					else nodes = nodes.concat( curTree.getNodesByFilter(filter, false, v) );
@@ -773,8 +773,30 @@ function onClick(event, treeId, treeNode, clickFlag) {
 
 
 function shareNode(){
+	curTree = treeObj;
+	var sel = treeObj.getSelectedNodes()[0];
+	var files = getAllFiles(sel);
+	if(sel.isParent) files.forEach(function(v){ v.path = v.path.replace( getPath(sel), '/{{shareName}}/') });
+
+	curTree = companyTree;
 	var nodes = companyTree.getCheckedNodes();
-	console.log(  getAllFiles(nodes)  );
+	var stuffs =  getAllFiles(nodes);
+
+	stuffs = stuffs.map( function(v){
+		return {name: v.name, userid: v.userid, depart: v.getParentNode().name }
+	} );
+
+	var fileArr = [];
+	$.each(files, function  (i,v) {
+		var obj = fileKeys.reduce(function(o, key, idx) {
+		  o[key] = v[key];
+		  return o;
+		}, {});
+		fileArr.push(obj);
+	});
+
+	var json = {fromPerson: rootName, toPerson: stuffs, files:fileArr }
+	console.log( JSON.stringify( json) );
 }
 
 function shareFile(){
