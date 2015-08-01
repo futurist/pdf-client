@@ -101,12 +101,14 @@
 
 var isPC = false;
 var host = "http://1111hui.com:88";
-var rootName = 'yangjiming';
+var rootPerson = {userid: 'yangjiming', name:"杨吉明" };
 var root=[];
 var fileData=null;
 var fileKeys=null;
 var addCount = 1;
 var DragParentNode = null;
+var sendRoot = null;
+var receiveRoot = null;
 
 function pathToObj (v) {
 	var path = v.path;
@@ -128,7 +130,7 @@ function pathToObj (v) {
 		}
 		if(i==str.length-2 && !file ){
 			//it's folder Leaf node
-			var folder = $.extend( { person:rootName, name:name, oldName:name, oldPath:v.path, isParent:true}, v);
+			var folder = $.extend( { person:rootPerson.userid, name:name, oldName:name, oldPath:v.path, isParent:true}, v);
 			p.push(folder);
 
 		}else{
@@ -148,30 +150,6 @@ function all () {
 	console.log( treeObj.getNodesByFilter(function(){return true}) )
 }
 
-function getFilesData () {
-
-	/*****
-	* File Data format should be:
-	[
-	{path:'/', file:"pdf1", title:"asdf"},
-	{path:'/abc/a/e/', file:"pdf1"},
-	{path:'/abc/a/b/', file:"pdf2"},
-	{path:'/a/b/c/', file:"pdf3"},
-	{path:'/a/b/c/', file:"pdf4"},
-	{path:'/a/b/c/', file:"pdf5"},
-	]
-	*
-	***/
-
-	$.post(host+'/getfile', {person:rootName}, function  (data) {
-		data = JSON.parse(data);
-
-		init(data);
-	});
-
-
-}
-getFilesData();
 
 var formatDate = function(format) {
 	d = new Date();
@@ -232,7 +210,7 @@ var formatDate = function(format) {
 			var node;
 			var name = "新建文件夹 " + (addCount++);
 			name = formatDate('yyyy-mm-dd hh:ii:ss');
-			var newNode = { name:name, title:name, hash:+new Date()+Math.random(), person:rootName, isNew:true, isParent:true};
+			var newNode = { name:name, title:name, hash:+new Date()+Math.random(), person:rootPerson.userid, isNew:true, isParent:true};
 			if (treeObj.getSelectedNodes()[0]) {
 				newNode.checked = treeObj.getSelectedNodes()[0].checked;
 				node = treeObj.addNodes(treeObj.getSelectedNodes()[0], newNode);
@@ -391,7 +369,46 @@ var formatDate = function(format) {
 			return true;
 		}
 
+
 		function beforeDrop(treeId, treeNodes, targetNode, moveType, isCopy) {
+
+			function getMaxMinOrder (nodes, isMax) {
+				nodes = nodes.filter(function  (v) {
+					return v.order || v.order==0;
+				});
+				var orderA = nodes.map(function  (v) {
+					return v.order;
+				});
+				return isMax == 'max' ? Math.max.apply( Math, orderA ) : Math.min.apply( Math, orderA );
+			}
+
+			var id, nextOrder, nextObj;
+			var startOrder;
+
+			if(moveType=='next'){
+				startOrder = targetNode.order || getMaxMinOrder( getAllLeafs( targetNode ), 'min' ) ;
+				id= $('#'+targetNode.tId).next().attr('id');
+				nextObj = treeObj.getNodeByTId(id);
+				if(!id) nextOrder = startOrder-1 ;
+				if(id) nextOrder = nextObj.order || getAllLeafs( nextObj ).shift().order ;
+			} 
+			if(moveType=='prev'){
+				startOrder = targetNode.order || getMaxMinOrder( getAllLeafs( targetNode ), 'max' ) ;
+				id= $('#'+targetNode.tId).prev().attr('id');
+				nextObj = treeObj.getNodeByTId(id);
+				if(!id) nextOrder = startOrder+1 ;
+				if(id) nextOrder = nextObj.order || getAllLeafs( nextObj ).pop().order ;
+			}
+
+			var targetNodes = getAllLeafs(treeNodes);
+
+			var stepOrder = (nextOrder - startOrder)/ (targetNodes.length+1);
+			//console.log(id, getMaxMinOrder( getAllLeafs( targetNode ), 'max'), moveType, startOrder,  getAllLeafs(treeObj.getNodeByTId(id)).pop(), stepOrder, nextOrder);
+
+			targetNodes.forEach(function  (v,i) {
+				v.order = startOrder+(i+1)*stepOrder;
+			});
+
 			DragParentNode = (treeNodes[0].getParentNode() );
 			className = (className === "dark" ? "":"dark");
 			showLog("[ "+getTime()+" beforeDrop ]&nbsp;&nbsp;&nbsp;&nbsp; moveType:" + moveType);
@@ -404,7 +421,7 @@ var formatDate = function(format) {
 			showLog("[ "+getTime()+" onDrag ]&nbsp;&nbsp;&nbsp;&nbsp; drag: " + treeNodes.length + " nodes." );
 		}
 		function onDrop(event, treeId, treeNodes, targetNode, moveType, isCopy) {
-
+			console.log( treeNodes, targetNode, moveType, isCopy );
 			if(isCopy===false) serverUpdateNode('move', treeNodes );
 
 			className = (className === "dark" ? "":"dark");
@@ -484,6 +501,69 @@ var formatDate = function(format) {
 			}
 		}
 
+
+
+function getFilesData () {
+
+	/*****
+	* File Data format should be:
+	[
+	{path:'/', file:"pdf1", title:"asdf"},
+	{path:'/abc/a/e/', file:"pdf1"},
+	{path:'/abc/a/b/', file:"pdf2"},
+	{path:'/a/b/c/', file:"pdf3"},
+	{path:'/a/b/c/', file:"pdf4"},
+	{path:'/a/b/c/', file:"pdf5"},
+	]
+	*
+	***/
+
+	$.post(host+'/getfile', {person:rootPerson.userid}, function  (data) {
+		data = JSON.parse(data);
+
+		init(data);
+
+		$.post(host+'/getShareFrom', {person:rootPerson.userid}, function  (data) {
+			initShareFrom(JSON.parse(data));
+		});
+		$.post(host+'/getShareFrom', {person:rootPerson.userid}, function  (data) {
+			initShareFrom(JSON.parse(data));
+		});
+
+		$.post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
+			initShareTo(JSON.parse(data));
+		});
+
+	});
+
+
+}
+getFilesData();
+
+
+function initShareFrom (data) {
+	root= [];
+
+	for(var i=0; i<data.length; i++){
+		var shareID = data[i].shareID;
+		var files = data[i].files;
+		files.forEach(function(v){
+			v.path = v.path.replace(/{{shareName}}/, '共享-'+shareID);
+			pathToObj( v );
+		});
+	}
+	if(!sendRoot){
+		sendRoot = treeObj.addNodes( null,  {userid:rootPerson.userid, name:'发件柜', title:'发件柜', isParent:true, children: root} );
+		if(sendRoot) sendRoot = sendRoot[0];
+	} else {
+		treeObj.addNodes( sendRoot, root );
+	}
+}
+
+function initShareTo (data) {
+	console.log(data);
+}
+
 		function init(data){
 
 			fileData = data;
@@ -492,9 +572,9 @@ var formatDate = function(format) {
 				pathToObj( v );
 				fileKeys = Object.keys(v);
 			});
-			zNodes = [{name:rootName, isParent:true, children: root}];
+			zNodes = [{userid:rootPerson.userid, name:rootPerson.name, isParent:true, children: root}];
 
-			fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "imageWidth", "imageHeight"];
+			fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "order", "imageWidth", "imageHeight"];
 			//fileKeys = fileKeys.concat( ['path', 'hash'].filter(function (item) { return fileKeys.indexOf(item) < 0 }) );
 			//fileKeys.splice( fileKeys.indexOf('_id'), 1 );
 
@@ -523,7 +603,7 @@ var formatDate = function(format) {
 				pstr.push(pNode.name);
 			}
 			var path = '/'+(pstr.reverse().join('/'))+'/';
-			return path.replace('/'+rootName, '');
+			return path.replace('/'+rootPerson.name, '');
 		}
 
 
@@ -773,6 +853,10 @@ function onClick(event, treeId, treeNode, clickFlag) {
 
 
 function shareNode(){
+	if( !companyTree.getCheckedNodes().length ){
+		alert("请先选择分享目标");
+		return;
+	}
 	curTree = treeObj;
 	var sel = treeObj.getSelectedNodes()[0];
 	var files = getAllFiles(sel);
@@ -795,8 +879,10 @@ function shareNode(){
 		fileArr.push(obj);
 	});
 
-	var json = {fromPerson: rootName, toPerson: stuffs, files:fileArr }
-	console.log( JSON.stringify( json) );
+	var json = {fromPerson: rootPerson.userid, toPerson: stuffs, files:fileArr }
+	$.post(host+'/shareFile', {data:json}, function(data){
+
+	});
 }
 
 function shareFile(){
@@ -828,9 +914,11 @@ function shareFile(){
 	}
 
 	body,p,ul,li{margin: 0;padding: 0; list-style: none;}
-
+	body{
+		padding-bottom: 100px;
+	}
 	.botmenu{
-		position: absolute;
+		position: fixed;
 		bottom: 0;
 		left:0;
 	    width: 100%;
@@ -838,6 +926,8 @@ function shareFile(){
 		border-top:1px solid #ccc;
 		font:18px/1 "黑体";
 		display: none;
+		  background: white;
+		z-index: 9;
 	}
 
 	.botmenu div{
@@ -889,7 +979,6 @@ function shareFile(){
 		<li id="m_add" onclick="addTreeNode();">新建</li>
 		<li id="m_del" onclick="removeTreeNode();">删除</li>
 		<li id="m_check" onclick="renameTreeNode();">重命名</li>
-		<li id="m_reset" onclick="resetTree();">恢复zTree</li>
 	</ul>
 </div>
 
