@@ -11,7 +11,7 @@
 
 	<link rel="stylesheet" href="./css/zTreeStyle/zTreeStyle.css" type="text/css">
 	<script type="text/javascript" src="./js/jquery-1.4.4.min.js"></script>
-	<script type="text/javascript" src="./js/jquery.ztree.all-3.5.min.js"></script>
+	<script type="text/javascript" src="./js/jquery.ztree.all-3.5.js"></script>
 	<!--  <script type="text/javascript" src="./js/jquery.ztree.excheck-3.5.js"></script>
 	  <script type="text/javascript" src="./js/jquery.ztree.exedit-3.5.js"></script>-->
 
@@ -370,34 +370,53 @@ var formatDate = function(format) {
 		}
 
 
-		function beforeDrop(treeId, treeNodes, targetNode, moveType, isCopy) {
 
-			function getMaxMinOrder (nodes, isMax) {
-				nodes = nodes.filter(function  (v) {
-					return v.order || v.order==0;
-				});
-				var orderA = nodes.map(function  (v) {
-					return v.order;
-				});
-				return isMax == 'max' ? Math.max.apply( Math, orderA ) : Math.min.apply( Math, orderA );
+		function getMaxMinOrder (nodes, isMax) {
+			nodes = nodes.filter(function  (v) {
+				return v.order || v.order==0;
+			});
+			var orderA = nodes.map(function  (v) {
+				return v.order;
+			});
+			return isMax == 'max' ? Math.max.apply( Math, orderA ) : Math.min.apply( Math, orderA );
+		}
+		function getPrevNextLeaf (targetNode, isPrev) {
+			var prev= isPrev=='prev' ? targetNode.getPreNode() : targetNode.getNextNode();
+			if(prev && prev!=targetNode ) return prev;
+			else {
+				var p = targetNode.getParentNode();
+				if(p && p.level) return getPrevNextLeaf( p, isPrev );
+				else{
+					return null;
+				}
 			}
+		}
+
+
+
+		function beforeDrop(treeId, treeNodes, targetNode, moveType, isCopy) {
 
 			var id, nextOrder, nextObj;
 			var startOrder;
 
 			if(moveType=='next'){
 				startOrder = targetNode.order || getMaxMinOrder( getAllLeafs( targetNode ), 'min' ) ;
-				id= $('#'+targetNode.tId).next().attr('id');
-				nextObj = treeObj.getNodeByTId(id);
-				if(!id) nextOrder = startOrder-1 ;
-				if(id) nextOrder = nextObj.order || getAllLeafs( nextObj ).shift().order ;
-			} 
+				nextObj = getPrevNextLeaf( targetNode, 'next' );
+				if(!nextObj) nextOrder = startOrder-1 ;
+				else nextOrder = nextObj.order ||  getAllLeafs( nextObj ).shift().order ;
+			}
 			if(moveType=='prev'){
 				startOrder = targetNode.order || getMaxMinOrder( getAllLeafs( targetNode ), 'max' ) ;
-				id= $('#'+targetNode.tId).prev().attr('id');
-				nextObj = treeObj.getNodeByTId(id);
-				if(!id) nextOrder = startOrder+1 ;
-				if(id) nextOrder = nextObj.order || getAllLeafs( nextObj ).pop().order ;
+				nextObj = getPrevNextLeaf( targetNode, 'prev' );
+				if(!nextObj) nextOrder = startOrder+1 ;
+				else nextOrder = nextObj.order || getAllLeafs( nextObj ).shift().order ;
+			}
+
+			if(moveType=='inner'){
+				startOrder = targetNode.order || getMaxMinOrder( getAllLeafs( targetNode ), 'max' ) ;
+				nextObj = getPrevNextLeaf( targetNode, 'prev' );
+				if(!nextObj) nextOrder = startOrder+1 ;
+				else nextOrder = nextObj.order || getAllLeafs( nextObj ).shift().order ;
 			}
 
 			var targetNodes = getAllLeafs(treeNodes);
@@ -761,6 +780,7 @@ function breakIntoPath(path){
 			} else if (curType === "copy") {
 				targetNode = zTree.copyNode(targetNode, curSrcNode, "inner");
 			} else if (curType === "cut") {
+				beforeDrop(null, [curSrcNode], targetNode, 'inner' );
 				targetNode = zTree.moveNode(targetNode, curSrcNode, "inner");
 				serverUpdateNode('move',curSrcNode);
 				if (!targetNode) {
