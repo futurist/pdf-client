@@ -365,7 +365,19 @@
 		addInitRoot: function(initRoot) {
 			_init.roots.push(initRoot);
 		},
+
+		//change: Move node to top
 		addNodesData: function(setting, parentNode, nodes) {
+			var childKey = setting.data.key.children;
+			if (!parentNode[childKey]) parentNode[childKey] = [];
+			if (parentNode[childKey].length > 0) {
+				parentNode[childKey][0].isFirstNode = false;
+				view.setNodeLineIcos(setting, parentNode[childKey][0]);
+			}
+			parentNode.isParent = true;
+			parentNode[childKey] =nodes.concat(parentNode[childKey]);
+		},
+		addNodesData2: function(setting, parentNode, nodes) {
 			var childKey = setting.data.key.children;
 			if (!parentNode[childKey]) parentNode[childKey] = [];
 			if (parentNode[childKey].length > 0) {
@@ -1033,7 +1045,7 @@
 			} else {
 				var ulObj = $$(parentNode, consts.id.UL, setting);
 				if (ulObj.get(0)) {
-					ulObj.append(zTreeHtml.join(''));
+					ulObj.prepend(zTreeHtml.join(''));
 				}
 			}
 			view.createNodeCallback(setting);
