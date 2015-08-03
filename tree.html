@@ -10,8 +10,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 
 	<link rel="stylesheet" href="./css/zTreeStyle/zTreeStyle.css" type="text/css">
+	<link rel="stylesheet" href="./js/dialog.css" type="text/css">
 	<script type="text/javascript" src="./js/jquery-1.4.4.min.js"></script>
 	<script type="text/javascript" src="./js/jquery.ztree.all-3.5.js"></script>
+	<script type="text/javascript" src="./js/dialog.build.js"></script>
 	<!--  <script type="text/javascript" src="./js/jquery.ztree.excheck-3.5.js"></script>
 	  <script type="text/javascript" src="./js/jquery.ztree.exedit-3.5.js"></script>-->
 
@@ -101,7 +103,7 @@
 
 var isPC = false;
 var host = "http://1111hui.com:88";
-var rootPerson = {userid: 'yangjiming', name:"杨吉明" };
+var rootPerson = {userid: 'yangjiming', name:"杨吉明", depart:"行政" };
 var root=[];
 var fileData=null;
 var fileKeys=null;
@@ -545,9 +547,6 @@ function getFilesData () {
 		$.post(host+'/getShareFrom', {person:rootPerson.userid}, function  (data) {
 			initShareFrom(JSON.parse(data));
 		});
-		$.post(host+'/getShareFrom', {person:rootPerson.userid}, function  (data) {
-			initShareFrom(JSON.parse(data));
-		});
 
 		$.post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
 			initShareTo(JSON.parse(data));
@@ -580,7 +579,22 @@ function initShareFrom (data) {
 }
 
 function initShareTo (data) {
-	console.log(data);
+	root= [];
+
+	for(var i=0; i<data.length; i++){
+		var shareID = data[i].shareID;
+		var files = data[i].files;
+		files.forEach(function(v){
+			v.path = v.path.replace(/{{shareName}}/, '共享-'+shareID);
+			pathToObj( v );
+		});
+	}
+	if(!receiveRoot){
+		receiveRoot = treeObj.addNodes( null,  {userid:rootPerson.userid, name:'收件柜', title:'收件柜', isParent:true, children: root} );
+		if(receiveRoot) receiveRoot = receiveRoot[0];
+	} else {
+		treeObj.addNodes( receiveRoot, root );
+	}
 }
 
 		function init(data){
@@ -803,6 +817,7 @@ function breakIntoPath(path){
 		}
 
 		function updateMenu (targetNode) {
+			if( $.isArray(targetNode) ) targetNode = targetNode[0];
 			if( typeof targetNode=='string' ) {
 				$('.botmenu>div').hide().parent().show();
 				$(targetNode).show();
@@ -841,8 +856,8 @@ var companySetting = {
 	},
 
 	callback: {
-		beforeClick: beforeClick,
-		onClick: onClick,
+		beforeClick: beforeClick2,
+		onClick: onClick2,
 
 	}
 }
@@ -853,10 +868,15 @@ $(function  () {
 		console.log(data);
 		companyTree = $.fn.zTree.init($("#companyTree"), companySetting, companyNode);
 	});
+
+	$('.dialog-confirm').bind('click', function  (e) {
+		e.preventDefault();
+		shareNode();
+	});
 });
 
 
-function beforeClick(treeId, treeNode, clickFlag) {
+function beforeClick2(treeId, treeNode, clickFlag) {
 	className = (className === "dark" ? "":"dark");
 	if (treeNode.isParent && treeNode.click!==false) {
 		companyTree.expandNode(treeNode);
@@ -865,18 +885,30 @@ function beforeClick(treeId, treeNode, clickFlag) {
 }
 
 
-function onClick(event, treeId, treeNode, clickFlag) {
+function onClick2(event, treeId, treeNode, clickFlag) {
 
 	if( !treeNode.isParent ) companyTree.checkNode(treeNode, null, true);
 
 }
 
 
-function shareNode(){
+function shareNodePre(e){
+
 	if( !companyTree.getCheckedNodes().length ){
 		alert("请先选择分享目标");
 		return;
 	}
+	$('#shareMsg').val('');
+	$( "#mydialog" ).trigger( "dialog-open" );
+	return false;
+
+}
+
+function shareNode(){
+
+
+	var msg = $('#shareMsg').val();
+	var isSign = $('#isSign').is(':checked');
 	curTree = treeObj;
 	var sel = treeObj.getSelectedNodes()[0];
 	var files = getAllFiles(sel);
@@ -899,8 +931,40 @@ function shareNode(){
 		fileArr.push(obj);
 	});
 
-	var json = {fromPerson: rootPerson.userid, toPerson: stuffs, files:fileArr }
-	$.post(host+'/shareFile', {data:json}, function(data){
+
+	// get Selected Folder & Files, exclude all redundant file
+	var fullCheckedFolder = companyTree.getNodesByFilter(function(node){ return node.check_Child_State==2 && node.checked }  );
+	fullCheckedFolder.forEach(function  (v) {
+		getAllFiles(v).forEach(function  (n) {
+			var idx = nodes.indexOf(n);
+			if(idx>-1) nodes.splice(idx,1);
+		});
+	});
+
+	var selectRange=[];
+	var stuffKeys = ['userid', 'name'];
+	nodes.forEach(function(v){
+		var obj = {};
+		if(v.isParent){
+			obj.name = v.name;
+			obj.depart = null;
+		} else {
+			obj.userid=v.userid;
+			obj.name=v.name;
+			obj.depart = v.getParentNode().name;
+		}
+		selectRange.push(obj);
+	});
+
+
+	$('.company_wrap').hide();
+	$('.tree2').css({left: $('.company_wrap').width() });
+	updateMenu(files);
+	curTree = treeObj;
+
+	var json = {fromPerson: [ rootPerson ], toPerson: stuffs, selectRange:selectRange, files:fileArr, msg:msg, isSign:isSign };
+	//console.log(json);return;
+	$.post(host+'/shareFile', {data: JSON.stringify(json) }, function(data){
 
 	});
 }
@@ -988,12 +1052,42 @@ function shareFile(){
 	  width: 100%;
 	  border-left: 1px solid #ccc;
 	}
+	#shareMsg{
+		width: 95%;
+		height: 80px;
+		font:18px/1 Arial;
+		color: #999;
+	}
+
+	.dialog{
+		display: none;
+	}
+
+	.dialog p{
+		  margin-bottom: 15px;
+	}
+	.dialog-close {
+	  margin-right: 10px;
+	  display: inline-block;
+	  padding: 15px;
+	  padding-bottom: 5px;
+	}
 
 </style>
 
 </HEAD>
 
 <BODY>
+
+<div class="dialog" id="mydialog">
+    <p class="shareMsg"><label><input id="isSign" type="checkbox" /> 请求签名</label></p>
+    <p>稍句话：(可留空)</p>
+    <div class="shareMsg"><textarea id="shareMsg"></textarea></div>
+    <span>确认分享？</span>
+    <a href="#mydialog-btn" class="dialog-close">取消</a>
+    <a href="#mydialog-btn" class="dialog-confirm dialog-close">确定</a>
+</div>
+
 <div id="rMenu">
 	<ul>
 		<li id="m_add" onclick="addTreeNode();">新建</li>
@@ -1021,32 +1115,32 @@ function shareFile(){
 
 <nav class="botmenu">
 	<div class="fileMenu">
-		<a class="fView" href="#">查看</a>
-		<a class="fRename" href="#" onclick="renameTreeNode()">改名</a>
-		<a class="fRemove" href="#" onclick="removeTreeNode()">删除</a>
-		<a class="fRemove" href="#" onclick="cutNode()">移动</a>
-		<a class="fShare" href="#" onclick="shareFile()">分享</a>
+		<a class="fView" href="javascript:;">查看</a>
+		<a class="fRename" href="javascript:;" onclick="renameTreeNode()">改名</a>
+		<a class="fRemove" href="javascript:;" onclick="removeTreeNode()">删除</a>
+		<a class="fRemove" href="javascript:;" onclick="cutNode()">移动</a>
+		<a class="fShare" href="javascript:;" onclick="shareFile()">分享</a>
 	</div>
 
 	<div class="dirMenu">
-		<a class="fRename" href="#" onclick="addTreeNode()">新建</a>
-		<a class="fRename" href="#" onclick="renameTreeNode()">改名</a>
-		<a class="fRemove" href="#" onclick="removeTreeNode()">删除</a>
-		<a class="fRemove" href="#" onclick="cutNode()">移动</a>
-		<a class="fShare" href="#" onclick="shareFile()">分享</a>
+		<a class="fRename" href="javascript:;" onclick="addTreeNode()">新建</a>
+		<a class="fRename" href="javascript:;" onclick="renameTreeNode()">改名</a>
+		<a class="fRemove" href="javascript:;" onclick="removeTreeNode()">删除</a>
+		<a class="fRemove" href="javascript:;" onclick="cutNode()">移动</a>
+		<a class="fShare" href="javascript:;" onclick="shareFile()">分享</a>
 
 	</div>
 
 	<div class="moveMenu">
-		<a class="fRename" href="#">选择目标目录：</a>
-		<a class="fRemove" href="#" onclick="moveTreeNodeCancel()">取消</a>
-		<a class="fPaste" href="#" onclick="pasteNode()">确定</a>
+		<a class="fRename" href="javascript:;">选择目标目录：</a>
+		<a class="fRemove" href="javascript:;" onclick="moveTreeNodeCancel()">取消</a>
+		<a class="fPaste" href="javascript:;" onclick="pasteNode()">确定</a>
 	</div>
 
 	<div class="shareMenu">
-		<a class="fRename" href="#">分享给：</a>
-		<a class="fRemove" href="#" onclick="shareTreeNodeCancel()">取消</a>
-		<a class="fPaste" href="#" onclick="shareNode()">确定</a>
+		<a class="fRename" href="javascript:;">分享给：</a>
+		<a class="fRemove" href="javascript:;" onclick="shareTreeNodeCancel(e)">取消</a>
+		<a class="fPaste" href="javascript:;" onclick="return shareNodePre()">确定</a>
 	</div>
 
 

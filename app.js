@@ -143,7 +143,7 @@ app.post("/removeFolder", function (req, res) {
 
 app.post("/getShareFrom", function (req, res) {
   var person = req.body.person;
-  col.find( { fromPerson: person } , {limit:500} ).toArray(function(err, docs){
+  col.find( { fromPerson: person } , {limit:500} ).sort({shareID:-1}).toArray(function(err, docs){
       if(err) return "error";
       var count = docs.length;
       res.send( JSON.stringify(docs) );
@@ -152,7 +152,7 @@ app.post("/getShareFrom", function (req, res) {
 
 app.post("/getShareTo", function (req, res) {
   var person = req.body.person;
-  col.find( { 'toPerson.userid': person } , {limit:500} ).toArray(function(err, docs){
+  col.find( { 'toPerson.userid': person } , {limit:500} ).sort({shareID:-1}).toArray(function(err, docs){
       if(err) return "error";
       var count = docs.length;
       res.send( JSON.stringify(docs) );
@@ -418,9 +418,9 @@ function updateCompanyTree () {
 
               });
             });
-            
 
-          
+
+
         }
       });
     });
