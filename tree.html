@@ -565,24 +565,53 @@ function getFilesData () {
 
 	$.post(host+'/getfile', {person:rootPerson.userid}, function  (data) {
 		data = JSON.parse(data);
+		var query = searchToObject( window.location.search );
 
 		init(data);
+
+		if(!query.dest){
+			locateNode( treeObj.getNodes()[0], query.path );
+		}
+
 		sendRoot = treeObj.addNodes( null,  {userid:rootPerson.userid, name:'发件柜', title:'发件柜', isSend:true, isParent:true, children: []} )[0];
 		receiveRoot = treeObj.addNodes( null,  {userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: []} )[0];
 
 		$.post(host+'/getShareFrom', {person:rootPerson.userid}, function  (data) {
 			initShareFrom(JSON.parse(data));
+			if(query.dest){
+				locateNode(sendRoot, query.path );
+			}
+			$.post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
+				initShareTo(JSON.parse(data));
+				if(query.dest){
+					locateNode(receiveRoot, query.path );
+				}
+
+			});
 		});
 
-		$.post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
-			initShareTo(JSON.parse(data));
-		});
+
 
 	});
 
 
 }
 getFilesData();
+
+
+function locateNode(rootNode, path){
+	if( !rootNode ) return;
+	path = '/'+rootNode.name+path;
+	var targetNode = treeObj.getNodesByFilter(function(node){
+		var p = getPath(node);
+		if(!p.isParent)p += node.hash;
+		return p==path;
+	}, true, rootNode);
+	if( targetNode ) {
+		treeObj.selectNode(targetNode);
+		updateMenu(targetNode);
+	}
+}
 
 function getSubStr (str, len) {
 	len = len || 10;
@@ -1172,6 +1201,14 @@ function sendShareMsg () {
 	
 }
 
+
+function searchToObject(search) {
+  return search.substring(1).split("&").reduce(function(result, value) {
+    var parts = value.split('=');
+    if (parts[0]) result[decodeURIComponent(parts[0])] = decodeURIComponent(parts[1]);
+    return result;
+  }, {})
+}
 
 </script>
 

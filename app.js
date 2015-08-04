@@ -262,17 +262,23 @@ app.post("/sendShareMsg", function (req, res) {
         res.send('没有此组权限');return;
       }
 
-      //get Target Path segment and A link
+      //get segmented path, Target Path segment and A link
       var host = "http://1111hui.com/pdf/client/tree.html";
       var pathName = [];
       path.forEach(function(v,i){
         var a = '/'+path.slice(0,i+1).join('/')+'/';
-        pathName.push( util.format('<a href="%s?path=%s&dest=share">%s</a>', host, a, v) );
+        pathName.push( util.format('<a href="%s?path=%s&dest=share">%s</a>', host, encodeURIComponent(a), v) );
       });
       if(fileHash) {
         var a =  '/'+path.join('/')+'/' + fileHash;
-        pathName.push( util.format('<a href="%s?path=%s&dest=share">%s</a>', host, a, fileName) );
+        pathName.push( util.format('<a href="%s?path=%s&dest=share">%s</a>', host, encodeURIComponent(a), fileName) );
      }
+
+     // get OverAllink 
+      var a = '/'+path.join('/')+'/';
+      var link = '';
+      if(fileName && hash ) link = a+hash;
+     var overAllPath = util.format('<a href="%s?path=%s&dest=share">%s</a>', host, encodeURIComponent(link), a+fileName ) ;
 
       var msg = {
        "touser": data.toPerson.map(function(v){return v.userid}).join('|'),
@@ -281,7 +287,7 @@ app.post("/sendShareMsg", function (req, res) {
          "content":
          util.format('%s 对%s 留言：%s',
             users[0].name,
-            pathName.join('-'),
+            overAllPath,  // if we need segmented path:   pathName.join('-'),
             text
           )
        },
