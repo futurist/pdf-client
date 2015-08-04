@@ -891,10 +891,20 @@ function breakIntoPath(path){
 				$('.botmenu>div').hide().parent().show();
 				if(targetNode.isSend) {
 					$('.sendMenu').show();
+					if(targetNode.level==-1){
+						$('.fAddShare').show();
+					} else {
+						$('.fAddShare').hide();
+					}
 					return;
 				}
 				if(targetNode.isReceive) {
 					$('.receiveMenu').show();
+					if(targetNode.level==-1){
+						$('.fAddShare').show();
+					} else {
+						$('.fAddShare').hide();
+					}
 					return;
 				} else {
 					targetNode.isParent ? $('.dirMenu').show() :  $('.fileMenu').show();
@@ -1057,6 +1067,7 @@ function shareFile(){
 	curTree = companyTree;
 }
 
+
 function viewDetail () {
 	var sel = treeObj.getSelectedNodes();
 	if(!sel.length) return;
@@ -1065,6 +1076,7 @@ function viewDetail () {
 	$('.msg_wrap').show();
 	$('.msgTree').animate( {left:-1}, 300, 'linear' );
 	updateMenu('.msgMenu');
+	updateMenu();
 
 	var condition = {  };
 
@@ -1120,6 +1132,46 @@ function closeViewDetail () {
 	$('.msgTree').css({left: $('.msg_wrap').width() });
 	updateMenu(sel);
 }
+
+function addShareFiles () {
+	var sel = treeObj.getSelectedNodes()[0];
+	$( '#'+sendRoot.tId ).hide();
+	$( '#'+receiveRoot.tId ).hide();
+
+}
+
+function sendShareMsg () {
+	var sel = treeObj.getSelectedNodes();
+	if(!sel.length) return;
+	sel = sel[0];
+	
+	var p = sel;
+	while( p && !p.shareID){
+		p = p.getParentNode();
+	}
+
+	var hash;
+	if( sel.isParent && sel.level>1 ) {
+		hash = getAllFiles(sel).map(function(v){return v.hash});
+	}
+	if( !sel.isParent ) {
+		hash = sel.hash;
+	}
+
+	var fileName, path = getPath(sel);
+	if(!sel.isParent) {
+		fileName = sel.name;
+		path += sel.hash;
+	}
+
+	var data = { person: rootPerson.userid, shareID:p.shareID, text:$('.inputMsg').val(), hash:hash, path:path.split('/'), fileName: fileName };
+
+	$.post(host+'/sendShareMsg', data , function(ret){
+		console.log(ret);
+	});
+	
+}
+
 
 </script>
 
@@ -1237,6 +1289,37 @@ function closeViewDetail () {
 	  padding-bottom: 5px;
 	}
 
+	.fAddShare{
+		display: none;
+	}
+	.msgText{
+		position: fixed;
+		bottom: 8px;
+		width: 100%;
+
+	}
+	.inputMsg{
+    	border: 1px solid #ccc;
+		border-radius: 4px;
+		 height: 88px;
+		 width: 365px;
+		     font: 28px/1 Arail;
+	}
+	.inputBtn{
+	    width: 80px;
+	    height: 44px;
+        vertical-align: top;
+            background-color: rgb(70,183,103);
+	    border: none;
+	    border-radius: 4px;
+	        color: white;
+	    font: 18px/1 "黑体";
+	}
+	.inputBtn.closeBtn{
+		background: none;
+		color: #333;
+		    border: 1px solid #aaa;
+	}
 </style>
 
 </HEAD>
@@ -1279,6 +1362,11 @@ function closeViewDetail () {
 	<div class="msgTree">
 		<ul></ul>
 	</div>
+	<div class="msgText">
+		<textarea class="inputMsg"></textarea>
+		<input class="inputBtn" type="button" value="发送" onclick="sendShareMsg()" />
+		<input class="inputBtn closeBtn" type="button" value="关闭"  onclick="closeViewDetail()" />
+	</div>
 </div>
 
 
@@ -1313,15 +1401,17 @@ function closeViewDetail () {
 	</div>
 
 	<div class="sendMenu">
+		<a class="fAddShare" href="javascript:;" onclick="addShareFiles()">添加文件</a>
 		<a class="fRemove" href="javascript:;" onclick="viewDetail()">查看详情</a>
 	</div>
 
 	<div class="receiveMenu">
+		<a class="fAddShare" href="javascript:;" onclick="addShareFiles()">添加文件</a>
 		<a class="fRemove" href="javascript:;" onclick="viewDetail()">查看详情</a>
 	</div>
 
 	<div class="msgMenu">
-		<a class="fRemove" href="javascript:;" onclick="closeViewDetail()">关闭</a>
+		<a class="fMsgMenu" href="javascript:;" onclick="closeViewDetail()">关闭</a>
 	</div>
 
 

@@ -8,6 +8,7 @@ var _ = require('underscore');
 var assert = require('assert');
 
 var fs = require('fs');
+var util = require('util');
 
 var express = require("express");
 var bodyParser = require("body-parser");
@@ -70,7 +71,7 @@ app.post("/upfile", function (req, res) {
     console.log( 'maxOrder:', maxOrder );
 
 
-    col.update({ hash:data.hash }, { person: person, date: new Date(), client:data.client, title:data.title, path:path, key:data.key, fname:fname, hash:data.hash, type:data.type, fsize:data.fsize, imageWidth:data.imageWidth, imageHeight:data.imageHeight, order:maxOrder } , {upsert:true, w: 1}, function(err, result) {
+    col.update({ hash:data.hash }, { person: person, role:'upfile', date: new Date(), client:data.client, title:data.title, path:path, key:data.key, fname:fname, hash:data.hash, type:data.type, fsize:data.fsize, imageWidth:data.imageWidth, imageHeight:data.imageHeight, order:maxOrder } , {upsert:true, w: 1}, function(err, result) {
         console.log('upfile: ', data, result.result.nModified);
      });
 
@@ -86,7 +87,7 @@ app.post("/getfile", function (req, res) {
   var data = req.body;
   var person = data.person;
 
-  col.find( { person: person } , {limit:2000} ).sort({order:-1, title:1}).toArray(function(err, docs){
+  col.find( { person: person, role:'upfile', status:{$ne:-1} } , {limit:2000} ).sort({order:-1, title:1}).toArray(function(err, docs){
     if(err) {
       res.send('error');
       return;
@@ -116,8 +117,12 @@ app.post("/updatefile", function (req, res) {
   data.forEach(function  (v,i) {
     var newV = _.extend(v, {date:new Date() } );
     newV.order = parseFloat(newV.order);
-    console.log('updatefile:', v.hash, hashArr);
+    newV.role = 'upfile';
+    console.log('updatefile:', v.hash,  newV.order);
     col.update({hash: v.hash}, newV, {upsert:true, w:1}, function  (err, result) {
+      if(err) {
+        res.send('error');return;
+      } 
       var pathPart = breakIntoPath(v.path);
       if(err==null && pathPart.length && hashArr.length ) {
         col.remove({path:{ $in: pathPart }, key:{$in:[null,'']}, hash:{$not:{$in:hashArr}} });
@@ -130,21 +135,23 @@ app.post("/updatefile", function (req, res) {
 
 app.post("/removeFile", function (req, res) {
   var hash = req.body.hash;
-  col.remove({hash: hash});
+  col.update({hash: hash}, {$set:{status:-1}}, {multi:true});
   res.send("delete file ok");
 });
 
 app.post("/removeFolder", function (req, res) {
   var data = req.body;
-  if(data.deleteAll) col.remove({path: new RegExp('^'+ data.path) });
+  if(data.deleteAll) col.update({path: new RegExp('^'+ data.path) }, {$set:{status:-1}}, {multi:true});
   res.send("delete folder ok");
 });
 
 
 app.post("/getShareFrom", function (req, res) {
   var person = req.body.person;
-  col.find( { fromPerson: person } , {limit:500} ).sort({shareID:-1}).toArray(function(err, docs){
-      if(err) return "error";
+  col.find( { 'fromPerson.userid': person, role:'share' } , {limit:500} ).sort({shareID:-1}).toArray(function(err, docs){
+      if(err) {
+        res.send('error');return;
+      }
       var count = docs.length;
       res.send( JSON.stringify(docs) );
   });
@@ -152,15 +159,150 @@ app.post("/getShareFrom", function (req, res) {
 
 app.post("/getShareTo", function (req, res) {
   var person = req.body.person;
-  col.find( { 'toPerson.userid': person } , {limit:500} ).sort({shareID:-1}).toArray(function(err, docs){
-      if(err) return "error";
+  col.find( { 'toPerson.userid': person, role:'share' } , {limit:500} ).sort({shareID:-1}).toArray(function(err, docs){
+      if(err) {
+        res.send('error');return;
+      } 
       var count = docs.length;
       res.send( JSON.stringify(docs) );
   });
 });
 
+app.post("/getShareMsg", function (req, res) {
+  var fromPerson = req.body.fromPerson;
+  var toPerson = req.body.toPerson;
+  var shareID = req.body.shareID;
+  var hash = req.body.hash;
+  var keyword = req.body.keyword;
+  
+  var condition = {  role:'shareMsg', msgtype:'text' };
+  if(shareID) condition.shareID = parseInt(shareID,10);
+  if(fromPerson) condition.fromPerson = fromPerson;
+
+  function getMsg (shareA, hash) {
+      if(!_.isArray(shareA) ) shareA = [shareA];
+      
+      var hashA = [null];
+      if(hash) hashA = hashA.concat(hash);
+      shareA = shareA.map( function(v){ return parseInt(v) } );
+      var condition = {  role:'shareMsg', shareID:{$in:shareA}, hash:{$in:hashA} };
+
+      console.log(hash, condition);
+
+      col.find( condition , {'text.content':1} , {limit:500} ).sort({shareID:1, date:1}).toArray(function(err, docs){
+          if(err) {
+            res.send('error');return;
+          }
+          var count = docs.length;
+          res.send( JSON.stringify(docs) );
+      });
+  }
+
+  if(fromPerson){
+    col.find( { 'fromPerson.userid': fromPerson, role:'share' }, {shareID:1, _id:0} , {limit:500} ).sort({shareID:1}).toArray(function(err, docs){
+        if(err) {
+          res.send('error');return;
+        }
+        var count = docs.length;
+        if(!count){
+          res.send('还没有消息');return;
+        }
+        getMsg( docs.map(function(v){return v.shareID}) );
+    });
+    return;
+  } 
+
+  if(toPerson){
+    col.find( { 'toPerson.userid': toPerson, role:'share' }, {shareID:1, _id:0} , {limit:500} ).sort({shareID:1}).toArray(function(err, docs){
+        if(err) {
+          res.send('error');return;
+        }
+        var count = docs.length;
+        if(!count){
+          res.send('还没有消息');return;
+        }
+        getMsg( docs.map(function(v){return v.shareID}) );
+    });
+    return;
+  } 
+
+  if(shareID) {
+    getMsg(shareID, hash);
+    return;
+  }
+
+
+  res.send('error');
+
+});
+
+
+app.post("/sendShareMsg", function (req, res) {
+  var person = req.body.person;
+  var text = req.body.text;
+  var shareID = parseInt(req.body.shareID);
+  var hash = req.body.hash;
+  var path = req.body.path;
+  var fileName = req.body.fileName;
+
+  if(path) path = path.slice(2);
+  var fileHash = path.pop();
+
+  col.findOne( { role:'share', shareID:shareID }, {}, function(err, data) {
+      if(err) {
+        res.send('error');return;
+      }
+
+      if(!data){
+          res.send('此共享已删除');return;
+        }
+
+      var users = data.fromPerson.concat(data.toPerson).filter(function(v){return v.userid==person});
+      if(!users.length){
+        res.send('没有此组权限');return;
+      }
+
+      //get Target Path segment and A link
+      var host = "http://1111hui.com/pdf/client/tree.html";
+      var pathName = [];
+      path.forEach(function(v,i){
+        var a = '/'+path.slice(0,i+1).join('/')+'/';
+        pathName.push( util.format('<a href="%s?path=%s&dest=share">%s</a>', host, a, v) );
+      });
+      if(fileHash) {
+        var a =  '/'+path.join('/')+'/' + fileHash;
+        pathName.push( util.format('<a href="%s?path=%s&dest=share">%s</a>', host, a, fileName) );
+     }
+
+      var msg = {
+       "touser": data.toPerson.map(function(v){return v.userid}).join('|'),
+       "msgtype": "text",
+       "text": {
+         "content":
+         util.format('%s 对%s 留言：%s',
+            users[0].name,
+            pathName.join('-'),
+            text
+          )
+       },
+       "safe":"0",
+        date : new Date(),
+        role : 'shareMsg',
+        shareID:shareID
+      };
+      if(hash) msg.hash = hash;
+
+      res.send( sendWXMessage(msg) );
+  });
+
+  
+
+});
+
+
 app.post("/shareFile", function (req, res) {
   var data = req.body.data;
+  data = JSON.parse(data);
   data.date = new Date();
 
   col.findOneAndUpdate({role:'config'}, {$inc:{ shareID:1 } }, function  (err, result) {
@@ -171,6 +313,34 @@ app.post("/shareFile", function (req, res) {
     data.role = 'share';
     col.insert(data, {w:1}, function(err, r){
       res.send( {err:err, insertedCount: r.insertedCount } );
+      if(!err){
+        console.log(data.toPerson.map(function(v){return v.userid}).join('|') );
+
+        var msg = {
+         "touser": data.toPerson.map(function(v){return v.userid}).join('|'),
+         "msgtype": "text",
+         "text": {
+           "content":
+           util.format('%s%s分享了 %d 个文档：%s，收件人：%s%s\n共享ID：%d',
+              data.isSign ? "【请求签名】" : "",
+              data.fromPerson.map(function(v){return '<a href="http://www.baidu.com/">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
+              data.files.length,
+              data.files.map(function(v){return '<a href="http://www.baidu.com/">'+v.title+'</a>'}).join('，'),
+              data.selectRange.map(function(v){
+                return v.depart? '<a href="http://www.baidu.com/">'+v.depart+'-'+v.name+'</a>' : '<a href="http://www.baidu.com/">【'+v.name+'】</a>' }).join('；'),
+              data.msg ? '，附言：\n'+data.msg : '',
+              shareID
+            )
+         },
+         "safe":"0",
+          date : new Date(),
+          role : 'shareMsg',
+          shareID:shareID
+        };
+
+        res.send( sendWXMessage(msg) );
+
+      }
     });
 
   } );
@@ -178,6 +348,27 @@ app.post("/shareFile", function (req, res) {
 
 });
 
+
+function sendWXMessage (msg) {
+  
+  col.insert(msg);
+
+  var msgTo = {};
+  if(msg.touser) msgTo.touser = msg.touser;
+  if(msg.toparty) msgTo.toparty = msg.toparty;
+  if(msg.totag) msgTo.totag = msg.totag;
+  delete msg.touser;
+  delete msg.toparty;
+  delete msg.totag;
+
+  api.send(msgTo, msg, function  (err, result) {
+    if(err){
+      return ('error');
+    }
+    console.log(result);
+    return "OK";
+  });
+}
 
 app.listen(88);
 console.log("Listening");
