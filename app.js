@@ -122,7 +122,7 @@ app.post("/updatefile", function (req, res) {
     col.update({hash: v.hash}, newV, {upsert:true, w:1}, function  (err, result) {
       if(err) {
         res.send('error');return;
-      } 
+      }
       var pathPart = breakIntoPath(v.path);
       if(err==null && pathPart.length && hashArr.length ) {
         col.remove({path:{ $in: pathPart }, key:{$in:[null,'']}, hash:{$not:{$in:hashArr}} });
@@ -162,7 +162,7 @@ app.post("/getShareTo", function (req, res) {
   col.find( { 'toPerson.userid': person, role:'share' } , {limit:500} ).sort({shareID:-1}).toArray(function(err, docs){
       if(err) {
         res.send('error');return;
-      } 
+      }
       var count = docs.length;
       res.send( JSON.stringify(docs) );
   });
@@ -174,14 +174,14 @@ app.post("/getShareMsg", function (req, res) {
   var shareID = req.body.shareID;
   var hash = req.body.hash;
   var keyword = req.body.keyword;
-  
+
   var condition = {  role:'shareMsg', msgtype:'text' };
   if(shareID) condition.shareID = parseInt(shareID,10);
   if(fromPerson) condition.fromPerson = fromPerson;
 
   function getMsg (shareA, hash) {
       if(!_.isArray(shareA) ) shareA = [shareA];
-      
+
       var hashA = [null];
       if(hash) hashA = hashA.concat(hash);
       shareA = shareA.map( function(v){ return parseInt(v) } );
@@ -210,7 +210,7 @@ app.post("/getShareMsg", function (req, res) {
         getMsg( docs.map(function(v){return v.shareID}) );
     });
     return;
-  } 
+  }
 
   if(toPerson){
     col.find( { 'toPerson.userid': toPerson, role:'share' }, {shareID:1, _id:0} , {limit:500} ).sort({shareID:1}).toArray(function(err, docs){
@@ -224,7 +224,7 @@ app.post("/getShareMsg", function (req, res) {
         getMsg( docs.map(function(v){return v.shareID}) );
     });
     return;
-  } 
+  }
 
   if(shareID) {
     getMsg(shareID, hash);
@@ -274,11 +274,14 @@ app.post("/sendShareMsg", function (req, res) {
         pathName.push( util.format('<a href="%s?path=%s&dest=share">%s</a>', host, encodeURIComponent(a), fileName) );
      }
 
-     // get OverAllink 
+     // get OverAllink
       var a = '/'+path.join('/')+'/';
-      var link = '';
-      if(fileName && hash ) link = a+hash;
-     var overAllPath = util.format('<a href="%s?path=%s&dest=share">%s</a>', host, encodeURIComponent(link), a+fileName ) ;
+      var link = a;
+      if(fileName && hash ){
+      	link = a+hash;
+      	a = a +fileName;
+      }
+     var overAllPath = util.format('<a href="%s?path=%s&dest=share">%s</a>', host, encodeURIComponent(link), a ) ;
 
       var msg = {
        "touser": data.toPerson.map(function(v){return v.userid}).join('|'),
@@ -301,7 +304,7 @@ app.post("/sendShareMsg", function (req, res) {
       res.send( sendWXMessage(msg) );
   });
 
-  
+
 
 });
 
@@ -356,7 +359,7 @@ app.post("/shareFile", function (req, res) {
 
 
 function sendWXMessage (msg) {
-  
+
   col.insert(msg);
 
   var msgTo = {};
