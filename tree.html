@@ -313,10 +313,10 @@ var formatDate = function(format) {
 			if(!pNode) return false;
 			if(targetNode.isSend || targetNode.isReceive) return false;
 
-			if (pNode && !pNode.isParent ) {
+			if ( pNode && !pNode.isParent ) {
 				return false;
 			} else {
-				if(checkLeaf(nodes) && pNode.level==0) return false;
+				if(checkLeaf(nodes) && pNode.level==0 && !(nodes.length==1 && nodes[0].level==1 ) ) return false;
 
 				for (var i=0,l=curDragNodes.length; i<l; i++) {
 					var curPNode = curDragNodes[i].getParentNode();
@@ -356,7 +356,7 @@ var formatDate = function(format) {
 			if (pNode && !pNode.isParent) {
 				return false;
 			} else {
-				if(checkLeaf(nodes) && pNode.level==0) return false;
+				if(checkLeaf(nodes) && pNode.level==0  && !(nodes.length==1 && nodes[0].level==1 ) ) return false;
 
 				for (var i=0,l=curDragNodes.length; i<l; i++) {
 					var curPNode = curDragNodes[i].getParentNode();
@@ -604,15 +604,24 @@ getFilesData();
 
 function locateNode(rootNode, path){
 	if( !rootNode ) return;
-	path = '/'+rootNode.name+path;
-	var targetNode = treeObj.getNodesByFilter(function(node){
-		var p = getPath(node);
-		if(!p.isParent)p += node.hash;
-		return p==path;
-	}, true, rootNode);
+	var targetNode;
+	if(path[0]=='/'){
+		path = '/'+rootNode.name+path;
+		targetNode = treeObj.getNodesByFilter(function(node){
+			var p = getPath(node);
+			if(!p.isParent)p += node.key;
+			console.log(p,path);
+			return p==path;
+		}, true, rootNode);
+	}else{
+		targetNode = treeObj.getNodesByFilter(function(node){
+			return node.key==path;
+		}, true, rootNode);
+	}
 	if( targetNode ) {
 		treeObj.selectNode(targetNode);
 		updateMenu(targetNode);
+		$('#'+targetNode.tId).get(0).scrollIntoView();
 	}
 }
 

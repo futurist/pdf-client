@@ -1,6 +1,14 @@
 
+
+// require header
+
+var qiniu = require('qiniu');
+var moment = require('moment');
+var path = require('path');
+
 var spawn = require('child_process').spawn;
 var exec = require('child_process').exec;
+var fork = require('child_process').fork;
 
 var MongoClient = require('mongodb').MongoClient;
 var ObjectID = require('mongodb').ObjectID;
@@ -9,10 +17,63 @@ var assert = require('assert');
 
 var fs = require('fs');
 var util = require('util');
+var url = require('url');
 
 var express = require("express");
 var bodyParser = require("body-parser");
 var multer = require("multer");
+
+
+
+qiniu.conf.ACCESS_KEY = '2hF3mJ59eoNP-RyqiKKAheQ3_PoZ_Y3ltFpxXP0K';
+qiniu.conf.SECRET_KEY = 'xvZ15BIIgJbKiBySTV3SHrAdPDeGQyGu_qJNbsfB';
+
+function qiniu_uploadFile(file, callback ){
+
+	var ext = path.extname(file);
+	var saveFile = path.basename(file); //formatDate('yyyymmdd-hhiiss') + Math.random().toString().slice(1,5) + ext;
+
+	var responseBody =
+	{
+		"key":"$(key)",
+		"hash":"$(hash)",
+		"imageWidth":"$(imageInfo.width)",
+		"imageHeight":"$(imageInfo.height)",
+		type:"$(type)",
+		// client:client,
+		// title:title,
+		fname:"$(fname)",
+		fsize:"$(fsize)"
+	};
+
+	var putPolicy = new qiniu.rs.PutPolicy(
+		'bucket01',
+		null,
+		null,
+		null,
+		JSON.stringify( responseBody )
+	);
+
+	var uptoken = putPolicy.token();
+
+	console.log( uptoken,saveFile, file );
+
+	qiniu.io.putFile(uptoken, saveFile, file, null, function(err, ret) {
+	  console.log(err, ret);
+
+	  // ret.person = "yangjiming";
+	  // ret.savePath = savePath;
+	  //ret.path = "/abc/";
+	  callback( ret );
+
+	});
+
+}
+
+
+
+
+
 var app = express();
 
 app.use(bodyParser.urlencoded({limit: '2mb', extended: true })); // for parsing application/x-www-form-urlencoded
@@ -20,6 +81,7 @@ app.use(bodyParser.json({limit: '2mb'}));
 
 app.use(multer()); // for parsing multipart/form-data
 
+var DOWNLOAD_DIR = './downloads/';
 
 
 var allowCrossDomain = function(req, res, next) {
@@ -55,12 +117,14 @@ app.post("/pdf", function (req, res) {
 });
 
 
-app.post("/upfile", function (req, res) {
-  var data = req.body;
+
+function upfileFunc(data, callback) {
   var person = data.person;
-  var path = '/';   //first upload to root path
+  var savePath = data.savePath || data.path || '/';   //first upload to root path
   var fname = data.fname;
   var maxOrder = 0;
+
+  console.log(data);
 
   col.find( { person: person } , {limit:2000} ).sort({order:-1}).limit(1).nextObject(function(err, item) {
     if(err) {
@@ -70,17 +134,126 @@ app.post("/upfile", function (req, res) {
     maxOrder = item? item.order+1 : 1;
     console.log( 'maxOrder:', maxOrder );
 
-
-    col.update({ hash:data.hash }, { person: person, role:'upfile', date: new Date(), client:data.client, title:data.title, path:path, key:data.key, fname:fname, hash:data.hash, type:data.type, fsize:data.fsize, imageWidth:data.imageWidth, imageHeight:data.imageHeight, order:maxOrder } , {upsert:true, w: 1}, function(err, result) {
-        console.log('upfile: ', data, result.result.nModified);
+    var newData = { person: person, role:'upfile', date: new Date(), client:data.client, title:data.title, path:savePath, key:data.key, fname:fname, hash:data.hash, type:data.type, fsize:data.fsize, imageWidth:data.imageWidth, imageHeight:data.imageHeight, order:maxOrder };
+    
+    col.update({ hash:data.hash }, newData , {upsert:true, w: 1}, function(err, result) {
+        console.log('upfile: ', newData.hash, newData.key, result.result.nModified);
+        callback( newData );
      });
 
-    res.send(path+fname);
-
   });
+}
+
+app.post("/upfile", function (req, res) {
+
+	upfileFunc(req.body, function(ret){
+		res.send( JSON.stringify(ret) );
+	});
+	
+} );
+
+app.post("/rotateFile", function (req, res) {
+	var data = req.body;
+	var oldFile, newFile;
+	var file_url = data.url;
+	var jsonp = data.callback;
+	var dir = data.dir;
+	if( "LRD".indexOf(dir)==-1 || !file_url.match(/\.pdf$/) ) {
+		res.send("非法参数");
+		return;
+	}
+
+    // extract the file name
+    var file_name = url.parse(file_url).pathname.split('/').pop();
+    //var newName = file_name.replace(/(\(.*\))?\.pdf$/, '('+ 90 +').pdf' );
+    var oldRotate = file_name.match(/(\(.*\))?\.pdf$/)[1];
+    oldRotate = oldRotate ? parseInt(oldRotate.replace('(','')) : 0;
+
+    var newRotate = dir=="L"?oldRotate-90 : (dir=="R"?oldRotate+90: oldRotate+180 );
+    newRotate = (newRotate+3600)%360;
+
+    var dirName= dir=="L"?"左旋" : (dir=="R"?"右旋":"颠倒");	    
+    var newName = file_name.replace(/(\(.*\))?\.pdf$/, newRotate==0 ? '.pdf' : '('+ newRotate +').pdf' );
+
+    col.findOne({role:'upfile', key: file_name }, function(err, item){
+    	if(item){
+    		oldFile = item;
+    		col.findOne({role:'upfile', key: newName }, function(err2, item2){
+    			if(item2){
+	    			newFile = item2;
+	    			console.log('exist rotate,', newName);
+	    			res.send( JSON.stringify(newFile) );
+					return;
+	    		} else {
+					var child = exec('rm -rf '+DOWNLOAD_DIR+'; mkdir -p ' + DOWNLOAD_DIR, function(err, stdout, stderr) {
+					    if (err) throw err;
+					    else download_file_wget(file_url);
+					});
+	    		}
+    		});
+    	} else {
+    		res.send("非法参数");
+			return;
+    	}
+    });
+
+	// Function to download file using wget
+	var download_file_wget = function(file_url) {
+
+
+	    function upToQiniu(){
+
+		    // compose the wget command
+		    var wget = 'wget -P ' + DOWNLOAD_DIR + ' "' + file_url+'"';
+		    // excute wget using child_process' exec function
+
+		    var child = exec(wget, function(err, stdout, stderr) {
+		        if (err){ throw err; return; }
+		        else console.log(file_name + ' downloaded to ' + DOWNLOAD_DIR);
+
+		        var pdftk = exec('pdftk "'+ DOWNLOAD_DIR+file_name +'" cat 1-end'+dir+' output "'+DOWNLOAD_DIR+newName+'"' , function(err, stdout, stderr) {
+		        	if (err){ throw err; return; }
+		        	else console.log('rotate ok '+newName);
+		        	//res.send('ok');
+		        	qiniu_uploadFile(DOWNLOAD_DIR+newName, function(ret){
+						
+
+		        		if(!ret.error){
+			        		ret.person = oldFile.person;
+			        		ret.client = oldFile.client;
+			        		ret.title = oldFile.title+'('+dirName+')';
+			        		ret.path = oldFile.path;
+			        	} else if ( ret.error.match(/file exists/) ) {
+			        		// file exists or other error 
+							delete oldFile._id;
+							oldFile.date = new Date();
+							oldFile.key = newName;
+							oldFile.fname = newName;
+							oldFile.title += '('+dirName+')';
+				        	oldFile.hash = ret.hash? ret.hash : +new Date()+Math.random();
+				        	ret = oldFile;
+				        	console.log('ret:', ret)
+			        	}
+			        	
+
+	        			upfileFunc(ret, function(ret2){
+	        				res.send( JSON.stringify(ret2)  );
+	        			});
+		        		
+		        		return;
+
+		        	} );
+		        });
+		    });
+		}
+		upToQiniu();
+	};
 
 
 });
+
+
+
 
 
 app.post("/getfile", function (req, res) {
