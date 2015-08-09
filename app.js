@@ -135,7 +135,7 @@ function upfileFunc(data, callback) {
     console.log( 'maxOrder:', maxOrder );
 
     var newData = { person: person, role:'upfile', date: new Date(), client:data.client, title:data.title, path:savePath, key:data.key, fname:fname, hash:data.hash, type:data.type, fsize:data.fsize, imageWidth:data.imageWidth, imageHeight:data.imageHeight, order:maxOrder };
-    
+
     col.update({ hash:data.hash }, newData , {upsert:true, w: 1}, function(err, result) {
         console.log('upfile: ', newData.hash, newData.key, result.result.nModified);
         callback( newData );
@@ -149,7 +149,7 @@ app.post("/upfile", function (req, res) {
 	upfileFunc(req.body, function(ret){
 		res.send( JSON.stringify(ret) );
 	});
-	
+
 } );
 
 app.post("/rotateFile", function (req, res) {
@@ -172,7 +172,7 @@ app.post("/rotateFile", function (req, res) {
     var newRotate = dir=="L"?oldRotate-90 : (dir=="R"?oldRotate+90: oldRotate+180 );
     newRotate = (newRotate+3600)%360;
 
-    var dirName= dir=="L"?"左旋" : (dir=="R"?"右旋":"颠倒");	    
+    var dirName= dir=="L"?"左旋" : (dir=="R"?"右旋":"颠倒");
     var newName = file_name.replace(/(\(.*\))?\.pdf$/, newRotate==0 ? '.pdf' : '('+ newRotate +').pdf' );
 
     col.findOne({role:'upfile', key: file_name }, function(err, item){
@@ -216,7 +216,7 @@ app.post("/rotateFile", function (req, res) {
 		        	else console.log('rotate ok '+newName);
 		        	//res.send('ok');
 		        	qiniu_uploadFile(DOWNLOAD_DIR+newName, function(ret){
-						
+
 
 		        		if(!ret.error){
 			        		ret.person = oldFile.person;
@@ -224,7 +224,7 @@ app.post("/rotateFile", function (req, res) {
 			        		ret.title = oldFile.title+'('+dirName+')';
 			        		ret.path = oldFile.path;
 			        	} else if ( ret.error.match(/file exists/) ) {
-			        		// file exists or other error 
+			        		// file exists or other error
 							delete oldFile._id;
 							oldFile.date = new Date();
 							oldFile.key = newName;
@@ -234,12 +234,12 @@ app.post("/rotateFile", function (req, res) {
 				        	ret = oldFile;
 				        	console.log('ret:', ret)
 			        	}
-			        	
+
 
 	        			upfileFunc(ret, function(ret2){
 	        				res.send( JSON.stringify(ret2)  );
 	        			});
-		        		
+
 		        		return;
 
 		        	} );
@@ -318,6 +318,98 @@ app.post("/removeFolder", function (req, res) {
   res.send("delete folder ok");
 });
 
+app.post("/saveCanvas", function (req, res) {
+  var data = req.body.data;
+  var file = req.body.file;
+  var shareID = parseInt( req.body.shareID );
+
+  var filename = url.parse(file).pathname.split('/').pop();
+  if(!shareID){
+    col.update({role:'upfile', key:filename }, { $set: { drawData:data }  }, function(err, result){
+      res.send(err);
+    } );
+  } else{
+    col.update({role:'share', shareID:shareID, 'files.key':filename }, { $set: { 'files.$.drawData':data }  }, function(err, result){
+      res.send(err);
+    } );
+  }
+
+});
+
+
+app.post("/getSavedSign", function (req, res) {
+  var file = req.body.file;
+  var shareID = parseInt( req.body.shareID );
+  try{
+    var filename = url.parse(file).pathname.split('/').pop();
+  }catch(e){
+    res.send("");return;
+  }
+  if(!shareID){
+    res.send("");return;
+  } else{
+    col.find({role:'sign', shareID:shareID, file:file, signData:{$ne:null} }, {sort:{signData:1}}).toArray(function(err, docs){
+      if(err){ res.send("");return; }
+      var ids = docs.map(function  (v) {
+        return new ObjectID( v.signData );
+      });
+
+      col.find({_id:{$in:ids}}, {sort:{_id:1}}).toArray(function (err, items) {
+        docs.forEach(function  (v,i) {
+          var t = items.filter(function(x){
+            return x._id.toHexString() == v.signData.toHexString()
+          });
+          v.sign = t[0];
+        });
+        res.send(docs);
+      });
+
+    } );
+  }
+
+});
+
+
+app.post("/getCanvas", function (req, res) {
+  var file = req.body.file;
+  var shareID = parseInt( req.body.shareID );
+  try{
+    var filename = url.parse(file).pathname.split('/').pop();
+  }catch(e){
+    res.send("[]");return;
+  }
+  if(!shareID){
+    col.findOne({role:'upfile', key:filename }, function(err, result){
+      if(!result){ res.send("[]");return; }
+      res.send(result.drawData || "[]");
+    } );
+  } else{
+    // below we want project result in array that only one element, like $elemMatch, see:
+    //  http://stackoverflow.com/questions/29092265/elemmatch-search-on-array-of-subdocument
+    col.findOne({role:'share', shareID:shareID, 'files.key':filename }, {fields: {'files.key.$':1} }, function(err, result){
+      if(!result){ res.send("[]");return; }
+      // var files = result.files.filter(function(v){
+      //   return v.key == filename;
+      // });
+      res.send(result.files[0].drawData || "[]");
+    } );
+  }
+
+});
+
+
+
+
+app.post("/getShareData", function (req, res) {
+  var shareID = eval(req.body.shareID);
+  col.findOne( { 'shareID': shareID, role:'share' } , {limit:500} , function(err, item){
+      if(err) {
+        res.send('');return;
+      }
+      res.send( item );
+  });
+});
+
 
 app.post("/getShareFrom", function (req, res) {
   var person = req.body.person;
@@ -344,7 +436,7 @@ app.post("/getShareTo", function (req, res) {
 app.post("/getShareMsg", function (req, res) {
   var fromPerson = req.body.fromPerson;
   var toPerson = req.body.toPerson;
-  var shareID = req.body.shareID;
+  var shareID = parseInt(req.body.shareID);
   var hash = req.body.hash;
   var keyword = req.body.keyword;
 
@@ -407,6 +499,102 @@ app.post("/getShareMsg", function (req, res) {
 
   res.send('error');
 
+});
+
+app.post("/beginSign", function (req, res) {
+  var data =  req.body.data;
+  var signPerson = data.signPerson;
+  var shareID = parseInt(data.shareID);
+  var file = data.file;
+  var page = data.page;
+  var pos = data.pos;
+  var isMobile = data.isMobile;
+
+  data.isMobile = eval(data.isMobile);
+  data.shareID = eval(data.shareID);
+  data.page = eval(data.page);
+  data.scale = eval(data.scale);
+  data.role = 'sign';
+  data.date = new Date();
+
+  col.insertOne(data, {w:1}, function(err,result){
+    var id = result.insertedId;
+    res.send(id);
+  });
+
+});
+
+app.post("/deleteSign", function (req, res) {
+  var id =  req.body.id;
+  col.deleteOne({_id:new ObjectID(id) });
+  res.send('OK');
+});
+
+app.post("/finishSign", function (req, res) {
+  var shareID =  eval(req.body.shareID);
+  var person =  req.body.person;
+  col.update({role:'share', shareID:shareID, 'toPerson.userid':person }, {$set: {  'toPerson.$.isSigned':true  } } ) ;
+  res.send('OK');
+});
+
+
+
+app.post("/saveSign", function (req, res) {
+  var data =  req.body.data;
+  var signID =  req.body.signID;
+  var hisID =  req.body.hisID;
+  var width =  eval(req.body.width);
+  var height =  eval(req.body.height);
+  var person;
+
+
+    col.findOne({role:'sign', _id:new ObjectID(signID)}, function(err, item){
+      if(err || !item){
+        res.send(""); return;
+      }
+      person = item.signPerson;
+
+      function insertHis(id){
+        col.update({ _id:new ObjectID(signID) }, {$set:{signData: new ObjectID(id) } }, {w:1}, function(err, result){
+          res.send( item );
+        });
+      }
+
+      if(hisID){
+        insertHis(hisID);
+      }else{
+
+        col.insertOne( {role:'signBase', person:person, signData: data, width:width, height:height, date:new Date() }, {w:1}, function(err, result){
+          // WHEN upserted, Will get insertID like this:
+          // var id = result.upsertedCount ? result.upsertedId._id : 0;
+          var id = result.insertedId;
+          insertHis(id);
+
+        });
+      }
+
+    });
+
+
+});
+
+
+app.post("/getSignHistory", function (req, res) {
+  var signID =  req.body.signID;
+  var person;
+
+  col.findOne({role:'sign', _id:new ObjectID(signID)}, function(err, item){
+    if(err || !item){
+      res.send(""); return;
+    }
+    person = item.signPerson;
+    col.find({role:'signBase', person:person}, {limit:5, sort:{date:-1} }).toArray(function(err, docs){
+      if(err || !docs.length){
+        res.send(""); return;
+      }
+      res.send( docs );
+    });
+  });
 });
 
 
@@ -709,6 +897,8 @@ wechat(config, wechat
 .text(function (message, req, res, next) {
   console.log(message);
 
+  res.reply(message);
+  return;
 
   res.reply([
   {

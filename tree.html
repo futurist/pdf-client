@@ -492,7 +492,10 @@ var formatDate = function(format) {
 			return false;
 		}
 		function onDblClick(event, treeId, treeNode) {
-			sendClientMsg(treeNode.key, treeNode.title);
+			var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
+			shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
+
+			sendClientMsg(treeNode.key + shareStr, treeNode.title);
 		}
 
 
@@ -514,7 +517,9 @@ var formatDate = function(format) {
 			if(curSrcNode) return;
 
 			if(!treeNode.isParent) {
-				$('.fView').attr( 'href', ('http://1111hui.com/pdf/webpdf/viewer.html?file=http://7xkeim.com1.z0.glb.clouddn.com/'+treeNode.key) );
+				var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
+				shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
+				$('.fView').attr( 'href', ('http://1111hui.com/pdf/webpdf/viewer.html?file=http://7xkeim.com1.z0.glb.clouddn.com/'+treeNode.key+shareStr) );
 			}
 
 			updateMenu(treeNode);
@@ -572,7 +577,7 @@ function getFilesData () {
 
 		init(data);
 
-		if(!query.dest){
+		if(!query.shareID){
 			locateNode( treeObj.getNodes()[0], query.path );
 		}
 
@@ -581,13 +586,13 @@ function getFilesData () {
 
 		$.post(host+'/getShareFrom', {person:rootPerson.userid}, function  (data) {
 			initShareFrom(JSON.parse(data));
-			if(query.dest){
-				locateNode(sendRoot, query.path );
+			if(query.shareID){
+				locateNode(sendRoot, query.path, query.shareID );
 			}
 			$.post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
 				initShareTo(JSON.parse(data));
-				if(query.dest){
-					locateNode(receiveRoot, query.path );
+				if(query.shareID){
+					locateNode(receiveRoot, query.path, query.shareID );
 				}
 
 			});
@@ -602,20 +607,19 @@ function getFilesData () {
 getFilesData();
 
 
-function locateNode(rootNode, path){
-	if( !rootNode ) return;
+function locateNode(rootNode, path, shareID){
+	if( !rootNode || !path ) return;
 	var targetNode;
 	if(path[0]=='/'){
 		path = '/'+rootNode.name+path;
 		targetNode = treeObj.getNodesByFilter(function(node){
 			var p = getPath(node);
 			if(!p.isParent)p += node.key;
-			console.log(p,path);
 			return p==path;
 		}, true, rootNode);
 	}else{
 		targetNode = treeObj.getNodesByFilter(function(node){
-			return node.key==path;
+			return  node.key==path && (!shareID? 1 : shareID==getShareID(node) ) ;
 		}, true, rootNode);
 	}
 	if( targetNode ) {
@@ -636,11 +640,15 @@ function initShareFrom (data) {
 	for(var i=0; i<data.length; i++){
 		var shareID = data[i].shareID;
 		var files = data[i].files;
+		var isSign = data[i].isSign;
 		var msg = data[i].msg||'';
 		files.forEach(function(v){
 			v.path = v.path.replace(/{{shareName}}/, '共享-'+shareID+' '+(msg) );
+			v.isSign = isSign;
+			v.shareID = shareID;
 			pathToObj( v );
 			root[root.length-1].shareID = shareID;
+			root[root.length-1].isSign = isSign;
 		});
 	}
 
@@ -660,11 +668,15 @@ function initShareTo (data) {
 	for(var i=0; i<data.length; i++){
 		var shareID = data[i].shareID;
 		var files = data[i].files;
+		var isSign = data[i].isSign;
 		var msg = data[i].msg||'';
 		files.forEach(function(v){
 			v.path = v.path.replace(/{{shareName}}/, '共享-'+shareID+' '+(msg));
+			v.isSign = isSign;
+			v.shareID = shareID;
 			pathToObj( v );
 			root[root.length-1].shareID = shareID;
+			root[root.length-1].isSign = isSign;
 		});
 	}
 
@@ -893,7 +905,7 @@ function breakIntoPath(path){
 			} else if (curType === "copy") {
 				targetNode = zTree.copyNode(targetNode, curSrcNode, "inner");
 			} else if (curType === "cut") {
-	
+
 				if(targetNode.isSend || targetNode.isReceive){
 					return false;
 				}
@@ -940,7 +952,7 @@ function breakIntoPath(path){
 					if(!targetNode.isParent){
 						$('.fView').show();
 					} else {
-						$('.fView').hide(); 
+						$('.fView').hide();
 					}
 					return;
 				}
@@ -1161,7 +1173,7 @@ function viewDetail () {
 		condition.hash = [sel.hash];
 	}
 
-	$('.msgTree ul').empty();	
+	$('.msgTree ul').empty();
 	$.post(host+'/getShareMsg', condition , function(data){
 		data = JSON.parse(data);
 
@@ -1169,7 +1181,7 @@ function viewDetail () {
 			var li = $('<li>'+ v.text.content +'</li>');
 			$('.msgTree ul').append(li);
 		});
-	});	
+	});
 }
 
 function closeViewDetail () {
@@ -1186,11 +1198,18 @@ function addShareFiles () {
 
 }
 
+function getShareID(p){
+	while( p && !p.shareID){
+		p = p.getParentNode();
+	}
+	return p.shareID;
+}
+
 function sendShareMsg () {
 	var sel = treeObj.getSelectedNodes();
 	if(!sel.length) return;
 	sel = sel[0];
-	
+
 	var p = sel;
 	while( p && !p.shareID){
 		p = p.getParentNode();
@@ -1215,7 +1234,7 @@ function sendShareMsg () {
 	$.post(host+'/sendShareMsg', data , function(ret){
 		console.log(ret);
 	});
-	
+
 }
 
 
@@ -1462,6 +1481,7 @@ function searchToObject(search) {
 
 	<div class="receiveMenu">
 		<a class="fAddShare" href="javascript:;" onclick="addShareFiles()">添加文件</a>
+		<a class="fView" href="javascript:;">查看文件</a>
 		<a class="fRemove" href="javascript:;" onclick="viewDetail()">消息记录</a>
 	</div>
 
