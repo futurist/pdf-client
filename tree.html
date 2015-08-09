@@ -11,9 +11,11 @@
 
 	<link rel="stylesheet" href="./css/zTreeStyle/zTreeStyle.css" type="text/css">
 	<link rel="stylesheet" href="./js/dialog.css" type="text/css">
-	<script type="text/javascript" src="./js/jquery-1.4.4.min.js"></script>
+	<!--script type="text/javascript" src="./js/jquery-1.4.4.min.js"></script-->
+	<script type="text/javascript" src="http://1111hui.com/js/jquery.js"></script>
 	<script type="text/javascript" src="./js/jquery.ztree.all-3.5.js"></script>
 	<script type="text/javascript" src="./js/dialog.build.js"></script>
+	<script type="text/javascript" src="./js/draggable.js"></script>
 	<!--  <script type="text/javascript" src="./js/jquery.ztree.excheck-3.5.js"></script>
 	  <script type="text/javascript" src="./js/jquery.ztree.exedit-3.5.js"></script>-->
 
@@ -982,6 +984,10 @@ function breakIntoPath(path){
 
 <script type="text/javascript">
 
+
+window.flowData = null;
+window.curFlow = null;
+
 var companyTree = null;
 var companyNode = null;
 var companySetting = {
@@ -1013,6 +1019,40 @@ $(function  () {
 		companyTree = $.fn.zTree.init($("#companyTree"), companySetting, companyNode);
 	});
 
+	$.post(host+'/getFlowList', { }, function  (data) {
+		if(!data)return;
+		window.flowData = data;
+		var sel = $('.flowSelect');
+		data.forEach(function  (v) {
+			var option = $('<option value="'+v.name+'">'+v.name+'</option>');
+			sel.append(option);
+		});
+		sel.change(function  (e) {
+			var id=this.selectedIndex-1;
+			if(id<0){
+				$('.flowPerson').empty();
+				return;
+			}
+			window.curFlow = window.flowData[id];
+			var persons = window.curFlow.flowPerson;
+			var list = persons.map(function  (v) {
+				return '<a href="http://www.baidu.com/">['+v.depart+ ']' +v.name+'</a>';
+			});
+
+			$('.flowPerson').empty().append( list.join('->') );
+		});
+	});
+
+	$('#isSign').change(function  () {
+		if( $(this).prop('checked') ){
+			$('.flowCon, .flowPerson').show();
+		} else {
+			$('.flowCon, .flowPerson').hide();
+		}
+	});
+
+	
+
 	$('.dialog-confirm').bind('click', function  (e) {
 		e.preventDefault();
 		shareNode();
@@ -1043,28 +1083,39 @@ function hideShare () {
 	curTree = treeObj;
 }
 
+
+
+var optionsDrag = {
+  limit: function (x,y,x0,y0) {
+  	return {x:x, y:y};
+  },
+  setCursor: 'move',
+  setPosition:false,
+  useGPU:false,
+  calcXY: function(me){
+  	console.log(me);
+    return {
+      left: parseInt( getComputedStyle(me.element).left ),
+      top: parseInt( getComputedStyle(me.element).top )
+    }
+  },
+  onDrag: function (element, x, y, e) {
+    $(element).css('left', x);
+    $(element).css('top', y);
+    $('.signPadHandler').css('left', x+$(element).width());
+    $('.signPadHandler').css('top', y+$(element).height());
+  }
+};
+
 function shareNodePre(e){
 
 	if( !companyTree.getCheckedNodes().length ){
 		alert("请先选择分享目标");
 		return;
 	}
-	$('#shareMsg').val('');
-	$( "#mydialog" ).trigger( "dialog-open" );
-	return false;
 
-}
-
-function shareNode(){
-
-
-	var msg = $('#shareMsg').val();
-	var isSign = $('#isSign').is(':checked');
-	curTree = treeObj;
-	var sel = treeObj.getSelectedNodes()[0];
-	var files = getAllFiles(sel);
-	if(sel.isParent) files.forEach(function(v){ v.path = v.path.replace( getPath(sel), '/{{shareName}}/') });
-	else sel.path = '/{{shareName}}/';
+	$('#isSign').prop('checked', false);
+	$('.flowCon, .flowPerson').hide();
 
 	curTree = companyTree;
 	var nodes = companyTree.getCheckedNodes();
@@ -1073,6 +1124,49 @@ function shareNode(){
 	stuffs = stuffs.map( function(v){
 		return {name: v.name, userid: v.userid, depart: v.getParentNode().name }
 	} );
+
+	var ul = $('#flowList ul');
+	ul.empty();
+	ul.hide();
+	stuffs.forEach(function  (v) {
+		var li = $('<li>'+ v.name +'</li>');
+		li.data('userid', v.userid);
+		li.data('depart', v.depart);
+		li.addClass('noselect');
+		ul.append( li );
+	});
+
+	$('#shareMsg').val('');
+	$( "#mydialog" ).trigger( "dialog-open" );
+	return false;
+
+}
+
+function beginFlow () {
+	$('#isSign').prop('checked', true);
+	$('.flowCon, .flowPerson').show();
+
+	$('#shareMsg').val('');
+	$( "#mydialog" ).trigger( "dialog-open" );
+}
+
+function shareNode(){
+
+
+	var msg = $('#shareMsg').val();
+	var isSign = $('#isSign').is(':checked');
+	var flowName = isSign? $('.flowSelect').val() : '';
+	if(isSign&&!flowName) {
+		alert('请选择流程');
+		return;
+	}
+	
+	curTree = treeObj;
+	var sel = treeObj.getSelectedNodes()[0];
+	var files = getAllFiles(sel);
+	if(sel.isParent) files.forEach(function(v){ v.path = v.path.replace( getPath(sel), '/{{shareName}}/') });
+	else sel.path = '/{{shareName}}/';
+
 
 	var fileArr = [];
 	$.each(files, function  (i,v) {
@@ -1084,36 +1178,55 @@ function shareNode(){
 	});
 
 
-	// get Selected Folder & Files, exclude all redundant file
-	var fullCheckedFolder = companyTree.getNodesByFilter(function(node){ return node.check_Child_State==2 && node.checked }  );
-	fullCheckedFolder.forEach(function  (v) {
-		getAllFiles(v).forEach(function  (n) {
-			var idx = nodes.indexOf(n);
-			if(idx>-1) nodes.splice(idx,1);
+	if(!isSign){
+
+		curTree = companyTree;
+		var nodes = companyTree.getCheckedNodes();
+		var stuffs =  getAllFiles(nodes);
+
+		stuffs = stuffs.map( function(v){
+			return {name: v.name, userid: v.userid, depart: v.getParentNode().name }
+		} );
+		
+		// get Selected Folder & Files, exclude all redundant file
+		var fullCheckedFolder = companyTree.getNodesByFilter(function(node){ return node.check_Child_State==2 && node.checked }  );
+		fullCheckedFolder.forEach(function  (v) {
+			getAllFiles(v).forEach(function  (n) {
+				var idx = nodes.indexOf(n);
+				if(idx>-1) nodes.splice(idx,1);
+			});
 		});
-	});
 
-	var selectRange=[];
-	var stuffKeys = ['userid', 'name'];
-	nodes.forEach(function(v){
-		var obj = {};
-		if(v.isParent){
-			obj.name = v.name;
-			obj.depart = null;
-		} else {
-			obj.userid=v.userid;
-			obj.name=v.name;
-			obj.depart = v.getParentNode().name;
-		}
-		selectRange.push(obj);
-	});
+		var selectRange=[];
+		var stuffKeys = ['userid', 'name'];
+		nodes.forEach(function(v){
+			var obj = {};
+			if(v.isParent){
+				obj.name = v.name;
+				obj.depart = null;
+			} else {
+				obj.userid=v.userid;
+				obj.name=v.name;
+				obj.depart = v.getParentNode().name;
+			}
+			selectRange.push(obj);
+		});
 
 
-	hideShare();
+		hideShare();
 
-	var json = {fromPerson: [ rootPerson ], toPerson: stuffs, selectRange:selectRange, files:fileArr, msg:msg, isSign:isSign };
+	}
+	
+	if(!isSign){
+		var json = {fromPerson: [ rootPerson ], toPerson: stuffs, selectRange:selectRange, files:fileArr, msg:msg };
+	} else {
+		var json = {fromPerson: [ rootPerson ], toPerson: window.curFlow.flowPerson.slice(0,1), flowName: $('.flowSelect').val(), 
+		selectRange: window.curFlow.flowPerson, 
+		files:fileArr, msg:msg, isSign:isSign };
+	}
 	//console.log(json);return;
 	$.post(host+'/shareFile', {data: JSON.stringify(json) }, function(data){
+		$( "#mydialog" ).trigger( "dialog-close" );
 
 	});
 }
@@ -1252,6 +1365,23 @@ function searchToObject(search) {
 
 <style type="text/css">
 
+
+#flowList2 {
+  position: absolute;
+  top: 0;
+  background-color: white;
+  width: 100%;
+  height: 100%;
+}
+
+.noselect {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
 
 	div#rMenu {position:absolute; z-index: 9999; visibility:hidden; top:0; background-color: #555;text-align: left;padding: 2px;}
 	div#rMenu ul li{
@@ -1393,6 +1523,19 @@ function searchToObject(search) {
 		color: #333;
 		    border: 1px solid #aaa;
 	}
+	#flowList{
+		position: absolute;
+		display: none;
+		background:white;
+		width: 100%;
+		height: 100%;
+		z-index: 9999;
+	  top: 0;
+	  left: 0;
+	}
+	.flowCon, .flowPerson{
+		display: none;
+	}
 </style>
 
 </HEAD>
@@ -1400,12 +1543,26 @@ function searchToObject(search) {
 <BODY>
 
 <div class="dialog" id="mydialog">
-    <p class="shareMsg"><label><input id="isSign" type="checkbox" /> 请求签名</label></p>
+    <div class="shareMsg">
+    	<label style="display:none;"><input id="isSign" type="checkbox" /> 发起流程</label>
+    	<span class="flowCon">
+	    	<label>选择流程：</label>
+	    	<select class="flowSelect">
+	    		<option value="">请选择</option>
+	    	</select>
+    	</span>
+    </div>
+    <div class="flowPerson">
+    	
+    </div>
     <p>稍句话：(可留空)</p>
     <div class="shareMsg"><textarea id="shareMsg"></textarea></div>
     <span>确认分享？</span>
     <a href="#mydialog-btn" class="dialog-close">取消</a>
-    <a href="#mydialog-btn" class="dialog-confirm dialog-close">确定</a>
+    <a href="#mydialog-btn" class="dialog-confirm">确定</a>
+    <div id="flowList">
+    	<ul></ul>
+    </div>
 </div>
 
 <div id="rMenu">
@@ -1450,6 +1607,7 @@ function searchToObject(search) {
 		<a class="fRemove" href="javascript:;" onclick="removeTreeNode()">删除</a>
 		<a class="fRemove" href="javascript:;" onclick="cutNode()">移动</a>
 		<a class="fShare" href="javascript:;" onclick="shareFile()">分享</a>
+		<a class="fShare" href="javascript:;" onclick="beginFlow()">流程</a>
 	</div>
 
 	<div class="dirMenu">
@@ -1492,7 +1650,6 @@ function searchToObject(search) {
 
 
 </nav>
-
 
 
 </BODY>
