@@ -5,7 +5,7 @@
 <meta http-equiv="content-type" content="text/html; charset=UTF-8">
 <meta name="apple-touch-fullscreen" content="yes"/>
 <meta name="format-detection" content="telephone=no"/>
-<meta name="viewport" content="width=640,user-scalable=no">
+<meta name="viewport" content="width=device-width,user-scalable=no,init-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 
@@ -22,7 +22,8 @@
 
 	<SCRIPT type="text/javascript">
 		<!--
-		var curMenu = null, treeObj = null;
+		window.curFile1 = window.curFile2 = window.curFile3 = null;
+		var treeObj = null;
 		var curTree = treeObj;
 		var rMenu;
 		var addCount = 1;
@@ -35,7 +36,8 @@
 				dblClickExpand: false,
 				expandSpeed: "",
 				txtSelectedEnable:true,
-				showLine:false
+				showLine:false,
+				nameIsHTML:true
 			},
 			data: {
 				keep:{
@@ -140,7 +142,7 @@ function pathToObj (v) {
 			p.push(folder);
 
 		}else{
-			p.push( {name:getSubStr(str[i], 19), title: str[i], children:[]} );
+			p.push( {name:getSubStr(str[i], 50), title: str[i], children:[]} );
 		}
 		p = p[p.length-1].children;
 	}
@@ -582,6 +584,8 @@ function getFilesData () {
 		if(!query.shareID){
 			locateNode( treeObj.getNodes()[0], query.path );
 		}
+		var sel = treeObj.getSelectedNodes();
+		if(sel) curFile1 = sel[0];
 
 		sendRoot = treeObj.addNodes( null,  {userid:rootPerson.userid, name:'发件柜', title:'发件柜', isSend:true, isParent:true, children: []} )[0];
 		receiveRoot = treeObj.addNodes( null,  {userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: []} )[0];
@@ -590,12 +594,18 @@ function getFilesData () {
 			initShareFrom(JSON.parse(data));
 			if(query.shareID){
 				locateNode(sendRoot, query.path, query.shareID );
+				var sel = treeObj.getSelectedNodes();
+				if(sel) curFile2 = sel[0];
 			}
 			$.post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
 				initShareTo(JSON.parse(data));
 				if(query.shareID){
 					locateNode(receiveRoot, query.path, query.shareID );
+					var sel = treeObj.getSelectedNodes();
+					if(sel) curFile3 = sel[0];
 				}
+
+				showTab(0);
 
 			});
 		});
@@ -644,8 +654,13 @@ function initShareFrom (data) {
 		var files = data[i].files;
 		var isSign = data[i].isSign;
 		var msg = data[i].msg||'';
+		var fromPerson = data[i].fromPerson.map(function(v){return v.name});
+		var fromPersonStr =  '('+fromPerson.join(',')+')';
+		var toPerson = data[i].toPerson.map(function(v){return v.name});
+		var toPersonStr = toPerson.length>2? '('+toPerson.slice(0,2).join(',')+'...)' :  '('+toPerson.join(',')+')' ;
+		var flowName = '('+data[i].flowName+'-'+fromPerson.join(',')+ ')';
 		files.forEach(function(v){
-			v.path = v.path.replace(/{{shareName}}/, '共享-'+shareID+' '+(msg) );
+			v.path = v.path.replace(/{{shareName}}/,  isSign? '流程-'+shareID+flowName+ (msg) : '共享-'+shareID+toPersonStr+ (msg)     );
 			v.isSign = isSign;
 			v.shareID = shareID;
 			pathToObj( v );
@@ -672,8 +687,14 @@ function initShareTo (data) {
 		var files = data[i].files;
 		var isSign = data[i].isSign;
 		var msg = data[i].msg||'';
+		var fromPerson = data[i].fromPerson.map(function(v){return v.name});
+		var fromPersonStr =  '('+fromPerson.join(',')+')';
+		var toPerson = data[i].toPerson.map(function(v){return v.name});
+		var toPersonStr = toPerson.length>2? '('+toPerson.slice(0,2).join(',')+'...)' :  '('+toPerson.join(',')+')' ;
+		var flowName = '('+data[i].flowName+'-'+fromPerson.join(',')+ ')';
+
 		files.forEach(function(v){
-			v.path = v.path.replace(/{{shareName}}/, '共享-'+shareID+' '+(msg));
+			v.path = v.path.replace(/{{shareName}}/,  isSign? '流程-'+shareID+flowName+ (msg) : '共享-'+shareID+toPersonStr+ (msg)     );
 			v.isSign = isSign;
 			v.shareID = shareID;
 			pathToObj( v );
@@ -711,7 +732,7 @@ function addAttrToNode (node, obj) {
 				pathToObj( v );
 				fileKeys = Object.keys(v);
 			});
-			zNodes = [{userid:rootPerson.userid, name:rootPerson.name,  title: rootPerson.depart+ "-"+rootPerson.name, isParent:true, children: root}];
+			zNodes = [{userid:rootPerson.userid, name:'['+rootPerson.name+']的文件柜',  title: rootPerson.depart+ "-"+rootPerson.name+'的文件柜', isParent:true, children: root}];
 
 			fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "order", "imageWidth", "imageHeight"];
 			//fileKeys = fileKeys.concat( ['path', 'hash'].filter(function (item) { return fileKeys.indexOf(item) < 0 }) );
@@ -721,13 +742,13 @@ function addAttrToNode (node, obj) {
 
 			treeObj = $.fn.zTree.getZTreeObj("fileTree");
 
-			curMenu = treeObj.getNodes()[0].children[0];
+			curFile1 = treeObj.getNodes()[0].children[0];
 
-			treeObj.selectNode(curMenu);
+			treeObj.selectNode(curFile1);
 
 			rMenu = $("#rMenu");
 
-			updateMenu(curMenu);
+			updateMenu(curFile1);
 
 			curTree = treeObj;
 
@@ -997,7 +1018,8 @@ var companySetting = {
 		dblClickExpand: false,
 		expandSpeed: "",
 		txtSelectedEnable:true,
-		showLine:false
+		showLine:false,
+		nameIsHTML:true
 	},
 
 	check: {
@@ -1057,8 +1079,25 @@ $(function  () {
 		e.preventDefault();
 		shareNode();
 	});
+
+
+	$('.header ul li').click(function(){
+		var idx = $(this).data('idx');
+		showTab(idx);
+	});
+
 });
 
+function showTab(idx) {
+	
+	var prevIdx = $('.currTab').data('idx');
+
+	$('#fileTree>li').hide().eq(idx).show();
+	$('.header ul li').removeClass('currTab').eq(idx).addClass('currTab');
+
+	if(typeof prevIdx=='undefined') return;
+	var curFile = window['curFile'+(prevIdx+1)];
+}
 
 function beforeClick2(treeId, treeNode, clickFlag) {
 	className = (className === "dark" ? "":"dark");
@@ -1078,7 +1117,7 @@ function onClick2(event, treeId, treeNode, clickFlag) {
 function hideShare () {
 	var sel = treeObj.getSelectedNodes()[0];
 	$('.company_wrap').hide();
-	$('.tree2').css({left: $('.company_wrap').width() });
+	$('.treeCompanyCon').css({left: $('.company_wrap').width() });
 	updateMenu(sel);
 	curTree = treeObj;
 }
@@ -1233,7 +1272,7 @@ function shareNode(){
 
 function shareFile(){
 	$('.company_wrap').show();
-	$('.tree2').animate({left:-1}, 300, 'linear');
+	$('.treeCompanyCon').animate({left:-1}, 300, 'linear');
 	updateMenu('.shareMenu');
 	curTree = companyTree;
 }
@@ -1365,6 +1404,12 @@ function searchToObject(search) {
 
 <style type="text/css">
 
+*:focus, *:active {
+    border:none;
+    outline: none;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+
 
 #flowList2 {
   position: absolute;
@@ -1433,7 +1478,7 @@ function searchToObject(search) {
 
 
 	.company_wrap {
-	  position: absolute;
+	  position: fixed;
 	  top: 0;
 	  left: 0;
 	  width: 500px;
@@ -1462,7 +1507,7 @@ function searchToObject(search) {
 	    border-left: 1px solid #ccc;
 	}
 
-	.tree2 {
+	.treeCompanyCon {
 	  position: absolute;
 	  background-color: white;
 	  left: 500px;
@@ -1536,6 +1581,38 @@ function searchToObject(search) {
 	.flowCon, .flowPerson{
 		display: none;
 	}
+
+	.ztree li a:hover{
+		text-decoration: none;
+	}
+
+	.header{
+		position: fixed;
+		top:0;
+		left: 0;
+		right: 0;
+		z-index: 99999999999;
+	}
+	.header ul{
+		width: 100%;
+	}
+	.header ul li{
+		display: table-cell;
+		width: 2%;
+		line-height: 41px;
+		border-right:1px solid #ccc;
+		border-bottom: 1px solid #ccc;
+		background: #fff;
+		text-align:center;
+	}
+	.header ul li.currTab{
+		background: #eee;
+	}
+
+	.content_wrap{
+		margin-top:42px;
+	}
+
 </style>
 
 </HEAD>
@@ -1574,16 +1651,32 @@ function searchToObject(search) {
 </div>
 
 
+<div class="header">
+	<ul>
+		<li data-idx=0>我的文件柜</li>
+		<li data-idx=1>发件柜</li>
+		<li data-idx=2>收件柜</li>
+	</ul>
+</div>
+
 <div class="content_wrap">
 	<div class="tree1">
 		<ul id="fileTree" class="ztree"></ul>
+	</div>
+
+	<div class="tree2">
+		<ul id="fileTree2" class="ztree"></ul>
+	</div>
+
+	<div class="tree3">
+		<ul id="fileTree3" class="ztree"></ul>
 	</div>
 
 </div>
 
 
 <div class="company_wrap">
-	<div class="tree2">
+	<div class="treeCompanyCon">
 		<ul id="companyTree" class="ztree"></ul>
 	</div>
 </div>

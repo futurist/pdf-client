@@ -537,6 +537,9 @@ app.post("/beginSign", function (req, res) {
 
 app.post("/deleteSign", function (req, res) {
   var id =  req.body.id;
+  if(!id.length){
+    res.send('');return;
+  }
   col.deleteOne({_id:new ObjectID(id) });
   res.send('OK');
 });
@@ -544,8 +547,33 @@ app.post("/deleteSign", function (req, res) {
 app.post("/finishSign", function (req, res) {
   var shareID =  eval(req.body.shareID);
   var person =  req.body.person;
+  
+  col.findOne({shareID:shareID, role:'share'}, function(err, colShare){
+    var flowName = colShare.flowName;
+    var curFlowPos = colShare.toPerson.length;
+
+    if(curFlowPos >= colShare.selectRange.length){
+        res.send( util.format( '流程%d(%s-%s)已结束，系统将通知相关人员知悉', 
+                    colShare.shareID, 
+                    colShare.flowName, 
+                    colShare.fromPerson[0].name ) );
+      }else{
+        var nextPerson = colShare.selectRange[curFlowPos];
+        col.update( {_id: colShare._id }, {$push: { toPerson: nextPerson }}, {w:1}, function(){
+          res.send( util.format( '流程%d(%s-%s)已转交给下一经办人：\n%s', 
+                  colShare.shareID, 
+                  colShare.flowName, 
+                  colShare.fromPerson[0].name, 
+                  nextPerson.depart+'-'+nextPerson.name ) );
+        });
+      }
+
+    // col.findOne({role:'flow', name:flowName }, function(err, colFlow){});
+
+  } );
+
   col.update({role:'share', shareID:shareID, 'toPerson.userid':person }, {$set: {  'toPerson.$.isSigned':true  } } ) ;
-  res.send('OK');
+
 });
 
 
@@ -710,7 +738,7 @@ app.post("/shareFile", function (req, res) {
               shareID
             );
         } else {
-          var content = util.format('%s发起了流程：%s，文档：%s，流程人：%s%s\n共享ID：%d',
+          var content = util.format('%s发起了流程：%s，文档：%s，经办人：%s%s\n共享ID：%d',
               data.fromPerson.map(function(v){return '<a href="http://www.baidu.com/">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
               data.flowName,
               data.files.map(function(v){return '<a href="http://www.baidu.com/">'+v.title+'</a>'}).join('，'),
