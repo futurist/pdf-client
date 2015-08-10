@@ -22,8 +22,10 @@
 
 	<SCRIPT type="text/javascript">
 		<!--
-		window.curFile1 = window.curFile2 = window.curFile3 = null;
 		var treeObj = null;
+		var treeObj1 = null;
+		var treeObj2 = null;
+		var treeObj3 = null;
 		var curTree = treeObj;
 		var rMenu;
 		var addCount = 1;
@@ -584,29 +586,22 @@ function getFilesData () {
 		if(!query.shareID){
 			locateNode( treeObj.getNodes()[0], query.path );
 		}
-		var sel = treeObj.getSelectedNodes();
-		if(sel) curFile1 = sel[0];
 
-		sendRoot = treeObj.addNodes( null,  {userid:rootPerson.userid, name:'发件柜', title:'发件柜', isSend:true, isParent:true, children: []} )[0];
-		receiveRoot = treeObj.addNodes( null,  {userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: []} )[0];
+
+		sendRoot = treeObj2.getNodes()[0];
+		receiveRoot = treeObj3.getNodes()[0];
 
 		$.post(host+'/getShareFrom', {person:rootPerson.userid}, function  (data) {
 			initShareFrom(JSON.parse(data));
 			if(query.shareID){
 				locateNode(sendRoot, query.path, query.shareID );
-				var sel = treeObj.getSelectedNodes();
-				if(sel) curFile2 = sel[0];
+
 			}
 			$.post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
 				initShareTo(JSON.parse(data));
 				if(query.shareID){
 					locateNode(receiveRoot, query.path, query.shareID );
-					var sel = treeObj.getSelectedNodes();
-					if(sel) curFile3 = sel[0];
 				}
-
-				showTab(0);
-
 			});
 		});
 
@@ -622,6 +617,7 @@ getFilesData();
 function locateNode(rootNode, path, shareID){
 	if( !rootNode || !path ) return;
 	var targetNode;
+	var treeObj = rootNode.isSend ? treeObj2 : ( rootNode.isReceive? treeObj3 : treeObj1 );
 	if(path[0]=='/'){
 		path = '/'+rootNode.name+path;
 		targetNode = treeObj.getNodesByFilter(function(node){
@@ -635,9 +631,15 @@ function locateNode(rootNode, path, shareID){
 		}, true, rootNode);
 	}
 	if( targetNode ) {
+		if(targetNode.isSend) showTab(1);
+		else if(targetNode.isReceive) showTab(2);
+		else showTab(0);
 		treeObj.selectNode(targetNode);
 		updateMenu(targetNode);
-		$('#'+targetNode.tId).get(0).scrollIntoView();
+		setTimeout(function(){
+			//$('#'+targetNode.tId).get(0).scrollIntoView();
+		}, 1000);
+		
 	}
 }
 
@@ -671,10 +673,10 @@ function initShareFrom (data) {
 
 
 	if(!sendRoot){
-		sendRoot = treeObj.addNodes( null,  {userid:rootPerson.userid, name:'发件柜', title:'发件柜', isSend:true, isParent:true, children: root} );
+		sendRoot = treeObj2.addNodes( null,  {userid:rootPerson.userid, name:'发件柜', title:'发件柜', isSend:true, isParent:true, children: root} );
 		if(sendRoot) sendRoot = sendRoot[0];
 	} else {
-		treeObj.addNodes( sendRoot, root );
+		treeObj2.addNodes( sendRoot, root );
 	}
 	addAttrToNode( sendRoot, {isSend:true} );
 }
@@ -705,10 +707,10 @@ function initShareTo (data) {
 
 
 	if(!receiveRoot){
-		receiveRoot = treeObj.addNodes( null,  {userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: root} );
+		receiveRoot = treeObj3.addNodes( null,  {userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: root} );
 		if(receiveRoot) receiveRoot = receiveRoot[0];
 	} else {
-		treeObj.addNodes( receiveRoot, root );
+		treeObj3.addNodes( receiveRoot, root );
 	}
 
 	addAttrToNode( receiveRoot, {isReceive:true} );
@@ -733,22 +735,32 @@ function addAttrToNode (node, obj) {
 				fileKeys = Object.keys(v);
 			});
 			zNodes = [{userid:rootPerson.userid, name:'['+rootPerson.name+']的文件柜',  title: rootPerson.depart+ "-"+rootPerson.name+'的文件柜', isParent:true, children: root}];
+			window.zNodes2 =  {userid:rootPerson.userid, name:'发件柜', title:'发件柜', isSend:true, isParent:true, children: []} ;
+		    window.zNodes3 = {userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: []} ;
 
 			fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "order", "imageWidth", "imageHeight"];
 			//fileKeys = fileKeys.concat( ['path', 'hash'].filter(function (item) { return fileKeys.indexOf(item) < 0 }) );
 			//fileKeys.splice( fileKeys.indexOf('_id'), 1 );
 
 			$.fn.zTree.init($("#fileTree"), setting, zNodes);
+			treeObj1 = $.fn.zTree.getZTreeObj("fileTree");
 
-			treeObj = $.fn.zTree.getZTreeObj("fileTree");
+			$.fn.zTree.init($("#fileTree2"), setting, window.zNodes2);
+			treeObj2 = $.fn.zTree.getZTreeObj("fileTree2");
 
-			curFile1 = treeObj.getNodes()[0].children[0];
+			$.fn.zTree.init($("#fileTree3"), setting, window.zNodes3);
+			treeObj3 = $.fn.zTree.getZTreeObj("fileTree3");
 
-			treeObj.selectNode(curFile1);
+			treeObj = treeObj1;
+
+
+			var sel = treeObj.getNodes()[0].children[0];
+
+			treeObj.selectNode(sel);
 
 			rMenu = $("#rMenu");
 
-			updateMenu(curFile1);
+			updateMenu(sel);
 
 			curTree = treeObj;
 
@@ -763,7 +775,8 @@ function addAttrToNode (node, obj) {
 				pstr.push(pNode.name);
 			}
 			var path = '/'+(pstr.reverse().join('/'))+'/';
-			return path.replace('/'+rootPerson.name, '');
+			var rootName = treeObj.getNodes()[0].name;
+			return path.replace('/'+rootName, '');
 		}
 
 
@@ -1092,11 +1105,15 @@ function showTab(idx) {
 	
 	var prevIdx = $('.currTab').data('idx');
 
-	$('#fileTree>li').hide().eq(idx).show();
+	$('.ztreeFile').hide().eq(idx).show();
 	$('.header ul li').removeClass('currTab').eq(idx).addClass('currTab');
+	treeObj = eval('treeObj'+(idx+1) );
+
+	var sel = treeObj.getSelectedNodes();
+	updateMenu( sel );
 
 	if(typeof prevIdx=='undefined') return;
-	var curFile = window['curFile'+(prevIdx+1)];
+
 }
 
 function beforeClick2(treeId, treeNode, clickFlag) {
@@ -1479,22 +1496,25 @@ function searchToObject(search) {
 
 	.company_wrap {
 	  position: fixed;
-	  top: 0;
+	  top: 42px;
 	  left: 0;
 	  width: 500px;
 	  height: 100%;
 	  overflow: hidden;
 	  display: none;
+      background-color: #fff;
+
 	}
 
 	.msg_wrap{
 	  position: fixed;
-	  top: 0;
+	  top: 42px;
 	  left: 0;
 	  width: 500px;
 	  height: 100%;
 	  overflow: hidden;
 	  display: none;
+      background-color: #fff;
 	}
 
 	.msgTree {
@@ -1591,7 +1611,7 @@ function searchToObject(search) {
 		top:0;
 		left: 0;
 		right: 0;
-		z-index: 99999999999;
+		z-index: 999;
 	}
 	.header ul{
 		width: 100%;
@@ -1604,6 +1624,7 @@ function searchToObject(search) {
 		border-bottom: 1px solid #ccc;
 		background: #fff;
 		text-align:center;
+		cursor: pointer;
 	}
 	.header ul li.currTab{
 		background: #eee;
@@ -1611,6 +1632,10 @@ function searchToObject(search) {
 
 	.content_wrap{
 		margin-top:42px;
+	}
+
+	#fileTree2, #fileTree3{
+		display: none;
 	}
 
 </style>
@@ -1661,15 +1686,15 @@ function searchToObject(search) {
 
 <div class="content_wrap">
 	<div class="tree1">
-		<ul id="fileTree" class="ztree"></ul>
+		<ul id="fileTree" class="ztree ztreeFile"></ul>
 	</div>
 
 	<div class="tree2">
-		<ul id="fileTree2" class="ztree"></ul>
+		<ul id="fileTree2" class="ztree ztreeFile"></ul>
 	</div>
 
 	<div class="tree3">
-		<ul id="fileTree3" class="ztree"></ul>
+		<ul id="fileTree3" class="ztree ztreeFile"></ul>
 	</div>
 
 </div>
@@ -1677,7 +1702,7 @@ function searchToObject(search) {
 
 <div class="company_wrap">
 	<div class="treeCompanyCon">
-		<ul id="companyTree" class="ztree"></ul>
+		<ul id="companyTree" class="ztree ztreeCompany"></ul>
 	</div>
 </div>
 
