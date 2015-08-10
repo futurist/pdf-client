@@ -458,12 +458,14 @@ app.post("/getShareMsg", function (req, res) {
   function getMsg (shareA, hash) {
       if(!_.isArray(shareA) ) shareA = [shareA];
 
+
+      shareA = shareA.map( function(v){ return parseInt(v) } );
+
+      var condition = {  role:'shareMsg', shareID:{$in:shareA} };
+
       var hashA = [null];
       if(hash) hashA = hashA.concat(hash);
-      shareA = shareA.map( function(v){ return parseInt(v) } );
-      var condition = {  role:'shareMsg', shareID:{$in:shareA}, hash:{$in:hashA} };
-
-      console.log(hash, condition);
+      //if(hashA.length>1) condition.hash = {$in:hashA};
 
       col.find( condition , {'text.content':1} , {limit:500} ).sort({shareID:1, date:1}).toArray(function(err, docs){
           if(err) {
@@ -645,8 +647,9 @@ app.post("/sendShareMsg", function (req, res) {
   var hash = req.body.hash;
   var path = req.body.path;
   var fileName = req.body.fileName;
+  var fileKey = req.body.fileKey;
 
-  if(path) path = path.slice(2);
+  if(path) path = path.slice(1);
   var fileHash = path.pop();
 
   col.findOne( { role:'share', shareID:shareID }, {}, function(err, data) {
@@ -668,21 +671,21 @@ app.post("/sendShareMsg", function (req, res) {
       var pathName = [];
       path.forEach(function(v,i){
         var a = '/'+path.slice(0,i+1).join('/')+'/';
-        pathName.push( util.format('<a href="%s?path=%s&dest=share">%s</a>', host, encodeURIComponent(a), v) );
+        pathName.push( util.format('<a href="%s?path=%s&shareID=%d">%s</a>', host, encodeURIComponent(a), shareID, v) );
       });
       if(fileHash) {
         var a =  '/'+path.join('/')+'/' + fileHash;
-        pathName.push( util.format('<a href="%s?path=%s&dest=share">%s</a>', host, encodeURIComponent(a), fileName) );
+        pathName.push( util.format('<a href="%s?path=%s&shareID=%d">%s</a>', host, encodeURIComponent(fileKey), shareID, fileName) );
      }
 
      // get OverAllink
       var a = '/'+path.join('/')+'/';
       var link = a;
-      if(fileName && hash ){
-      	link = a+hash;
+      if(fileName && fileKey ){
+      	link = a+fileKey;
       	a = a +fileName;
       }
-     var overAllPath = util.format('<a href="%s?path=%s&dest=share">%s</a>', host, encodeURIComponent(link), a ) ;
+     var overAllPath = util.format('<a href="%s?path=%s&shareID=%d">%s</a>', host, encodeURIComponent(link), shareID, a ) ;
 
       var msg = {
        "touser": data.toPerson.map(function(v){return v.userid}).join('|'),
@@ -773,21 +776,28 @@ app.post("/shareFile", function (req, res) {
 
 function sendWXMessage (msg) {
 
-  col.insert(msg);
+  if(!msg.tryCount){
+    col.insert(msg);
+    msg.tryCount = 1;
+  } 
 
   var msgTo = {};
   if(msg.touser) msgTo.touser = msg.touser;
   if(msg.toparty) msgTo.toparty = msg.toparty;
   if(msg.totag) msgTo.totag = msg.totag;
-  delete msg.touser;
-  delete msg.toparty;
-  delete msg.totag;
+  // delete msg.touser;
+  // delete msg.toparty;
+  // delete msg.totag;
 
   api.send(msgTo, msg, function  (err, result) {
+    console.log('sendWXMessage', msg.tryCount, err, result);
     if(err){
+      if(msg.tryCount++ <=5)
+        setTimeout( function(){ 
+          sendWXMessage(msg);
+        },1000);
       return ('error');
     }
-    console.log(result);
     return "OK";
   });
 }

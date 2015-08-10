@@ -622,7 +622,7 @@ function locateNode(rootNode, path, shareID){
 		path = '/'+rootNode.name+path;
 		targetNode = treeObj.getNodesByFilter(function(node){
 			var p = getPath(node);
-			if(!p.isParent)p += node.key;
+			if(!p.isParent && p.key)p += node.key;
 			return p==path;
 		}, true, rootNode);
 	}else{
@@ -763,6 +763,8 @@ function addAttrToNode (node, obj) {
 			updateMenu(sel);
 
 			curTree = treeObj;
+
+			showTab(0);
 
 		}
 
@@ -1104,6 +1106,7 @@ $(function  () {
 function showTab(idx) {
 	
 	var prevIdx = $('.currTab').data('idx');
+	if(typeof idx=='undefined') idx = prevIdx;
 
 	$('.ztreeFile').hide().eq(idx).show();
 	$('.header ul li').removeClass('currTab').eq(idx).addClass('currTab');
@@ -1181,16 +1184,6 @@ function shareNodePre(e){
 		return {name: v.name, userid: v.userid, depart: v.getParentNode().name }
 	} );
 
-	var ul = $('#flowList ul');
-	ul.empty();
-	ul.hide();
-	stuffs.forEach(function  (v) {
-		var li = $('<li>'+ v.name +'</li>');
-		li.data('userid', v.userid);
-		li.data('depart', v.depart);
-		li.addClass('noselect');
-		ul.append( li );
-	});
 
 	$('#shareMsg').val('');
 	$( "#mydialog" ).trigger( "dialog-open" );
@@ -1289,7 +1282,7 @@ function shareNode(){
 
 function shareFile(){
 	$('.company_wrap').show();
-	$('.treeCompanyCon').animate({left:-1}, 300, 'linear');
+	$('.treeCompanyCon').css({}, 300, 'linear');
 	updateMenu('.shareMenu');
 	curTree = companyTree;
 }
@@ -1300,8 +1293,16 @@ function viewDetail () {
 	if(!sel.length) return;
 	sel = sel[0];
 
+	$('.header').hide();
+	$('.ztreeFile').hide();
 	$('.msg_wrap').show();
-	$('.msgTree').animate( {left:-1}, 300, 'linear' );
+
+	var title = getPath(sel);
+	title = title.split('/').slice(0,2).join('/')+'/';
+
+	$('.msgTitle').html( title );
+	$('.msgTree').css({bottom: $('.msgText').height()+10 }).css( {}, 300, 'linear' );
+
 	updateMenu('.msgMenu');
 	updateMenu();
 
@@ -1347,7 +1348,18 @@ function viewDetail () {
 		data = JSON.parse(data);
 
 		data.forEach(function  (v) {
-			var li = $('<li>'+ v.text.content +'</li>');
+			
+			var titleReg = title.replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+			var content = v.text.content.replace(new RegExp(titleReg,'ig'), '');
+
+			var $div = $('<div></div>');
+			$div.html(content);
+			$div.find('a').each(function  () {
+				if( $(this).html()=='' ) $(this).remove();
+			});
+			content = $div.html().replace(/对\s+/, '');
+
+			var li = $('<li>'+ content +'</li>');
 			$('.msgTree ul').append(li);
 		});
 	});
@@ -1356,7 +1368,9 @@ function viewDetail () {
 function closeViewDetail () {
 	var sel = treeObj.getSelectedNodes()[0];
 	$('.msg_wrap').hide();
-	$('.msgTree').css({left: $('.msg_wrap').width() });
+	$('.header').show();
+	showTab();
+
 	updateMenu(sel);
 }
 
@@ -1398,7 +1412,7 @@ function sendShareMsg () {
 		path += sel.hash;
 	}
 
-	var data = { person: rootPerson.userid, shareID:p.shareID, text:$('.inputMsg').val(), hash:hash, path:path.split('/'), fileName: fileName };
+	var data = { person: rootPerson.userid, shareID:p.shareID, text:$('.inputMsg').val(), hash:hash, fileKey:sel.key, path:path.split('/'), fileName: fileName };
 
 	$.post(host+'/sendShareMsg', data , function(ret){
 		console.log(ret);
@@ -1428,13 +1442,6 @@ function searchToObject(search) {
 }
 
 
-#flowList2 {
-  position: absolute;
-  top: 0;
-  background-color: white;
-  width: 100%;
-  height: 100%;
-}
 
 .noselect {
     -webkit-touch-callout: none;
@@ -1508,11 +1515,10 @@ function searchToObject(search) {
 
 	.msg_wrap{
 	  position: fixed;
-	  top: 42px;
+	  top: 0px;
 	  left: 0;
-	  width: 500px;
+	  width: 100%;
 	  height: 100%;
-	  overflow: hidden;
 	  display: none;
       background-color: #fff;
 	}
@@ -1520,13 +1526,23 @@ function searchToObject(search) {
 	.msgTree {
 	    position: absolute;
 	    background-color: white;
-	    left: 500px;
-	    top: 0;
-	    height: 100%;
-	    width: 100%;
-	    border-left: 1px solid #ccc;
+	    left: 10px;
+	    right: 10px;
+	    top: 43px;
+	    bottom:150px;
+	    overflow: auto;
 	}
 
+	.msgTree ul li{
+		margin:10px 0;
+	}
+	.msgTitle{
+		height: 42px;
+		border-bottom: 1px solid #ccc;
+		background: #eee;
+	  text-align: center;
+	  line-height: 41px;
+	}
 	.treeCompanyCon {
 	  position: absolute;
 	  background-color: white;
@@ -1563,8 +1579,8 @@ function searchToObject(search) {
 	.msgText{
 		position: fixed;
 		bottom: 8px;
-		width: 100%;
-
+		  left: 10px;
+		  right:10px;
 	}
 	.inputMsg{
     	border: 1px solid #ccc;
@@ -1588,16 +1604,7 @@ function searchToObject(search) {
 		color: #333;
 		    border: 1px solid #aaa;
 	}
-	#flowList{
-		position: absolute;
-		display: none;
-		background:white;
-		width: 100%;
-		height: 100%;
-		z-index: 9999;
-	  top: 0;
-	  left: 0;
-	}
+
 	.flowCon, .flowPerson{
 		display: none;
 	}
@@ -1662,9 +1669,7 @@ function searchToObject(search) {
     <span>确认分享？</span>
     <a href="#mydialog-btn" class="dialog-close">取消</a>
     <a href="#mydialog-btn" class="dialog-confirm">确定</a>
-    <div id="flowList">
-    	<ul></ul>
-    </div>
+
 </div>
 
 <div id="rMenu">
@@ -1677,7 +1682,7 @@ function searchToObject(search) {
 
 
 <div class="header">
-	<ul>
+	<ul class="selTab">
 		<li data-idx=0>我的文件柜</li>
 		<li data-idx=1>发件柜</li>
 		<li data-idx=2>收件柜</li>
@@ -1707,6 +1712,7 @@ function searchToObject(search) {
 </div>
 
 <div class="msg_wrap">
+	<div class="msgTitle"></div>
 	<div class="msgTree">
 		<ul></ul>
 	</div>
