@@ -9,6 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 
+<script type="text/javascript" src="http://res.wx.qq.com/open/js/jweixin-1.0.0.js"></script>
+
 	<link rel="stylesheet" href="./css/zTreeStyle/zTreeStyle.css" type="text/css">
 	<link rel="stylesheet" href="./js/dialog.css" type="text/css">
 	<!--script type="text/javascript" src="./js/jquery-1.4.4.min.js"></script-->
@@ -18,7 +20,6 @@
 	<script type="text/javascript" src="./js/draggable.js"></script>
 	<!--  <script type="text/javascript" src="./js/jquery.ztree.excheck-3.5.js"></script>
 	  <script type="text/javascript" src="./js/jquery.ztree.exedit-3.5.js"></script>-->
-
 
 	<SCRIPT type="text/javascript">
 		<!--
@@ -525,7 +526,7 @@ var formatDate = function(format) {
 			if(!treeNode.isParent) {
 				var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
 				shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
-				$('.fView').attr( 'href', ('http://1111hui.com/pdf/webpdf/viewer.html?file=http://7xkeim.com1.z0.glb.clouddn.com/'+treeNode.key+shareStr) );
+				$('.fView').attr( 'href', ('http://1111hui.com/pdf/webpdf/viewer.html#file=http://7xkeim.com1.z0.glb.clouddn.com/'+treeNode.key+shareStr) );
 			}
 
 			updateMenu(treeNode);
@@ -553,10 +554,10 @@ var formatDate = function(format) {
 
 				document.title = "";
 				//document.title = JSON.stringify({action:"openPDF", url:'http://1111hui.com/pdf/dragShape/path.html', text:text });
-				document.title = JSON.stringify({action:"openPDF", url:'http://1111hui.com/pdf/webpdf/viewer.html?file=http://7xkeim.com1.z0.glb.clouddn.com/'+url, text:text });
+				document.title = JSON.stringify({action:"openPDF", url:'http://1111hui.com/pdf/webpdf/viewer.html#file=http://7xkeim.com1.z0.glb.clouddn.com/'+url, text:text });
 			} else{
 
-				window.location = 'http://1111hui.com/pdf/webpdf/viewer.html?file=http://7xkeim.com1.z0.glb.clouddn.com/'+url;
+				window.location = 'http://1111hui.com/pdf/webpdf/viewer.html#file=http://7xkeim.com1.z0.glb.clouddn.com/'+url;
 			}
 		}
 
@@ -579,7 +580,7 @@ function getFilesData () {
 
 	$.post(host+'/getfile', {person:rootPerson.userid}, function  (data) {
 		data = JSON.parse(data);
-		var query = searchToObject( window.location.search );
+		var query = searchToObject( window.location.hash );
 
 		init(data);
 
@@ -636,6 +637,7 @@ function locateNode(rootNode, path, shareID){
 		else showTab(0);
 		treeObj.selectNode(targetNode);
 		updateMenu(targetNode);
+		if(targetNode.isParent) treeObj.expandNode(targetNode, true);
 		setTimeout(function(){
 			//$('#'+targetNode.tId).get(0).scrollIntoView();
 		}, 1000);
@@ -1101,6 +1103,8 @@ $(function  () {
 		showTab(idx);
 	});
 
+
+
 });
 
 function showTab(idx) {
@@ -1428,6 +1432,52 @@ function searchToObject(search) {
     return result;
   }, {})
 }
+
+
+
+window.wxReady = false;
+
+function initWX() {
+	$.post(host+'/getJSConfig', function(data){
+		if(!data){
+			alert('获取微信接口错误');
+			wx.closeWindow();
+			return;
+		}
+		data = JSON.parse(data);
+		wx.config(data);
+		wx.ready(function(){
+			window.wxReady = true;
+			return;
+		});
+		wx.error(function(res){
+			alert('身份验证失败');
+			wx.closeWindow();
+		});
+		
+	});
+}
+
+function wxUploadImage(){
+	if(!window.wxReady) return;
+	wx.chooseImage({
+	    count: 1, // 默认9
+	    sizeType: ['original', 'compressed'], // 可以指定是原图还是压缩图，默认二者都有
+	    sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
+	    success: function (res) {
+	        var localIds = res.localIds; // 返回选定照片的本地ID列表，localId可以作为img标签的src属性显示图片
+	        console.log(res);
+	    },
+	    fail:function(res){
+
+	    },
+	    cancel:function(res){
+
+	    }
+	});
+}
+
+initWX();
 
 </script>
 
@@ -1775,6 +1825,9 @@ function searchToObject(search) {
 
 </nav>
 
+
+
+<script src="http://192.168.1.135:8080/target/target-script-min.js#anonymous"></script>
 
 </BODY>
 </HTML>
