@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 
 <script type="text/javascript" src="http://res.wx.qq.com/open/js/jweixin-1.0.0.js"></script>
+<script type="text/javascript" src="/js/cookies.js"></script>
 
 	<link rel="stylesheet" href="./css/zTreeStyle/zTreeStyle.css" type="text/css">
 	<link rel="stylesheet" href="./js/dialog.css" type="text/css">
@@ -22,7 +23,17 @@
 	  <script type="text/javascript" src="./js/jquery.ztree.exedit-3.5.js"></script>-->
 
 	<SCRIPT type="text/javascript">
-		<!--
+
+
+		var wxUserInfo = Cookies.get( 'wxUserInfo' );
+		if( !wxUserInfo ){
+			window.location = 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx59d46493c123d365&redirect_uri=http%3A%2F%2F1111hui.com%2F/pdf/getUserID.php&response_type=code&scope=snsapi_base&state='+ encodeURIComponent( window.location.href.replace('#','{@@@}') ) +'#wechat_redirect';
+		} else {
+			wxUserInfo = JSON.parse(wxUserInfo);
+		}
+		
+
+
 		var treeObj = null;
 		var treeObj1 = null;
 		var treeObj2 = null;
@@ -1014,7 +1025,6 @@ function breakIntoPath(path){
 		}
 
 
-		//-->
 	</SCRIPT>
 
 
@@ -1051,36 +1061,50 @@ var companySetting = {
 	}
 }
 
-$(function  () {
-	$.post(host+'/getCompanyTree', { company:'lianrun' }, function  (data) {
-		companyNode = JSON.parse( data );
-		console.log(data);
-		companyTree = $.fn.zTree.init($("#companyTree"), companySetting, companyNode);
-	});
+$(function  () { 
 
-	$.post(host+'/getFlowList', { }, function  (data) {
-		if(!data)return;
-		window.flowData = data;
-		var sel = $('.flowSelect');
-		data.forEach(function  (v) {
-			var option = $('<option value="'+v.name+'">'+v.name+'</option>');
-			sel.append(option);
+	$.post(host+'/getUserInfo', { userid: wxUserInfo.UserId }, function  (userinfo) {
+
+		if(!userinfo){
+			alert('非法用户');
+			return;
+		}
+
+		rootPerson = userinfo;
+
+		$.post(host+'/getCompanyTree', { company:'lianrun' }, function  (data) {
+			companyNode = JSON.parse( data );
+			console.log(data);
+			companyTree = $.fn.zTree.init($("#companyTree"), companySetting, companyNode);
 		});
-		sel.change(function  (e) {
-			var id=this.selectedIndex-1;
-			if(id<0){
-				$('.flowPerson').empty();
-				return;
-			}
-			window.curFlow = window.flowData[id];
-			var persons = window.curFlow.flowPerson;
-			var list = persons.map(function  (v) {
-				return '<a href="http://www.baidu.com/">['+v.depart+ ']' +v.name+'</a>';
+
+		$.post(host+'/getFlowList', { }, function  (data) {
+			if(!data)return;
+			window.flowData = data;
+			var sel = $('.flowSelect');
+			data.forEach(function  (v) {
+				var option = $('<option value="'+v.name+'">'+v.name+'</option>');
+				sel.append(option);
 			});
+			sel.change(function  (e) {
+				var id=this.selectedIndex-1;
+				if(id<0){
+					$('.flowPerson').empty();
+					return;
+				}
+				window.curFlow = window.flowData[id];
+				var persons = window.curFlow.flowPerson;
+				var list = persons.map(function  (v) {
+					return '<a href="http://www.baidu.com/">['+v.depart+ ']' +v.name+'</a>';
+				});
 
-			$('.flowPerson').empty().append( list.join('->') );
+				$('.flowPerson').empty().append( list.join('->') );
+			});
 		});
+
+
 	});
+	
 
 	$('#isSign').change(function  () {
 		if( $(this).prop('checked') ){
@@ -1477,7 +1501,14 @@ function wxUploadImage(){
 	});
 }
 
+
+function initOAth(){
+	$.get('https://qyapi.weixin.qq.com/cgi-bin/user/getuserinfo?access_token=ACCESS_TOKEN&code=CODE');
+}
+
+
 initWX();
+
 
 </script>
 
@@ -1827,7 +1858,7 @@ initWX();
 
 
 
-<script src="http://192.168.1.135:8080/target/target-script-min.js#anonymous"></script>
+<!-- <script src="http://192.168.1.135:8080/target/target-script-min.js#anonymous"></script> -->
 
 </BODY>
 </HTML>

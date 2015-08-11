@@ -19,11 +19,13 @@ var fs = require('fs');
 var util = require('util');
 var url = require('url');
 
+var urllib = require("urllib");
 var express = require("express");
 var bodyParser = require("body-parser");
 var multer = require("multer");
 
-
+var redis = require("redis"),
+redisClient = redis.createClient(6379, '127.0.0.1', {});
 
 qiniu.conf.ACCESS_KEY = '2hF3mJ59eoNP-RyqiKKAheQ3_PoZ_Y3ltFpxXP0K';
 qiniu.conf.SECRET_KEY = 'xvZ15BIIgJbKiBySTV3SHrAdPDeGQyGu_qJNbsfB';
@@ -71,7 +73,13 @@ function qiniu_uploadFile(file, callback ){
 }
 
 
-
+redisClient.on('error', function (err) {
+    console.log('Redis Error ' + err);
+});
+ 
+redisClient.on('connect', function(err){
+  console.log('Connected to Redis server' + err);
+});
 
 
 var app = express();
@@ -92,7 +100,7 @@ var allowCrossDomain = function(req, res, next) {
 }
 app.use(allowCrossDomain);
 
-app.post("/pdf", function (req, res) {
+app.post("/pdfCanvasDataLatex", function (req, res) {
   res.send("You sent ok" );
   //broadcast(req.body);
   var data = req.body;
@@ -116,6 +124,94 @@ app.post("/pdf", function (req, res) {
   });
 });
 
+
+
+
+
+app.get("/getUserID", function (req, res) {
+  
+  var code = req.query.code;
+  var state = req.query.state;
+  if(!code){
+    res.send('');return;
+  } 
+
+  var tryCount = 0;
+  function doit(){
+
+    api.getLatestToken(function  (err, token) {
+        if( !token && tryCount++<5 ) {
+          doit();return;
+        }
+        console.log(code, state, token);
+
+        urllib.request("https://qyapi.weixin.qq.com/cgi-bin/user/getuserinfo?access_token="+ token.accessToken +"&code="+code, function(err, data, meta) {
+          if(!data && tryCount++<5 ){
+            doit();return;
+          }
+          console.log("new wx client: ", data.toString() );
+          var ret = JSON.parse( data.toString() );
+          ret.state = state;
+          res.send( JSON.stringify(ret) );
+        });
+    });
+
+  }
+  doit();
+
+});
+
+app.post("/getJSTicket", function (req, res) {
+  var tryCount = 0;
+  function getTicket(){
+    api.getTicket(function(err, result){
+      if(err && tryCount++<3){
+        getTicket();
+      }else{
+        res.send( result );
+      }
+    });
+  }
+  getTicket();
+
+});
+
+
+app.post("/getJSConfig", function (req, res) {
+
+  var url = 'http://1111hui.com/pdf/client/tree.html';
+  var rkey = 'wx:js:ticket:'+ encodeURIComponent(url);
+
+  var param = {
+    debug:true,
+    jsApiList: ["onMenuShareTimeline","onMenuShareAppMessage","onMenuShareQQ","onMenuShareWeibo","onMenuShareQZone","startRecord","stopRecord","onVoiceRecordEnd","playVoice","pauseVoice","stopVoice","onVoicePlayEnd","uploadVoice","downloadVoice","chooseImage","previewImage","uploadImage","downloadImage","translateVoice","getNetworkType","openLocation","getLocation","hideOptionMenu","showOptionMenu","hideMenuItems","showMenuItems","hideAllNonBaseMenuItem","showAllNonBaseMenuItem","closeWindow","scanQRCode"],
+    url: url
+  };
+
+  var tryCount = 0;
+  function getJsConfig(){
+    api.getJsConfig(param, function(err, result){
+      if(err && tryCount++<3){
+        getJsConfig();
+      }else{
+        // console.log('wx:', result);
+        redisClient.set( rkey, JSON.stringify(result), 'ex', 30);
+        res.send( JSON.stringify(result) );
+      }
+    });
+  }
+
+  //redisClient.set('aaa', 100, 'ex', 10);
+  redisClient.get( rkey , function(err, result){
+    if(!result){
+      getJsConfig();
+    } else {
+      // console.log('redis:', result );
+      res.send( result );
+    }
+  } );
+
+});
 
 
 function upfileFunc(data, callback) {
@@ -252,6 +348,22 @@ app.post("/rotateFile", function (req, res) {
 
 });
 
+
+
+app.post("/getUserInfo", function (req, res) {
+
+  var data = req.body;
+  var userid = data.userid;
+
+  col.findOne( { company:CompanyName, 'stuffList.userid': userid, 'stuffList.status': 1 } , {limit:1, fields:{'stuffList.$':1} }, function(err, item){
+    if(err ||  !item.stuffList || !item.stuffList.length) {
+      res.send('');
+      return;
+    }
+      res.send( item.stuffList[0] );
+  });
+
+});
 
 
 
@@ -815,7 +927,7 @@ MongoClient.connect(authUrl, function(err, _db) {
   assert.equal(null, err);
   _db.authenticate('root', '820125', function(err, res){
   	assert.equal(null, err);
-  	console.log("Connected correctly to server");
+  	console.log("Connected to mongodb server");
 	db = _db.db("test");
   col = db.collection('qiniu_bucket01');
 	// db.collection('test').find().toArray(function(err, items){ console.log(items); });
@@ -1015,6 +1127,10 @@ wechat(config, wechat
 var CompanyName = 'lianrun';
 var API = require('wechat-enterprise-api');
 var api = new API("wx59d46493c123d365", "5dyRsI3Wa5gS2PIOTIhJ6jISHwkN68cryFJdW_c9jWDiOn2D7XkDRYUgHUy1w3Hd", 1);
+// get accessToken for first time to cache it.
+api.getLatestToken(function () {});
+
+
 
 function updateCompanyTree () {
   var companyTree = [];
@@ -1028,7 +1144,16 @@ function updateCompanyTree () {
         v.children = users.userlist;
         companyTree.push(v);
         users.userlist.forEach(function(s){
+
+          var namedDep = s.department.map(function  (depID) {
+            return _.where(departs, { id: depID} )[0].name;
+          });
+          
+          s.department = namedDep;
+          s.depart = namedDep?namedDep[0]:'';
+
           if( ! _.where(stuffList, {userid:s.userid }).length ) stuffList.push(s);
+
         });
         if(i==departs.length){
 
