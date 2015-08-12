@@ -29,6 +29,7 @@ redisClient = redis.createClient(6379, '127.0.0.1', {});
 
 qiniu.conf.ACCESS_KEY = '2hF3mJ59eoNP-RyqiKKAheQ3_PoZ_Y3ltFpxXP0K';
 qiniu.conf.SECRET_KEY = 'xvZ15BIIgJbKiBySTV3SHrAdPDeGQyGu_qJNbsfB';
+QiniuBucket = 'bucket01';
 
 function qiniu_uploadFile(file, callback ){
 
@@ -49,7 +50,7 @@ function qiniu_uploadFile(file, callback ){
 	};
 
 	var putPolicy = new qiniu.rs.PutPolicy(
-		'bucket01',
+		QiniuBucket,
 		null,
 		null,
 		null,
@@ -133,7 +134,7 @@ app.get("/getUserID", function (req, res) {
   var code = req.query.code;
   var state = req.query.state;
   if(!code){
-    res.send('');return;
+    return res.send('');
   } 
 
   var tryCount = 0;
@@ -147,11 +148,11 @@ app.get("/getUserID", function (req, res) {
 
         urllib.request("https://qyapi.weixin.qq.com/cgi-bin/user/getuserinfo?access_token="+ token.accessToken +"&code="+code, function(err, data, meta) {
           if(!data && tryCount++<5 ){
-            doit();return;
+            return doit();
           }
           console.log("new wx client: ", data.toString() );
           var ret = JSON.parse( data.toString() );
-          ret.state = state;
+          //ret.state = state;
           res.send( JSON.stringify(ret) );
         });
     });
@@ -179,11 +180,11 @@ app.post("/getJSTicket", function (req, res) {
 
 app.post("/getJSConfig", function (req, res) {
 
-  var url = 'http://1111hui.com/pdf/client/tree.html';
+  var url = req.body.url;
   var rkey = 'wx:js:ticket:'+ encodeURIComponent(url);
 
   var param = {
-    debug:true,
+    debug:false,
     jsApiList: ["onMenuShareTimeline","onMenuShareAppMessage","onMenuShareQQ","onMenuShareWeibo","onMenuShareQZone","startRecord","stopRecord","onVoiceRecordEnd","playVoice","pauseVoice","stopVoice","onVoicePlayEnd","uploadVoice","downloadVoice","chooseImage","previewImage","uploadImage","downloadImage","translateVoice","getNetworkType","openLocation","getLocation","hideOptionMenu","showOptionMenu","hideMenuItems","showMenuItems","hideAllNonBaseMenuItem","showAllNonBaseMenuItem","closeWindow","scanQRCode"],
     url: url
   };
@@ -222,10 +223,9 @@ function upfileFunc(data, callback) {
 
   console.log(data);
 
-  col.find( { person: person } , {limit:2000} ).sort({order:-1}).limit(1).nextObject(function(err, item) {
+  col.find( { person: person, role:'upfile', status:{$ne:-1} } , {limit:2000} ).sort({order:-1}).limit(1).nextObject(function(err, item) {
     if(err) {
-      res.send('error');
-      return;
+      return res.send('error');
     }
     maxOrder = item? item.order+1 : 1;
     console.log( 'maxOrder:', maxOrder );
@@ -255,8 +255,7 @@ app.post("/rotateFile", function (req, res) {
 	var jsonp = data.callback;
 	var dir = data.dir;
 	if( "LRD".indexOf(dir)==-1 || !file_url.match(/\.pdf$/) ) {
-		res.send("非法参数");
-		return;
+		return res.send("非法参数");
 	}
 
     // extract the file name
@@ -278,8 +277,7 @@ app.post("/rotateFile", function (req, res) {
     			if(item2){
 	    			newFile = item2;
 	    			console.log('exist rotate,', newName);
-	    			res.send( JSON.stringify(newFile) );
-					return;
+	    			return res.SENd( json.stringIfy(newFile) );
 	    		} else {
 					var child = exec('rm -rf '+DOWNLOAD_DIR+'; mkdir -p ' + DOWNLOAD_DIR, function(err, stdout, stderr) {
 					    if (err) throw err;
@@ -288,8 +286,7 @@ app.post("/rotateFile", function (req, res) {
 	    		}
     		});
     	} else {
-    		res.send("非法参数");
-			return;
+    		return res.send("非法参数");
     	}
     });
 
@@ -357,8 +354,7 @@ app.post("/getUserInfo", function (req, res) {
 
   col.findOne( { company:CompanyName, 'stuffList.userid': userid, 'stuffList.status': 1 } , {limit:1, fields:{'stuffList.$':1} }, function(err, item){
     if(err ||  !item.stuffList || !item.stuffList.length) {
-      res.send('');
-      return;
+      return res.send('');
     }
       res.send( item.stuffList[0] );
   });
@@ -368,14 +364,83 @@ app.post("/getUserInfo", function (req, res) {
 
 
 
+app.post("/applyTemplate", function (req, res) {
+
+	var data = req.body;
+	var info = data.info;
+  	var userid = data.userid;
+  	var key = info.key;
+  	var newKey = moment().format('YYYYMMDDHHmmss') + '-'+ key.split('-').pop();
+
+  	var client = new qiniu.rs.Client();
+	client.copy(QiniuBucket, key, QiniuBucket, newKey, function(err, ret) {
+	  if (err) return res.send('error');
+
+
+    col.findOne( { person: userid, status:{$ne:-1} } , {limit:1, sort:{order:-1}  }, function(err, item) {
+
+    	var maxOrder = item? item.order+1 : 1;
+
+		var fileInfo={
+			role:'upfile',
+			person:userid,
+			client:'',
+			name: info.title+'_'+moment().format('YYYYMMDD'),
+			title: info.title+'_'+moment().format('YYYYMMDD'),
+			path: '/',
+			date: new Date(),
+			key: newKey,
+			fname:newKey,
+			fsize:info.fsize,
+			type:info.type,
+			drawData:info.drawData,
+			hash: +new Date()+Math.random(),
+			order:maxOrder
+		};
+
+		col.insertOne(fileInfo, {w:1}, function(err,result){
+			var id = result.insertedId;
+			fileInfo._id = id;
+			res.send(fileInfo);
+		});
+
+    });
+
+
+	});
+
+});
+
+
+app.post("/getTemplateFiles", function (req, res) {
+
+  col.find( { role:'upfile', isTemplate:true } , {limit:2000} ).sort({title:1,date:-1}).toArray(function(err, docs){
+    if(err) {
+      return res.send('error');
+    }
+      var count = docs.length;
+      res.send( docs );
+  });
+
+});
+
+
+app.post("/setFileTemplate", function (req, res) {
+  var data = req.body;
+  var hashA = data.hashA;
+  var isSet = eval(data.isSet);
+  col.update({role:'upfile', hash:{$in:hashA} }, { $set:{ isTemplate:isSet } }, {multi:1, w:1}, function(err, result){
+  	return res.send(err);
+  } );
+});
+
 app.post("/getfile", function (req, res) {
   var data = req.body;
   var person = data.person;
 
   col.find( { person: person, role:'upfile', status:{$ne:-1} } , {limit:2000} ).sort({order:-1, title:1}).toArray(function(err, docs){
     if(err) {
-      res.send('error');
-      return;
+      return res.send('error');
     }
       var count = docs.length;
       res.send( JSON.stringify(docs) );
@@ -406,7 +471,7 @@ app.post("/updatefile", function (req, res) {
     console.log('updatefile:', v.hash,  newV.order);
     col.update({hash: v.hash}, newV, {upsert:true, w:1}, function  (err, result) {
       if(err) {
-        res.send('error');return;
+        return res.send('error');
       }
       var pathPart = breakIntoPath(v.path);
       if(err==null && pathPart.length && hashArr.length ) {
@@ -455,13 +520,13 @@ app.post("/getSavedSign", function (req, res) {
   try{
     var filename = url.parse(file).pathname.split('/').pop();
   }catch(e){
-    res.send("");return;
+    return res.send("");
   }
   if(!shareID){
-    res.send("");return;
+    return res.send("");
   } else{
     col.find({role:'sign', shareID:shareID, file:file, signData:{$ne:null} }, {sort:{signData:1}}).toArray(function(err, docs){
-      if(err){ res.send("");return; }
+      if(err){ return res.send(""); }
       var ids = docs.map(function  (v) {
         return new ObjectID( v.signData );
       });
@@ -488,18 +553,18 @@ app.post("/getCanvas", function (req, res) {
   try{
     var filename = url.parse(file).pathname.split('/').pop();
   }catch(e){
-    res.send("[]");return;
+    return res.send("[]");
   }
   if(!shareID){
     col.findOne({role:'upfile', key:filename }, function(err, result){
-      if(!result){ res.send("[]");return; }
+      if(!result){ return res.send("[]"); }
       res.send(result.drawData || "[]");
     } );
   } else{
     // below we want project result in array that only one element, like $elemMatch, see:
     //  http://stackoverflow.com/questions/29092265/elemmatch-search-on-array-of-subdocument
     col.findOne({role:'share', shareID:shareID, 'files.key':filename }, {fields: {'files.key.$':1} }, function(err, result){
-      if(!result){ res.send("[]");return; }
+      if(!result){ return res.send("[]"); }
       // var files = result.files.filter(function(v){
       //   return v.key == filename;
       // });
@@ -514,7 +579,7 @@ app.post("/getFlowList", function (req, res) {
 
   col.find( { role:'flow' } , {sort:{name:1}, limit:500}).toArray( function(err, docs){
       if(err) {
-        res.send('');return;
+        return res.send('');
       }
       res.send( docs );
   });
@@ -527,7 +592,7 @@ app.post("/getShareData", function (req, res) {
   var shareID = eval(req.body.shareID);
   col.findOne( { 'shareID': shareID, role:'share' } , {limit:500} , function(err, item){
       if(err) {
-        res.send('');return;
+        return res.send('');
       }
       res.send( item );
   });
@@ -538,7 +603,7 @@ app.post("/getShareFrom", function (req, res) {
   var person = req.body.person;
   col.find( { 'fromPerson.userid': person, role:'share' } , {limit:500} ).sort({shareID:-1}).toArray(function(err, docs){
       if(err) {
-        res.send('error');return;
+        return res.send('error');
       }
       var count = docs.length;
       res.send( JSON.stringify(docs) );
@@ -549,7 +614,7 @@ app.post("/getShareTo", function (req, res) {
   var person = req.body.person;
   col.find( { 'toPerson.userid': person, role:'share' } , {limit:500} ).sort({shareID:-1}).toArray(function(err, docs){
       if(err) {
-        res.send('error');return;
+        return res.send('error');
       }
       var count = docs.length;
       res.send( JSON.stringify(docs) );
@@ -581,7 +646,7 @@ app.post("/getShareMsg", function (req, res) {
 
       col.find( condition , {'text.content':1} , {limit:500} ).sort({shareID:1, date:1}).toArray(function(err, docs){
           if(err) {
-            res.send('error');return;
+            return res.send('error');
           }
           var count = docs.length;
           res.send( JSON.stringify(docs) );
@@ -591,11 +656,11 @@ app.post("/getShareMsg", function (req, res) {
   if(fromPerson){
     col.find( { 'fromPerson.userid': fromPerson, role:'share' }, {shareID:1, _id:0} , {limit:500} ).sort({shareID:1}).toArray(function(err, docs){
         if(err) {
-          res.send('error');return;
+          return res.send('error');
         }
         var count = docs.length;
         if(!count){
-          res.send('还没有消息');return;
+          return res.send('还没有消息');
         }
         getMsg( docs.map(function(v){return v.shareID}) );
     });
@@ -605,11 +670,11 @@ app.post("/getShareMsg", function (req, res) {
   if(toPerson){
     col.find( { 'toPerson.userid': toPerson, role:'share' }, {shareID:1, _id:0} , {limit:500} ).sort({shareID:1}).toArray(function(err, docs){
         if(err) {
-          res.send('error');return;
+          return res.send('error');
         }
         var count = docs.length;
         if(!count){
-          res.send('还没有消息');return;
+          return res.send('还没有消息');
         }
         getMsg( docs.map(function(v){return v.shareID}) );
     });
@@ -652,7 +717,7 @@ app.post("/beginSign", function (req, res) {
 app.post("/deleteSign", function (req, res) {
   var id =  req.body.id;
   if(!id.length){
-    res.send('');return;
+    return res.send('');
   }
   col.deleteOne({_id:new ObjectID(id) });
   res.send('OK');
@@ -703,7 +768,7 @@ app.post("/saveSign", function (req, res) {
 
     col.findOne({role:'sign', _id:new ObjectID(signID)}, function(err, item){
       if(err || !item){
-        res.send(""); return;
+        return res.send("");
       }
       person = item.signPerson;
 
@@ -738,12 +803,12 @@ app.post("/getSignHistory", function (req, res) {
 
   col.findOne({role:'sign', _id:new ObjectID(signID)}, function(err, item){
     if(err || !item){
-      res.send(""); return;
+      return res.send("");
     }
     person = item.signPerson;
     col.find({role:'signBase', person:person}, {limit:5, sort:{date:-1} }).toArray(function(err, docs){
       if(err || !docs.length){
-        res.send(""); return;
+        return res.send("");
       }
       //col.deleteMany({role:'signBase', person:person, date:{$lt: docs[docs.length-1].date } });
       res.send( docs );
@@ -766,16 +831,16 @@ app.post("/sendShareMsg", function (req, res) {
 
   col.findOne( { role:'share', shareID:shareID }, {}, function(err, data) {
       if(err) {
-        res.send('error');return;
+        return res.send('error');
       }
 
       if(!data){
-          res.send('此共享已删除');return;
+          return res.send('此共享已删除');
         }
 
       var users = data.fromPerson.concat(data.toPerson).filter(function(v){return v.userid==person});
       if(!users.length){
-        res.send('没有此组权限');return;
+        return res.send('没有此组权限');
       }
 
       //get segmented path, Target Path segment and A link
@@ -1068,11 +1133,93 @@ var config = {
 var wechat = require('wechat-enterprise');
 app.use('/wx',
 wechat(config, wechat
-.text(function (message, req, res, next) {
+.link(function (message, req, res, next) {
   console.log(message);
+  return res.reply(message);
+})
+.location(function (message, req, res, next) {
+//**** message format: 
+// { ToUserName: 'wx59d46493c123d365',
+//   FromUserName: 'yangjiming',
+//   CreateTime: '1439364875',
+//   MsgType: 'event',
+//   Event: 'LOCATION',
+//   Latitude: '30.069601',
+//   Longitude: '120.488655',
+//   Precision: '120.000000',
+//   AgentID: '1' }
 
-  res.reply(message);
-  return;
+  console.log(message);
+  return res.reply(message);
+})
+.video(function (message, req, res, next) {
+  console.log(message);
+  return res.reply(message);
+})
+.voice(function (message, req, res, next) {
+//**** message format: 
+// { ToUserName: 'wx59d46493c123d365',
+//   FromUserName: 'yangjiming',
+//   CreateTime: '1439363658',
+//   MsgType: 'voice',
+//   MediaId: '1TirVJnXpbd93ddYfVMop_9cYy538dCsnz4N07pgxdYLj5GPWtSHzthH40mF_7quJ1Jyrf22Lj9uWXsVZ64h01Q',
+//   Format: 'amr',
+//   MsgId: '4561277396023509015',
+//   AgentID: '1',
+//   Recognition: '' }
+
+  console.log(message);
+  return res.reply(message);
+})
+.event(function (message, req, res, next) {
+//****when enter Agent, will receive message:
+// { ToUserName: 'wx59d46493c123d365',
+//   FromUserName: 'yangjiming',
+//   CreateTime: '1439364874',
+//   MsgType: 'event',
+//   AgentID: '1',
+//   Event: 'enter_agent',
+//   EventKey: '' }
+
+
+//**** when click event menu, message format: 
+// { ToUserName: 'wx59d46493c123d365',
+//   FromUserName: 'yangjiming',
+//   CreateTime: '1439363611',
+//   MsgType: 'event',
+//   AgentID: '1',
+//   Event: 'click',
+//   EventKey: 'file_msg' }
+
+  console.log(message);
+  return res.reply(message);
+})
+.image(function (message, req, res, next) {
+//**** message format: 
+// { ToUserName: 'wx59d46493c123d365',
+//   FromUserName: 'yangjiming',
+//   CreateTime: '1439363357',
+//   MsgType: 'image',
+//   PicUrl: 'http://mmbiz.qpic.cn/mmbiz/UF3WGRScRh8uhCJcIYcfsH5c5wV6H41lbvkIDzibLMBABZpHBChgfaFbwf2GxTyyUSmd2hy1icqzahicjybtWexoQ/0',
+//   MsgId: '4561277396023509014',
+//   MediaId: '1x5uMWjTL9tEjewN8IuJCJDPyQCQitHmwnhEzG6dw5q18q_AidkVivdVeNJ0C_eM7s_FWnVBFzYdvo10FOllFQQ',
+//   AgentID: '1' }
+
+  console.log(message);
+  return res.reply(message);
+})
+.text(function (message, req, res, next) {
+//**** message format: 
+// { ToUserName: 'wx59d46493c123d365',
+//   FromUserName: 'yangjiming',
+//   CreateTime: '1439363336',
+//   MsgType: 'text',
+//   Content: '好的',
+//   MsgId: '4561277396023509013',
+//   AgentID: '1' }
+
+  console.log(message);
+  return res.reply(message);
 
   res.reply([
   {
@@ -1138,20 +1285,24 @@ function updateCompanyTree () {
   api.getDepartments(function  (err, result) {
     var i=0;
     var departs = result.department;
+
     departs.forEach(function  (v) {
       api.getDepartmentUsersDetail(1, 1, 0, function  (err, users) {
         i++;
-        v.children = users.userlist;
+        //v.children = users.userlist;
+        v.pId = v.parentid;
         companyTree.push(v);
+       
         users.userlist.forEach(function(s){
-
+          if( s.department.indexOf(v.id)==-1) return true;
           var namedDep = s.department.map(function  (depID) {
             return _.where(departs, { id: depID} )[0].name;
           });
-          
-          s.department = namedDep;
-          s.depart = namedDep?namedDep[0]:'';
 
+          s.pId = s.department[0];          
+          s.departmentNames = namedDep;
+          s.depart = namedDep?namedDep[0]:'';
+          companyTree.push(s);
           if( ! _.where(stuffList, {userid:s.userid }).length ) stuffList.push(s);
 
         });
@@ -1192,8 +1343,14 @@ app.post("/getCompanyTree", function (req, res) {
   });
 });
 
-
-
+app.get("/createDepartment", function (req, res) {
+  var name=req.query.name;
+  var pid=req.query.pid;
+  api.createDepartment(name, {parentid:pid}, function(err, result){
+    console.log(err, result);
+    return res.send('OK');
+  } );
+});
 
 
 

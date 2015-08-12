@@ -8,7 +8,10 @@
 <meta name="viewport" content="width=device-width,user-scalable=no,init-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
-
+    <meta name="google" content="notranslate">
+    <meta http-equiv="cache-control" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
 <script type="text/javascript" src="http://res.wx.qq.com/open/js/jweixin-1.0.0.js"></script>
 <script type="text/javascript" src="/js/cookies.js"></script>
 
@@ -24,13 +27,19 @@
 
 	<SCRIPT type="text/javascript">
 
-
-		var wxUserInfo = Cookies.get( 'wxUserInfo' );
-		if( !wxUserInfo ){
-			window.location = 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx59d46493c123d365&redirect_uri=http%3A%2F%2F1111hui.com%2F/pdf/getUserID.php&response_type=code&scope=snsapi_base&state='+ encodeURIComponent( window.location.href.replace('#','{@@@}') ) +'#wechat_redirect';
-		} else {
-			wxUserInfo = JSON.parse(wxUserInfo);
-		}
+var DEBUG= 1;
+if(!DEBUG)
+{
+	var wxUserInfo = Cookies.get( 'wxUserInfo' );
+	if( !wxUserInfo ){
+		window.location = 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx59d46493c123d365&redirect_uri=http%3A%2F%2F1111hui.com%2F/pdf/getUserID.php&response_type=code&scope=snsapi_base&state='+ encodeURIComponent( window.location.href.replace('#','{@@@}') ) +'#wechat_redirect';
+	} else {
+		wxUserInfo = JSON.parse(wxUserInfo);
+	}
+}else{
+	var wxUserInfo={};
+	wxUserInfo.UserId = 'yangjiming';
+}
 		
 
 
@@ -38,6 +47,7 @@
 		var treeObj1 = null;
 		var treeObj2 = null;
 		var treeObj3 = null;
+		var treeObjTemplate = null;
 		var curTree = treeObj;
 		var rMenu;
 		var addCount = 1;
@@ -123,7 +133,7 @@
 
 var isQT = false;
 var host = "http://1111hui.com:88";
-var rootPerson = {userid: 'yangjiming', name:"杨吉明", depart:"行政" };
+var rootPerson = {userid: 'yangjiming', name:"杨吉明", depart:"行政", isAdmin:true };
 var root=[];
 var fileData=null;
 var fileKeys=null;
@@ -194,7 +204,7 @@ var formatDate = function(format) {
 		function OnRightClick(event, treeId, treeNode) {
 			console.log(treeNode);
 			if(!treeNode) return;
-			if(treeNode.isSend || treeNode.isReceive) return;
+			if(treeNode.isSend || treeNode.isReceive || treeNode.isTemplate ) return;
 			if (!treeNode && event.target.tagName.toLowerCase() != "button" && $(event.target).parents("a").length == 0) {
 				treeObj.cancelSelectedNode();
 				showRMenu("root", event.clientX, event.clientY);
@@ -228,6 +238,47 @@ var formatDate = function(format) {
 				rMenu.css({"visibility" : "hidden"});
 			}
 		}
+
+function applyTemplate(){
+	var sel = treeObj.getSelectedNodes();
+	if(!sel.length)return;
+	sel=sel[0];
+
+	var info = getFileKeys(sel);
+
+	$.post(host+'/applyTemplate', { info:info, userid: rootPerson.userid }, function  (data) {
+		console.log(data);
+		hideTemplateCon();
+	});
+}
+
+function hideTemplateCon() {
+	var idx = $('.currTab').data('idx');
+	treeObj = eval('treeObj'+(idx+1) );
+	$('.templateFile_wrap').hide();
+	updateMenu( treeObj.getSelectedNodes() );
+}
+function addTemplateCon() {
+	treeObj = treeObjTemplate;
+	$('.templateFile_wrap').show();
+	updateMenu( treeObj.getSelectedNodes() );
+};
+
+function initTemplateFileTree (data) {
+	root= [];
+	data.forEach(function(v){
+		pathToObj( v );
+		root[root.length-1].isTemplate = v.isTemplate;
+	});
+
+	var rootNode = treeObjTemplate.getNodes()[0];
+	treeObjTemplate.addNodes( rootNode , root );
+	treeObjTemplate.expandNode( rootNode, true );
+	treeObjTemplate.selectNode( rootNode );
+	addAttrToNode( receiveRoot, {isTemplate:true} );
+}
+
+
 
 		function addTreeNode() {
 			hideRMenu();
@@ -523,7 +574,7 @@ var formatDate = function(format) {
 			className = (className === "dark" ? "":"dark");
 			if(curSrcNode && treeNode.open) return true;
 
-			if (treeNode.isParent && treeNode.click!==false) {
+			if (treeNode.isParent && treeNode.level>0 && treeNode.click!==false) {
 				treeObj.expandNode(treeNode);
 			}
 			showLog("[ "+getTime()+" beforeClick ]&nbsp;&nbsp;" + treeNode.name );
@@ -594,7 +645,6 @@ function getFilesData () {
 		var query = searchToObject( window.location.hash );
 
 		init(data);
-
 		if(!query.shareID){
 			locateNode( treeObj.getNodes()[0], query.path );
 		}
@@ -617,19 +667,25 @@ function getFilesData () {
 			});
 		});
 
+		$.post(host+'/getTemplateFiles', { depart:rootPerson.depart }, function  (data) {
+			if(!data) return;
+			initTemplateFileTree(data);
+		});
 
 
 	});
 
 
 }
-getFilesData();
+
 
 
 function locateNode(rootNode, path, shareID){
 	if( !rootNode || !path ) return;
 	var targetNode;
 	var treeObj = rootNode.isSend ? treeObj2 : ( rootNode.isReceive? treeObj3 : treeObj1 );
+	treeObj.expandNode( rootNode, true );
+
 	if(path[0]=='/'){
 		path = '/'+rootNode.name+path;
 		targetNode = treeObj.getNodesByFilter(function(node){
@@ -748,21 +804,25 @@ function addAttrToNode (node, obj) {
 				fileKeys = Object.keys(v);
 			});
 			zNodes = [{userid:rootPerson.userid, name:'['+rootPerson.name+']的文件柜',  title: rootPerson.depart+ "-"+rootPerson.name+'的文件柜', isParent:true, children: root}];
-			window.zNodes2 =  {userid:rootPerson.userid, name:'发件柜', title:'发件柜', isSend:true, isParent:true, children: []} ;
-		    window.zNodes3 = {userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: []} ;
+			var zNodes2 =  {userid:rootPerson.userid, name:'发件柜', title:'发件柜', isSend:true, isParent:true, children: []} ;
+		    var zNodes3 = {userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: []} ;
+		    var zNodesTemplate = {userid:rootPerson.userid, name:'模板文件柜', title:'模板文件柜', isTemplate:true, isParent:true, children: []} ;
 
-			fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "order", "imageWidth", "imageHeight"];
+			fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "order", "imageWidth", "imageHeight", 'isTemplate', 'drawData'];
 			//fileKeys = fileKeys.concat( ['path', 'hash'].filter(function (item) { return fileKeys.indexOf(item) < 0 }) );
 			//fileKeys.splice( fileKeys.indexOf('_id'), 1 );
 
 			$.fn.zTree.init($("#fileTree"), setting, zNodes);
 			treeObj1 = $.fn.zTree.getZTreeObj("fileTree");
 
-			$.fn.zTree.init($("#fileTree2"), setting, window.zNodes2);
+			$.fn.zTree.init($("#fileTree2"), setting, zNodes2);
 			treeObj2 = $.fn.zTree.getZTreeObj("fileTree2");
 
-			$.fn.zTree.init($("#fileTree3"), setting, window.zNodes3);
+			$.fn.zTree.init($("#fileTree3"), setting, zNodes3);
 			treeObj3 = $.fn.zTree.getZTreeObj("fileTree3");
+
+			$.fn.zTree.init($("#fileTreeTemplate"), setting, zNodesTemplate);
+			treeObjTemplate = $.fn.zTree.getZTreeObj("fileTreeTemplate");
 
 			treeObj = treeObj1;
 
@@ -839,6 +899,15 @@ function breakIntoPath(path){
     ret.push( dd.join('/') + '/' );
   }
   return ret.slice(1);
+}
+
+
+function getFileKeys(node){
+	var obj = fileKeys.reduce(function(o, key, idx) {
+	  o[key] = node[key];
+	  return o;
+	}, {});
+	return obj;
 }
 
 		function serverUpdateNode (type, treeNodes ) {
@@ -1006,8 +1075,7 @@ function breakIntoPath(path){
 						$('.fView').hide();
 					}
 					return;
-				}
-				if(targetNode.isReceive) {
+				} else if(targetNode.isReceive) {
 					$('.receiveMenu').show();
 					if(targetNode.level==-1){
 						$('.fAddShare').show();
@@ -1015,14 +1083,47 @@ function breakIntoPath(path){
 						$('.fAddShare').hide();
 					}
 					return;
+				} else if( $('.templateFile_wrap').is(':visible') && targetNode.isTemplate) {
+					$('.templateMenu').show();
+					targetNode.isParent ? $('.fConfirmTemplate').hide() : $('.fConfirmTemplate').show();
 				} else {
-					targetNode.isParent ? $('.dirMenu').show() :  $('.fileMenu').show();
+					if(targetNode.isParent && targetNode.level==0){
+						$('.rootMenu1').show();
+					} else if(targetNode.isParent) {
+						$('.dirMenu').show();
+					} else {
+						$('.fileMenu').show();
+						$('.fAdmin').hide();
+
+						if(rootPerson.isAdmin)
+						if(targetNode.isTemplate){
+							$('.fRemoveTemplate').show();
+						}else{
+							$('.fSetTemplate').show();
+						}
+					}
 					return;
 				}
 			} else {
 				$('.botmenu').hide();
 			}
 		}
+
+
+function setFileTemplate (isSet) {
+	var sel = treeObj.getSelectedNodes();
+	if(!sel.length) return;
+	var hashA = sel.map(function(v){return v.hash});
+
+	$.post( host+'/setFileTemplate', {hashA: hashA, isSet: isSet}, function(err){
+		if(err) return alert('有错误发生');
+		sel.forEach(function(v){
+			v.isTemplate = isSet;
+		});
+		updateMenu(sel);
+		alert(isSet? '设置模板成功': '取消模板成功');
+	} );
+}
 
 
 	</SCRIPT>
@@ -1039,7 +1140,14 @@ window.curFlow = null;
 var companyTree = null;
 var companyNode = null;
 var companySetting = {
-
+	data: {
+		simpleData: {
+			enable: true,
+			idKey: "id",
+			pIdKey: "pId",
+			rootPId: 0
+		}
+	},
 	view: {
 		showLine: true,
 		dblClickExpand: false,
@@ -1060,76 +1168,6 @@ var companySetting = {
 
 	}
 }
-
-$(function  () { 
-
-	$.post(host+'/getUserInfo', { userid: wxUserInfo.UserId }, function  (userinfo) {
-
-		if(!userinfo){
-			alert('非法用户');
-			return;
-		}
-
-		rootPerson = userinfo;
-
-		$.post(host+'/getCompanyTree', { company:'lianrun' }, function  (data) {
-			companyNode = JSON.parse( data );
-			console.log(data);
-			companyTree = $.fn.zTree.init($("#companyTree"), companySetting, companyNode);
-		});
-
-		$.post(host+'/getFlowList', { }, function  (data) {
-			if(!data)return;
-			window.flowData = data;
-			var sel = $('.flowSelect');
-			data.forEach(function  (v) {
-				var option = $('<option value="'+v.name+'">'+v.name+'</option>');
-				sel.append(option);
-			});
-			sel.change(function  (e) {
-				var id=this.selectedIndex-1;
-				if(id<0){
-					$('.flowPerson').empty();
-					return;
-				}
-				window.curFlow = window.flowData[id];
-				var persons = window.curFlow.flowPerson;
-				var list = persons.map(function  (v) {
-					return '<a href="http://www.baidu.com/">['+v.depart+ ']' +v.name+'</a>';
-				});
-
-				$('.flowPerson').empty().append( list.join('->') );
-			});
-		});
-
-
-	});
-	
-
-	$('#isSign').change(function  () {
-		if( $(this).prop('checked') ){
-			$('.flowCon, .flowPerson').show();
-		} else {
-			$('.flowCon, .flowPerson').hide();
-		}
-	});
-
-	
-
-	$('.dialog-confirm').bind('click', function  (e) {
-		e.preventDefault();
-		shareNode();
-	});
-
-
-	$('.header ul li').click(function(){
-		var idx = $(this).data('idx');
-		showTab(idx);
-	});
-
-
-
-});
 
 function showTab(idx) {
 	
@@ -1165,7 +1203,8 @@ function onClick2(event, treeId, treeNode, clickFlag) {
 function hideShare () {
 	var sel = treeObj.getSelectedNodes()[0];
 	$('.company_wrap').hide();
-	$('.treeCompanyCon').css({left: $('.company_wrap').width() });
+	$('.header').show();
+	//$('.treeCompanyCon').css({left: $('.company_wrap').width() });
 	updateMenu(sel);
 	curTree = treeObj;
 }
@@ -1309,7 +1348,13 @@ function shareNode(){
 }
 
 function shareFile(){
+	var sel = treeObj.getSelectedNodes();
+	if(!sel.length) return;
+	sel2 = sel[0];
+	var title = sel.length>1?  sel2.name+'..' : sel2.name;
 	$('.company_wrap').show();
+	$('.header').hide();
+	$('.msgTitle').html( "分享 "+  title +' 给:' );
 	$('.treeCompanyCon').css({}, 300, 'linear');
 	updateMenu('.shareMenu');
 	curTree = companyTree;
@@ -1462,7 +1507,7 @@ function searchToObject(search) {
 window.wxReady = false;
 
 function initWX() {
-	$.post(host+'/getJSConfig', function(data){
+	$.post(host+'/getJSConfig', { url:window.location.href.split('#')[0] }, function(data){
 		if(!data){
 			alert('获取微信接口错误');
 			wx.closeWindow();
@@ -1472,6 +1517,7 @@ function initWX() {
 		wx.config(data);
 		wx.ready(function(){
 			window.wxReady = true;
+			wxConfigMenu();
 			return;
 		});
 		wx.error(function(res){
@@ -1480,6 +1526,18 @@ function initWX() {
 		});
 		
 	});
+}
+
+function wxConfigMenu(){
+wx.hideAllNonBaseMenuItem();
+wx.hideMenuItems({
+    menuList: ["menuItem:exposeArticle", "menuItem:setFont",  "menuItem:dayMode", "menuItem:nightMode", "menuItem:share:timeline", "menuItem:share:appMessage", "menuItem:share:qq", "menuItem:share:QZone", "menuItem:share:weiboApp", "menuItem:share:facebook", "menuItem:share:QZone", "menuItem:openWithQQBrowser", "menuItem:openWithSafari", ]
+});
+
+wx.showMenuItems({
+	menuList: [ "menuItem:refresh", "menuItem:favorite" ]
+});
+
 }
 
 function wxUploadImage(){
@@ -1508,6 +1566,79 @@ function initOAth(){
 
 
 initWX();
+
+$(function  () { 
+
+	$.post(host+'/getUserInfo', { userid: wxUserInfo.UserId }, function  (userinfo) {
+
+		if(!userinfo){
+			alert('非法用户');
+			return;
+		}
+
+		rootPerson = userinfo;
+
+		getFilesData();
+		
+		$.post(host+'/getCompanyTree', { company:'lianrun' }, function  (data) {
+			companyNode = JSON.parse( data );
+			console.log(data);
+			companyTree = $.fn.zTree.init($("#companyTree"), companySetting, companyNode);
+		});
+
+		$.post(host+'/getFlowList', { }, function  (data) {
+			if(!data)return;
+			window.flowData = data;
+			var sel = $('.flowSelect');
+			data.forEach(function  (v) {
+				var option = $('<option value="'+v.name+'">'+v.name+'</option>');
+				sel.append(option);
+			});
+			sel.change(function  (e) {
+				var id=this.selectedIndex-1;
+				if(id<0){
+					$('.flowPerson').empty();
+					return;
+				}
+				window.curFlow = window.flowData[id];
+				var persons = window.curFlow.flowPerson;
+				var list = persons.map(function  (v) {
+					return '<a href="http://www.baidu.com/">['+v.depart+ ']' +v.name+'</a>';
+				});
+
+				$('.flowPerson').empty().append( list.join('->') );
+			});
+		});
+
+
+	});
+	
+
+	$('#isSign').change(function  () {
+		if( $(this).prop('checked') ){
+			$('.flowCon, .flowPerson').show();
+		} else {
+			$('.flowCon, .flowPerson').hide();
+		}
+	});
+
+	
+
+	$('.dialog-confirm').bind('click', function  (e) {
+		e.preventDefault();
+		shareNode();
+	});
+
+
+	$('.header ul li').click(function(){
+		var idx = $(this).data('idx');
+		showTab(idx);
+	});
+
+
+
+});
+
 
 
 </script>
@@ -1582,12 +1713,13 @@ initWX();
 	}
 
 
-	.company_wrap {
+	.popupWin {
 	  position: fixed;
-	  top: 42px;
+	  z-index: 9;
+	  top: 0px;
 	  left: 0;
-	  width: 500px;
-	  height: 100%;
+	  bottom:45px;
+	  right:0px;
 	  overflow: hidden;
 	  display: none;
       background-color: #fff;
@@ -1624,11 +1756,11 @@ initWX();
 	  text-align: center;
 	  line-height: 41px;
 	}
-	.treeCompanyCon {
+	.popcon {
 	  position: absolute;
 	  background-color: white;
-	  left: 500px;
-	  top: 0;
+	  left: 0;
+    	top: 43px;
 	  height: 100%;
 	  width: 100%;
 	  border-left: 1px solid #ccc;
@@ -1699,7 +1831,7 @@ initWX();
 		top:0;
 		left: 0;
 		right: 0;
-		z-index: 999;
+		z-index: 2;
 	}
 	.header ul{
 		width: 100%;
@@ -1725,6 +1857,7 @@ initWX();
 	#fileTree2, #fileTree3{
 		display: none;
 	}
+
 
 </style>
 
@@ -1786,8 +1919,16 @@ initWX();
 </div>
 
 
-<div class="company_wrap">
-	<div class="treeCompanyCon">
+<div class="popupWin templateFile_wrap">
+	<div class="msgTitle"></div>
+	<div class="popcon TemplateFileCon">
+		<ul id="fileTreeTemplate" class="ztree ztreeCompany"></ul>
+	</div>
+</div>
+
+<div class="popupWin company_wrap">
+	<div class="msgTitle"></div>
+	<div class="popcon treeCompanyCon">
 		<ul id="companyTree" class="ztree ztreeCompany"></ul>
 	</div>
 </div>
@@ -1813,6 +1954,8 @@ initWX();
 		<a class="fRemove" href="javascript:;" onclick="cutNode()">移动</a>
 		<a class="fShare" href="javascript:;" onclick="shareFile()">分享</a>
 		<a class="fShare" href="javascript:;" onclick="beginFlow()">流程</a>
+		<a class="fAdmin fSetTemplate" href="javascript:;" onclick="setFileTemplate(true)">设为模板</a>
+		<a class="fAdmin fRemoveTemplate" href="javascript:;" onclick="setFileTemplate(false)">取消模板</a>
 	</div>
 
 	<div class="dirMenu">
@@ -1821,7 +1964,11 @@ initWX();
 		<a class="fRemove" href="javascript:;" onclick="removeTreeNode()">删除</a>
 		<a class="fRemove" href="javascript:;" onclick="cutNode()">移动</a>
 		<a class="fShare" href="javascript:;" onclick="shareFile()">分享</a>
+	</div>
 
+	<div class="rootMenu1">
+		<a class="fRename" href="javascript:;" onclick="addTreeNode()">新文件夹</a>
+		<a class="fShare" href="javascript:;" onclick="addTemplateCon()">新模板文件</a>
 	</div>
 
 	<div class="moveMenu">
@@ -1846,6 +1993,11 @@ initWX();
 		<a class="fAddShare" href="javascript:;" onclick="addShareFiles()">添加文件</a>
 		<a class="fView" href="javascript:;">查看文件</a>
 		<a class="fRemove" href="javascript:;" onclick="viewDetail()">消息记录</a>
+	</div>
+
+	<div class="templateMenu">
+		<a class="fBackTemplate" href="javascript:;" onclick="hideTemplateCon()">返回</a>
+		<a class="fConfirmTemplate" href="javascript:;" onclick="applyTemplate()">确定选择</a>
 	</div>
 
 	<div class="msgMenu">
