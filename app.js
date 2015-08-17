@@ -24,6 +24,10 @@ var express = require("express");
 var bodyParser = require("body-parser");
 var multer = require("multer");
 
+var Datauri = require('datauri');
+var QREncoder = require('qr').Encoder;
+
+
 var redis = require("redis"),
 redisClient = redis.createClient(6379, '127.0.0.1', {});
 
@@ -74,14 +78,112 @@ function qiniu_uploadFile(file, callback ){
 }
 
 
+/********* Redis Part ************/
 redisClient.on('error', function (err) {
     console.log('Redis Error ' + err);
 });
- 
+
 redisClient.on('connect', function(err){
   console.log('Connected to Redis server' + err);
 });
 
+
+
+/********* WebSocket Part ************/
+var WebSocketServer = require('ws').Server;
+var wss = new WebSocketServer({ port: 3000 });
+
+// each of WSMSG object structure:
+// { msgid: { ws, data  }  }, such as below:
+//
+// { "142342.453":
+//     {
+//       timeStamp:+new Date(),
+//       ws:[ws object],
+//       data:[json data from client]
+//     }
+// }
+var WSMSG = {};
+wss.on('connection', function connection(ws) {
+  ws.on('close', function incoming(code, message) {
+    console.log("WS close: ", code, message);
+  });
+  ws.on('message', function incoming(data) {
+    // Client side data format:
+    // reqData = {  msgid:14324.34, data:{a:2,b:3}  }
+
+    // Server response data format:
+    // resData = { msgid:14324.34, result:{ userid:'yangjiming' } }
+    var msg = JSON.parse(data);
+    var msgid = msg.msgid;
+    delete msg.msgid;
+    console.log(msgid, msg);
+    WSMSG.msgid = {ws:ws, timeStamp:+new Date(), data:msg.data};
+
+  });
+  console.log('new client connected');
+  ws.send('connected');
+});
+
+function getWsData(msgid){
+  if(!msgid || !WSMSG.msgid) return;
+  return WSMSG.msgid.data;
+}
+function sendWsMsg(msgid, resData) {
+  if(!msgid || !WSMSG.msgid) return;
+  var ws = WSMSG.msgid.ws;
+
+  //the sendback should be JSON stringify, else throw TypeError: Invalid non-string/buffer chunk
+  var ret = { msgid:msgid, result: resData };
+  ws.send( JSON.stringify(ret)  );
+}
+
+/**** Client Side example :
+// Dependency: https://github.com/joewalnes/reconnecting-websocket
+
+var wsQueue={};
+var ws;
+function connectToWS(){
+  if(ws) ws.close();
+  ws = new ReconnectingWebSocket('ws://1111hui.com:3000', null, {debug:false, reconnectInterval:300 });
+  ws.onopen = function (e) {
+    ws.onmessage = function (e) {
+      console.log(e.data);
+
+      if(e.data[0]!="{")return;
+          var d=JSON.parse(e.data);
+          var callObj= wsQueue[d.msgid];
+          if(callObj) {
+              callObj[1].call(callObj[0], d.result);
+              delete wsQueue[d.msgid];
+          }
+    }
+    ws.onclose = function (code, reason, bClean) {
+      console.log("ws error: ", code, reason, bClean);
+    }
+    console.log('client ws ready');
+  }
+}
+connectToWS();
+
+
+function wsend(data, that, callback){
+  if(!ws || ws.readyState!=1) return;
+  var json = {data:data};
+  if(callback){
+      json.msgid = +new Date() + Math.random();
+      wsQueue[json.msgid] = [that, callback];
+  }
+
+
+  ws.send(JSON.stringify(json));
+  return json.msgid;
+}
+
+********/
+
+
+/********* Express Part ************/
 
 var app = express();
 
@@ -129,13 +231,74 @@ app.post("/pdfCanvasDataLatex", function (req, res) {
 
 
 
+app.post("/getFinger", function (req, res) {
+  var msgid = req.body.msgid;
+  var reqData = getWsData(msgid);
+  if(!reqData) return res.send('');
+  var finger = reqData.finger;
+
+  col.findOne({finger:finger, role:'finger'}, function(err, item){
+    if(!item || !item.userid){
+
+      console.log('not found',msgid, finger);
+
+      var qrStr = 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx59d46493c123d365&redirect_uri=http%3A%2F%2F1111hui.com%2F/pdf/getFinger.php&response_type=code&scope=snsapi_base&state='+ msgid +'#wechat_redirect';
+      var encoder = new QREncoder;
+      dUri = new Datauri();
+      encoder.on('end', function(png_data){
+          var udata = dUri.format('.png', png_data);
+          res.send( udata.content );
+      });
+
+      encoder.encode(qrStr, null, {dot_size:5, margin:4} );
+
+    }
+
+  } );
+});
+
+
+app.get("/putFingerInfo", function (req, res) {
+  var code = req.query.code;
+  var msgid = req.query.msgid;
+  var reqData = getWsData(msgid);
+  if(!code || !reqData) return res.send('');
+
+  var finger = reqData.finger;
+
+  var tryCount = 0;
+  function doit(){
+
+    api.getLatestToken(function  (err, token) {
+        if( !token && tryCount++<5 ) {
+          doit();return;
+        }
+
+        urllib.request("https://qyapi.weixin.qq.com/cgi-bin/user/getuserinfo?access_token="+ token.accessToken +"&code="+code, function(err, data, meta) {
+          if(!data && tryCount++<5 ){
+            return doit();
+          }
+          console.log("wx client auth: ", finger, data.toString() );
+          var ret = JSON.parse( data.toString() );
+          ret.finger = finger;
+          //ret.state = state;
+          res.send( JSON.stringify(ret) );
+          sendWsMsg( msgid, JSON.stringify(ret) );
+        });
+    });
+
+  }
+  doit();
+
+});
+
 app.get("/getUserID", function (req, res) {
-  
+
   var code = req.query.code;
   var state = req.query.state;
   if(!code){
     return res.send('');
-  } 
+  }
 
   var tryCount = 0;
   function doit(){
@@ -182,7 +345,6 @@ app.post("/getJSConfig", function (req, res) {
 
   var url = req.body.url;
   var rkey = 'wx:js:ticket:'+ encodeURIComponent(url);
-
   var param = {
     debug:false,
     jsApiList: ["onMenuShareTimeline","onMenuShareAppMessage","onMenuShareQQ","onMenuShareWeibo","onMenuShareQZone","startRecord","stopRecord","onVoiceRecordEnd","playVoice","pauseVoice","stopVoice","onVoicePlayEnd","uploadVoice","downloadVoice","chooseImage","previewImage","uploadImage","downloadImage","translateVoice","getNetworkType","openLocation","getLocation","hideOptionMenu","showOptionMenu","hideMenuItems","showMenuItems","hideAllNonBaseMenuItem","showAllNonBaseMenuItem","closeWindow","scanQRCode"],
@@ -191,15 +353,18 @@ app.post("/getJSConfig", function (req, res) {
 
   var tryCount = 0;
   function getJsConfig(){
-    api.getJsConfig(param, function(err, result){
-      if(err && tryCount++<3){
-        getJsConfig();
-      }else{
-        // console.log('wx:', result);
-        redisClient.set( rkey, JSON.stringify(result), 'ex', 30);
-        res.send( JSON.stringify(result) );
-      }
-    });
+  	api.getLatestToken(function () {
+  		api.getJsConfig(param, function(err, result){
+  		  if(err && tryCount++<3){
+  		    getJsConfig();
+  		  }else{
+  		    // console.log('wx:', result);
+  		    redisClient.set( rkey, JSON.stringify(result), 'ex', 30);
+  		    res.send( JSON.stringify(result) );
+  		  }
+  		});
+  	});
+
   }
 
   //redisClient.set('aaa', 100, 'ex', 10);
@@ -385,7 +550,6 @@ app.post("/applyTemplate", function (req, res) {
 			role:'upfile',
 			person:userid,
 			client:'',
-			name: info.title+'_'+moment().format('YYYYMMDD'),
 			title: info.title+'_'+moment().format('YYYYMMDD'),
 			path: '/',
 			date: new Date(),
@@ -394,7 +558,7 @@ app.post("/applyTemplate", function (req, res) {
 			fsize:info.fsize,
 			type:info.type,
 			drawData:info.drawData,
-			hash: +new Date()+Math.random(),
+			hash: +new Date()+Math.random()+'',
 			order:maxOrder
 		};
 
@@ -513,6 +677,65 @@ app.post("/saveCanvas", function (req, res) {
 
 });
 
+
+app.post("/saveInputData", function (req, res) {
+  var textID = req.body.textID;
+  var value = req.body.value;
+  var file = req.body.file;
+  var shareID = parseInt( req.body.shareID );
+  try{
+    var filename = url.parse(file).pathname.split('/').pop();
+  }catch(e){
+    return res.send("");
+  }
+  if(!shareID){
+    var obj = {};
+    obj['inputData.'+textID.replace('.', '\uff0e')] = value;
+    col.update({role:'upfile', 'key':filename }, { $set: obj  }, function(err, result){
+    	return res.send("OK");
+    });
+  } else {
+  	// have to replace keys that contains dot(.) in keyname,
+  	// http://stackoverflow.com/questions/12397118/mongodb-dot-in-key-name
+    var obj = {};
+    obj['files.$.inputData.'+textID.replace('.', '\uff0e')] = value;
+    col.update({ role:'share', shareID:shareID, 'files.key':filename }, { $set: obj  }, function(err, result){
+    	return res.send("OK");
+    });
+  }
+
+});
+
+
+app.post("/getInputData", function (req, res) {
+  var file = req.body.file;
+  var shareID = parseInt( req.body.shareID );
+  try{
+    var filename = url.parse(file).pathname.split('/').pop();
+  }catch(e){
+    return res.send("");
+  }
+  if(!shareID){
+    col.findOne({ role:'upfile', 'key':filename },  {fields: {'inputData':1} }, function(err, result){
+    	//convert unicode Dot into [dot]
+    	var data = {};
+    	_.each(result.inputData, function(v,k){
+    		data[k.replace('\uff0e', '.')] = v;
+    	});
+    	return res.json( data );
+    });
+  } else {
+    col.findOne({ role:'share', shareID:shareID, 'files.key':filename },  {fields: {'files.key.$':1} }, function(err, result){
+    	//convert unicode Dot into [dot]
+    	var data = {};
+    	_.each( result.files[0].inputData , function(v,k){
+    		data[k.replace('\uff0e', '.')] = v;
+    	});
+    	return res.json( data );
+    });
+  }
+
+});
 
 app.post("/getSavedSign", function (req, res) {
   var file = req.body.file;
@@ -726,23 +949,23 @@ app.post("/deleteSign", function (req, res) {
 app.post("/finishSign", function (req, res) {
   var shareID =  eval(req.body.shareID);
   var person =  req.body.person;
-  
+
   col.findOne({shareID:shareID, role:'share'}, function(err, colShare){
     var flowName = colShare.flowName;
     var curFlowPos = colShare.toPerson.length;
 
     if(curFlowPos >= colShare.selectRange.length){
-        res.send( util.format( '流程%d(%s-%s)已结束，系统将通知相关人员知悉', 
-                    colShare.shareID, 
-                    colShare.flowName, 
+        res.send( util.format( '流程%d(%s-%s)已结束，系统将通知相关人员知悉',
+                    colShare.shareID,
+                    colShare.flowName,
                     colShare.fromPerson[0].name ) );
       }else{
         var nextPerson = colShare.selectRange[curFlowPos];
         col.update( {_id: colShare._id }, {$push: { toPerson: nextPerson }}, {w:1}, function(){
-          res.send( util.format( '流程%d(%s-%s)已转交给下一经办人：\n%s', 
-                  colShare.shareID, 
-                  colShare.flowName, 
-                  colShare.fromPerson[0].name, 
+          res.send( util.format( '流程%d(%s-%s)已转交给下一经办人：\n%s',
+                  colShare.shareID,
+                  colShare.flowName,
+                  colShare.fromPerson[0].name,
                   nextPerson.depart+'-'+nextPerson.name ) );
         });
       }
@@ -956,7 +1179,7 @@ function sendWXMessage (msg) {
   if(!msg.tryCount){
     col.insert(msg);
     msg.tryCount = 1;
-  } 
+  }
 
   var msgTo = {};
   if(msg.touser) msgTo.touser = msg.touser;
@@ -970,7 +1193,7 @@ function sendWXMessage (msg) {
     console.log('sendWXMessage', msg.tryCount, err, result);
     if(err){
       if(msg.tryCount++ <=5)
-        setTimeout( function(){ 
+        setTimeout( function(){
           sendWXMessage(msg);
         },1000);
       return ('error');
@@ -1138,7 +1361,7 @@ wechat(config, wechat
   return res.reply(message);
 })
 .location(function (message, req, res, next) {
-//**** message format: 
+//**** message format:
 // { ToUserName: 'wx59d46493c123d365',
 //   FromUserName: 'yangjiming',
 //   CreateTime: '1439364875',
@@ -1157,7 +1380,7 @@ wechat(config, wechat
   return res.reply(message);
 })
 .voice(function (message, req, res, next) {
-//**** message format: 
+//**** message format:
 // { ToUserName: 'wx59d46493c123d365',
 //   FromUserName: 'yangjiming',
 //   CreateTime: '1439363658',
@@ -1172,6 +1395,16 @@ wechat(config, wechat
   return res.reply(message);
 })
 .event(function (message, req, res, next) {
+
+//****when click MENU LINK, will receive message:
+// { ToUserName: 'wx59d46493c123d365',
+//   FromUserName: 'ceshi1',
+//   CreateTime: '1439428547',
+//   MsgType: 'event',
+//   AgentID: '1',
+//   Event: 'view',
+//   EventKey: 'http://1111hui.com/pdf/client/tree.html' }
+
 //****when enter Agent, will receive message:
 // { ToUserName: 'wx59d46493c123d365',
 //   FromUserName: 'yangjiming',
@@ -1182,7 +1415,7 @@ wechat(config, wechat
 //   EventKey: '' }
 
 
-//**** when click event menu, message format: 
+//**** when click event menu, message format:
 // { ToUserName: 'wx59d46493c123d365',
 //   FromUserName: 'yangjiming',
 //   CreateTime: '1439363611',
@@ -1195,7 +1428,7 @@ wechat(config, wechat
   return res.reply(message);
 })
 .image(function (message, req, res, next) {
-//**** message format: 
+//**** message format:
 // { ToUserName: 'wx59d46493c123d365',
 //   FromUserName: 'yangjiming',
 //   CreateTime: '1439363357',
@@ -1209,7 +1442,7 @@ wechat(config, wechat
   return res.reply(message);
 })
 .text(function (message, req, res, next) {
-//**** message format: 
+//**** message format:
 // { ToUserName: 'wx59d46493c123d365',
 //   FromUserName: 'yangjiming',
 //   CreateTime: '1439363336',
@@ -1292,14 +1525,14 @@ function updateCompanyTree () {
         //v.children = users.userlist;
         v.pId = v.parentid;
         companyTree.push(v);
-       
+
         users.userlist.forEach(function(s){
           if( s.department.indexOf(v.id)==-1) return true;
           var namedDep = s.department.map(function  (depID) {
             return _.where(departs, { id: depID} )[0].name;
           });
 
-          s.pId = s.department[0];          
+          s.pId = s.department[0];
           s.departmentNames = namedDep;
           s.depart = namedDep?namedDep[0]:'';
           companyTree.push(s);

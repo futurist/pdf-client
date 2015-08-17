@@ -8,7 +8,7 @@
  * Licensed under the MIT, GPL licenses.
  */
 
-window.jQuery = window.jQuery || window.shoestring;
+window.jQuery = window.Zepto || window.jQuery || window.shoestring;
 
 (function( w, $ ){
 	w.componentNamespace = w.componentNamespace || w;
@@ -76,7 +76,7 @@ window.jQuery = window.jQuery || window.shoestring;
 		$html.addClass( cl.open );
 		this.isOpen = true;
 
-		window.location.hash = this.hash;
+		//window.location.hash = this.hash;
 
 		if( doc.activeElement ){
 			this.focused = doc.activeElement;
@@ -136,13 +136,14 @@ window.jQuery = window.jQuery || window.shoestring;
 				})
 				.bind( "click", function( e ){
 					if( $( e.target ).is( "." + Dialog.classes.close ) ){
-						w.history.back();
+						//w.history.back();
 						e.preventDefault();
 					}
 				});
 
 			dialog.$background.bind( "click", function() {
-				w.history.back();
+				//w.history.back();
+				dialog.close();
 			});
 
 			// close on hashchange if open (supports back button closure)
@@ -161,10 +162,12 @@ window.jQuery = window.jQuery || window.shoestring;
         $a = $( e.target ).closest( "a" );
 
 				if( !dialog.isOpen && $a.length && $a.attr( "href" ) ){
-
+					e.preventDefault();
+					var href = $a.attr( "href" );
+					if( !href.match(/^[#.]/) ) return;
 					// catch invalid selector exceptions
 					try {
-						$matchingDialog = $( $a.attr( "href" ) );
+						$matchingDialog = $( href );
 					} catch ( error ) {
 						// TODO should check the type of exception, it's not clear how well
 						//      the error name "SynatxError" is supported

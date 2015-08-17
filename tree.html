@@ -5,7 +5,7 @@
 <meta http-equiv="content-type" content="text/html; charset=UTF-8">
 <meta name="apple-touch-fullscreen" content="yes"/>
 <meta name="format-detection" content="telephone=no"/>
-<meta name="viewport" content="width=device-width,user-scalable=no,init-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, maximum-scale=1, minimum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
     <meta name="google" content="notranslate">
@@ -27,12 +27,19 @@
 
 	<SCRIPT type="text/javascript">
 
+
+var isAndroid = /(android)/i.test(navigator.userAgent);
+var isWeiXin = navigator.userAgent.match(/MicroMessenger\/([\d.]+)/i);
+var isiOS = /iPhone/i.test(navigator.userAgent) || /iPod/i.test(navigator.userAgent) || /iPad/i.test(navigator.userAgent);
+var isMobile = isAndroid||isWeiXin||isiOS;
+
+
 var DEBUG= 1;
 if(!DEBUG)
 {
 	var wxUserInfo = Cookies.get( 'wxUserInfo' );
 	if( !wxUserInfo ){
-		window.location = 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx59d46493c123d365&redirect_uri=http%3A%2F%2F1111hui.com%2F/pdf/getUserID.php&response_type=code&scope=snsapi_base&state='+ encodeURIComponent( window.location.href.replace('#','{@@@}') ) +'#wechat_redirect';
+		window.location.replace( 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx59d46493c123d365&redirect_uri=http%3A%2F%2F1111hui.com%2F/pdf/getFinger.php&response_type=code&scope=snsapi_base&state='+ encodeURIComponent( window.location.href.replace('#','{@@@}') ) +'#wechat_redirect');
 	} else {
 		wxUserInfo = JSON.parse(wxUserInfo);
 	}
@@ -121,14 +128,14 @@ if(!DEBUG)
 		];
 
 
-
-		setTimeout(function  () {
-			//document.title = JSON.stringify(zNodes00);
-		$('h1').click(function  (i,e) {
-			document.title = "";
-			document.title = JSON.stringify({action:"openPDF", url:"http://1111hui.com/pdf/web/viewer.html" });
-		});
-		}, 1000);
+//FOR QT, but no use, we changed to NW.js
+// setTimeout(function  () {
+// 	//document.title = JSON.stringify(zNodes00);
+// $('h1').click(function  (i,e) {
+// 	document.title = "";
+// 	document.title = JSON.stringify({action:"openPDF", url:"http://1111hui.com/pdf/web/viewer.html" });
+// });
+// }, 1000);
 
 
 var isQT = false;
@@ -285,7 +292,7 @@ function initTemplateFileTree (data) {
 			var node;
 			var name = "新建文件夹 " + (addCount++);
 			name = formatDate('yyyy-mm-dd hh:ii:ss');
-			var newNode = { name:name, title:name, role:'upfile', hash:+new Date()+Math.random(), person:rootPerson.userid, isNew:true, isParent:true};
+			var newNode = { name:name, title:name, role:'upfile', hash:+new Date()+Math.random()+'', person:rootPerson.userid, isNew:true, isParent:true};
 			var pNode = treeObj.getSelectedNodes()[0];
 			if (pNode) {
 				newNode.checked = pNode.checked;
@@ -585,11 +592,6 @@ function initTemplateFileTree (data) {
 
 			if(curSrcNode) return;
 
-			if(!treeNode.isParent) {
-				var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
-				shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
-				$('.fView').attr( 'href', ('http://1111hui.com/pdf/webpdf/viewer.html#file=http://7xkeim.com1.z0.glb.clouddn.com/'+treeNode.key+shareStr) );
-			}
 
 			updateMenu(treeNode);
 
@@ -808,7 +810,7 @@ function addAttrToNode (node, obj) {
 		    var zNodes3 = {userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: []} ;
 		    var zNodesTemplate = {userid:rootPerson.userid, name:'模板文件柜', title:'模板文件柜', isTemplate:true, isParent:true, children: []} ;
 
-			fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "order", "imageWidth", "imageHeight", 'isTemplate', 'drawData'];
+			fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "order", "imageWidth", "imageHeight", 'isTemplate', 'drawData', 'inputData'];
 			//fileKeys = fileKeys.concat( ['path', 'hash'].filter(function (item) { return fileKeys.indexOf(item) < 0 }) );
 			//fileKeys.splice( fileKeys.indexOf('_id'), 1 );
 
@@ -1102,8 +1104,15 @@ function getFileKeys(node){
 							$('.fSetTemplate').show();
 						}
 					}
-					return;
 				}
+
+				var treeNode = targetNode;
+				if(!treeNode.isParent) {
+					var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
+					shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
+					$('.fView').attr( 'href', ('http://1111hui.com/pdf/webpdf/viewer.html#file=http://7xkeim.com1.z0.glb.clouddn.com/'+treeNode.key+shareStr) );
+				}
+
 			} else {
 				$('.botmenu').hide();
 			}
@@ -1563,9 +1572,7 @@ function wxUploadImage(){
 function initOAth(){
 	$.get('https://qyapi.weixin.qq.com/cgi-bin/user/getuserinfo?access_token=ACCESS_TOKEN&code=CODE');
 }
-
-
-initWX();
+if(isWeiXin) initWX();
 
 $(function  () { 
 
@@ -1881,7 +1888,7 @@ $(function  () {
     <p>稍句话：(可留空)</p>
     <div class="shareMsg"><textarea id="shareMsg"></textarea></div>
     <span>确认分享？</span>
-    <a href="#mydialog-btn" class="dialog-close">取消</a>
+    <a href="#mydialog-btn" class="dialog-close" onclick='$("#mydialog").trigger("dialog-close")'>取消</a>
     <a href="#mydialog-btn" class="dialog-confirm">确定</a>
 
 </div>
