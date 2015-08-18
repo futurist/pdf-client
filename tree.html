@@ -34,12 +34,12 @@ var isiOS = /iPhone/i.test(navigator.userAgent) || /iPod/i.test(navigator.userAg
 var isMobile = isAndroid||isWeiXin||isiOS;
 
 
-var DEBUG= 1;
+var DEBUG= 0;
 if(!DEBUG)
 {
 	var wxUserInfo = Cookies.get( 'wxUserInfo' );
 	if( !wxUserInfo ){
-		window.location.replace( 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx59d46493c123d365&redirect_uri=http%3A%2F%2F1111hui.com%2F/pdf/getFinger.php&response_type=code&scope=snsapi_base&state='+ encodeURIComponent( window.location.href.replace('#','{@@@}') ) +'#wechat_redirect');
+		window.location.replace( 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx59d46493c123d365&redirect_uri=http%3A%2F%2F1111hui.com%2F/pdf/getUserID.php&response_type=code&scope=snsapi_base&state='+ encodeURIComponent( window.location.href.replace('#','{@@@}') ) +'#wechat_redirect');
 	} else {
 		wxUserInfo = JSON.parse(wxUserInfo);
 	}
@@ -592,7 +592,6 @@ function initTemplateFileTree (data) {
 
 			if(curSrcNode) return;
 
-
 			updateMenu(treeNode);
 
 		}
@@ -1061,6 +1060,7 @@ function getFileKeys(node){
 				$(targetNode).show();
 				return;
 			}
+
 			if(targetNode){
 
 				$('.botmenu>div').hide().parent().show();
@@ -1076,7 +1076,6 @@ function getFileKeys(node){
 					} else {
 						$('.fView').hide();
 					}
-					return;
 				} else if(targetNode.isReceive) {
 					$('.receiveMenu').show();
 					if(targetNode.level==-1){
@@ -1084,7 +1083,6 @@ function getFileKeys(node){
 					} else {
 						$('.fAddShare').hide();
 					}
-					return;
 				} else if( $('.templateFile_wrap').is(':visible') && targetNode.isTemplate) {
 					$('.templateMenu').show();
 					targetNode.isParent ? $('.fConfirmTemplate').hide() : $('.fConfirmTemplate').show();
@@ -1108,7 +1106,7 @@ function getFileKeys(node){
 
 				var treeNode = targetNode;
 				if(!treeNode.isParent) {
-					var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
+					var shareStr = treeNode.isSend||treeNode.isReceive||treeNode.isSign ? '&shareID='+getShareID(treeNode) : '';
 					shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
 					$('.fView').attr( 'href', ('http://1111hui.com/pdf/webpdf/viewer.html#file=http://7xkeim.com1.z0.glb.clouddn.com/'+treeNode.key+shareStr) );
 				}
@@ -1180,6 +1178,8 @@ var companySetting = {
 
 function showTab(idx) {
 	
+	curSrcNode = null;
+
 	var prevIdx = $('.currTab').data('idx');
 	if(typeof idx=='undefined') idx = prevIdx;
 
@@ -1526,7 +1526,7 @@ function initWX() {
 		wx.config(data);
 		wx.ready(function(){
 			window.wxReady = true;
-			wxConfigMenu();
+			//wxConfigMenu();
 			return;
 		});
 		wx.error(function(res){
@@ -1998,7 +1998,7 @@ $(function  () {
 
 	<div class="receiveMenu">
 		<a class="fAddShare" href="javascript:;" onclick="addShareFiles()">添加文件</a>
-		<a class="fView" href="javascript:;">查看文件</a>
+		<a class="fView" href="javascript:;" onclick="window.location=(this.href)">查看文件</a>
 		<a class="fRemove" href="javascript:;" onclick="viewDetail()">消息记录</a>
 	</div>
 
