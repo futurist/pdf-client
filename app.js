@@ -35,8 +35,9 @@ qiniu.conf.ACCESS_KEY = '2hF3mJ59eoNP-RyqiKKAheQ3_PoZ_Y3ltFpxXP0K';
 qiniu.conf.SECRET_KEY = 'xvZ15BIIgJbKiBySTV3SHrAdPDeGQyGu_qJNbsfB';
 QiniuBucket = 'bucket01';
 
-QiniuHost = 'http://7xkeim.com1.z0.glb.clouddn.com/';
+FILE_HOST = 'http://7xkeim.com1.z0.glb.clouddn.com/';
 TREE_URL = "http://1111hui.com/pdf/client/tree.html";
+VIEWER_URL = "http://1111hui.com/pdf/webpdf/viewer.html";
 
 
 function qiniu_uploadFile(file, callback ){
@@ -606,9 +607,16 @@ app.post("/getfile", function (req, res) {
   var data = req.body;
   var person = data.person;
 
-  col.find( { person: person, role:'upfile', status:{$ne:-1} } , {limit:2000} ).sort({order:-1, title:1}).toArray(function(err, docs){
+  var timeout = false;
+  var connInter = setTimeout(function(){
+    timeout = true;
+    return res.send('');
+  }, 5000);
+
+  col.find( { person: person, role:'upfile', status:{$ne:-1} } , {limit:2000, timeout:true} ).sort({order:-1, title:1}).toArray(function(err, docs){
+      clearTimeout(connInter); if(timeout)return;
     if(err) {
-      return res.send('error');
+      return res.send('');
     }
       var count = docs.length;
       res.send( JSON.stringify(docs) );
@@ -666,6 +674,7 @@ app.post("/removeFolder", function (req, res) {
 app.post("/saveCanvas", function (req, res) {
   var data = req.body.data;
   var file = req.body.file;
+  var personName = req.body.personName;
   var shareID = parseInt( req.body.shareID );
 
   var filename = url.parse(file).pathname.split('/').pop();
@@ -674,8 +683,52 @@ app.post("/saveCanvas", function (req, res) {
       res.send(err);
     } );
   } else{
-    col.update({role:'share', shareID:shareID, 'files.key':filename }, { $set: { 'files.$.drawData':data }  }, function(err, result){
+    col.findOneAndUpdate({role:'share', shareID:shareID, 'files.key':filename }, { $set: { 'files.$.drawData':data }  }, 
+                        { projection:{'files':1, msg:1, fromPerson:1, toPerson:1, flowName:1, isSign:1  } }, 
+                        function(err, result){
       res.send(err);
+
+            var colShare = result.value;
+            var file = colShare.files.filter(function(v){ return v.key==filename; })[0];
+            var fileKey = file.key;
+            var flowName = colShare.flowName;
+            var msg = colShare.msg;
+            var isSign = colShare.isSign;
+            var overAllPath = util.format('%s#file=%s&shareID=%d&isSign=%d', VIEWER_URL, FILE_HOST+ encodeURIComponent(fileKey), shareID, isSign?1:0 ) ;
+            var content = 
+            colShare.isSign?
+            util.format('<a href="%s">流程%d %s (%s-%s)标注已由%s更新，点此查看</a>',
+                    overAllPath,  // if we need segmented path:   pathName.join('-'),
+                    shareID,
+                    msg,
+                    colShare.flowName,
+                    colShare.fromPerson[0].name,
+                    personName
+                  ) :
+            util.format('<a href="%s">共享%d %s (%s)标注已由%s更新，点此查看</a>',
+                    overAllPath,  // if we need segmented path:   pathName.join('-'),
+                    shareID,
+                    msg,
+                    colShare.fromPerson[0].name,
+                    personName
+                  )
+
+
+             var wxmsg = {
+               "touser": colShare.toPerson.map(function(v){return v.userid}).join('|'),
+               "touserName": colShare.toPerson.map(function(v){return v.name}).join('|'),
+               "msgtype": "text",
+               "text": {
+                 "content":content
+               },
+               "safe":"0",
+                date : new Date(),
+                role : 'shareMsg',
+                shareID:shareID
+              };
+
+              sendWXMessage(wxmsg);
+
     } );
   }
 
@@ -730,7 +783,6 @@ app.post("/getInputData", function (req, res) {
     	return res.json( data );
     });
   } else {
-    console.log({ role:'share', shareID:shareID, 'files.key':filename })
     col.findOne({ role:'share', shareID:shareID, 'files.key':filename },  {fields: {'files.key.$':1} }, function(err, result){
       if(!result) return res.send("");
     	//convert unicode Dot into [dot]
@@ -831,7 +883,13 @@ app.post("/getShareData", function (req, res) {
 
 app.post("/getShareFrom", function (req, res) {
   var person = req.body.person;
-  col.find( { 'fromPerson.userid': person, role:'share' } , {limit:500} ).sort({shareID:-1}).toArray(function(err, docs){
+  var timeout = false;
+  var connInter = setTimeout(function(){
+    timeout = true;
+    return res.send('');
+  }, 5000);
+  col.find( { 'fromPerson.userid': person, role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
+      clearTimeout(connInter); if(timeout)return;
       if(err) {
         return res.send('error');
       }
@@ -842,7 +900,13 @@ app.post("/getShareFrom", function (req, res) {
 
 app.post("/getShareTo", function (req, res) {
   var person = req.body.person;
-  col.find( { 'toPerson.userid': person, role:'share' } , {limit:500} ).sort({shareID:-1}).toArray(function(err, docs){
+  var timeout = false;
+  var connInter = setTimeout(function(){
+    timeout = true;
+    return res.send('');
+  }, 5000);
+  col.find( { 'toPerson.userid': person, role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
+      clearTimeout(connInter); if(timeout)return;
       if(err) {
         return res.send('error');
       }
@@ -874,7 +938,7 @@ app.post("/getShareMsg", function (req, res) {
       if(hash) hashA = hashA.concat(hash);
       //if(hashA.length>1) condition.hash = {$in:hashA};
 
-      col.find( condition , {'text.content':1} , {limit:500} ).sort({shareID:1, date:1}).toArray(function(err, docs){
+      col.find( condition , {'text.content':1,touser:1, touserName:1} , {limit:500} ).sort({shareID:1, date:1}).toArray(function(err, docs){
           if(err) {
             return res.send('error');
           }
@@ -985,6 +1049,7 @@ app.post("/finishSign", function (req, res) {
 
               var wxmsg = {
                "touser": colShare.toPerson.map(function(v){return v.userid}).join('|'),
+               "touserName": colShare.toPerson.map(function(v){return v.name}).join('|'),
                "msgtype": "text",
                "text": {
                  "content":
@@ -1013,6 +1078,7 @@ app.post("/finishSign", function (req, res) {
         //info to all person about the status
         var wxmsg = {
          "touser": colShare.toPerson.map(function(v){return v.userid}).join('|'),
+         "touserName": colShare.toPerson.map(function(v){return v.name}).join('|'),
          "msgtype": "text",
          "text": {
            "content":
@@ -1183,6 +1249,7 @@ app.post("/sendShareMsg", function (req, res) {
 
       var msg = {
        "touser": data.toPerson.map(function(v){return v.userid}).join('|'),
+       "touserName": data.toPerson.map(function(v){return v.name}).join('|'),
        "msgtype": "text",
        "text": {
          "content":
@@ -1219,13 +1286,14 @@ app.post("/shareFile", function (req, res) {
     data.shareID = shareID;
     data.role = 'share';
     col.insert(data, {w:1}, function(err, r){
-      res.send( {err:err, insertedCount: r.insertedCount } );
+      //res.send( {err:err, insertedCount: r.insertedCount } );
       if(!err){
         console.log(data.toPerson.map(function(v){return v.userid}).join('|') );
 
         if(!data.isSign){
-          var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
-          var content = util.format('%s%s分享了 %d 个文档：%s，收件人：%s%s\n共享ID：%d',
+          var treeUrl = VIEWER_URL + '#file=' + FILE_HOST+ data.files[0].key +'&shareID='+ shareID;
+          var content = util.format('共享ID：%d %s%s分享了 %d 个文档：%s，收件人：%s%s\n%s',
+              shareID,
               data.isSign ? "【请求签名】" : "",
               data.fromPerson.map(function(v){return '<a href="'+ treeUrl + '&fromPerson='+ v.userid + '">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
               data.files.length,
@@ -1233,22 +1301,24 @@ app.post("/shareFile", function (req, res) {
               data.selectRange.map(function(v){
                 return v.depart? '<a href="'+treeUrl + '&toPerson='+ v.userid +'">'+v.depart+'-'+v.name+'</a>' : '<a href="'+treeUrl + '&toDepart='+ v.name +'">【'+v.name+'】</a>' }).join('；'),
               data.msg ? '，附言：\n'+data.msg : '',
-              shareID
+              '<a href="'+ treeUrl +'">点此查看</a>'
             );
         } else {
-          var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
-          var content = util.format('%s发起了流程：%s，文档：%s，经办人：%s%s\n共享ID：%d',
+          var treeUrl = VIEWER_URL + '#file=' + FILE_HOST+ data.files[0].key +'&isSign=1&shareID='+ shareID;
+          var content = util.format('流程ID：%d %s发起了流程：%s，文档：%s，经办人：%s%s\n%s',
+              shareID,
               data.fromPerson.map(function(v){return '<a href="'+treeUrl+ '&fromPerson='+ v.userid + '">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
               data.flowName,
               data.files.map(function(v){return '<a href="'+ treeUrl +'">'+v.title+'</a>'}).join('，'),
               data.selectRange.map(function(v){
                 return v.depart? '<a href="'+treeUrl + '&toPerson='+ v.userid +'">'+v.depart+'-'+v.name+'</a>' : '<a href="'+treeUrl + '&toDepart='+ v.name +'">【'+v.name+'】</a>' }).join('；'),
               data.msg ? '，附言：\n'+data.msg : '',
-              shareID
+              '<a href="'+ treeUrl +'">点此查看</a>'
             );
         }
         var msg = {
          "touser": data.toPerson.map(function(v){return v.userid}).join('|'),
+         "touserName": data.toPerson.map(function(v){return v.name}).join('|'),
          "msgtype": "text",
          "text": {
            "content": content
@@ -1258,8 +1328,8 @@ app.post("/shareFile", function (req, res) {
           role : 'shareMsg',
           shareID:shareID
         };
-
-        res.send( sendWXMessage(msg) );
+        sendWXMessage(msg);
+        res.send( data );
 
       }
     });
@@ -1666,6 +1736,7 @@ app.post("/getCompanyTree", function (req, res) {
   var data = req.body;
   var company = data.company;
   col.find( { company: company } , {limit:2000} ).toArray(function(err, docs){
+      if(err|| !docs || !docs.length) return res.send('');
       var count = docs.length;
       if(count)
       res.send( JSON.stringify( docs[0].companyTree ) );
