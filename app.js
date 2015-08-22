@@ -522,7 +522,7 @@ app.post("/getUserInfo", function (req, res) {
   var data = req.body;
   var userid = data.userid;
 
-  col.findOne( { company:CompanyName, 'stuffList.userid': userid, 'stuffList.status': 1 } , {limit:1, fields:{'stuffList.$':1} }, function(err, item){
+  col.findOne( { company:CompanyName, role:"companyTree", 'stuffList.userid': userid, 'stuffList.status': 1 } , {limit:1, fields:{'stuffList.$':1} }, function(err, item){
     if(err ||  !item.stuffList || !item.stuffList.length) {
       return res.send('');
     }
@@ -1707,14 +1707,14 @@ function updateCompanyTree () {
         });
         if(i==departs.length){
 
-            col.findOneAndDelete({ company:CompanyName }, function  (err, result) {
+            col.findOneAndDelete({ company:CompanyName, role:"companyTree" }, function  (err, result) {
                 col.update(
-                { company:CompanyName }, { company:CompanyName, date: new Date(), companyTree:companyTree, stuffList:stuffList  } ,
+                { company:CompanyName, role:"companyTree" }, { company:CompanyName, role:"companyTree", date: new Date(), companyTree:companyTree, stuffList:stuffList  } ,
                 {upsert:true, w: 1},
                 function(err, result) {
 
                   console.log('update companyTree: ', result.result.nModified);
-                  col.update( { company:CompanyName, 'companyTree.id':1 }, { '$addToSet': {  'companyTree.$.children': {"userid":"yangjiming","name":"董月霞","department":[1],"mobile":"18072266386","gender":"1","email":"hxsdyjm@qq.com","weixinid":"futurist6","avatar":"http://shp.qpic.cn/bizmp/guTsUowz0NPtOuBoHUiaw3lPyys0DWwTwdUsibvlmwyzdrmYdxwRU4ag/","status":1} } } );
+                  col.update( { company:CompanyName, role:"companyTree", 'companyTree.id':1 }, { '$addToSet': {  'companyTree.$.children': {"userid":"yangjiming","name":"董月霞","department":[1],"mobile":"18072266386","gender":"1","email":"hxsdyjm@qq.com","weixinid":"futurist6","avatar":"http://shp.qpic.cn/bizmp/guTsUowz0NPtOuBoHUiaw3lPyys0DWwTwdUsibvlmwyzdrmYdxwRU4ag/","status":1} } } );
 
               });
             });
@@ -1756,5 +1756,13 @@ app.get("/createDepartment", function (req, res) {
 
 
 
+app.post("/getPrintList", function (req, res) {
+  var data = req.body;
+  var company = data.company;
+  col.findOne( { company: company, role:'print' } , {limit:1}, function(err, doc){
+      if(err|| !doc) return res.send('');
+      res.send( doc );
+  });
+});
 
 

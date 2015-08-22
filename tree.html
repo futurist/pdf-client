@@ -303,19 +303,36 @@ function initTemplateFileTree (data) {
 }
 
 function initPrintTree (data) {
-	root= [];
-	data.forEach(function(v){
-		pathToObj( v );
-		root[root.length-1].isPrint = v.isPrint;
-	});
+
+	data.isPrint = true;
+	console.log($("#printTree").html(), setting)
+	$.fn.zTree.init( $("#printTree"), setting, data);
+	treeObjPrint = $.fn.zTree.getZTreeObj("printTree");
 
 	var rootNode = treeObjPrint.getNodes()[0];
+	console.log(treeObjPrint, data, rootNode);
 	treeObjPrint.addNodes( rootNode , root );
 	treeObjPrint.expandNode( rootNode, true );
 	treeObjPrint.selectNode( rootNode );
-	addAttrToNode( treeObjPrint, {isPrint:true} );
+	addAttrToNode( rootNode, {isPrint:true} );
+
+
 }
 
+
+function openPrintCon(){
+	treeObj = treeObjPrint;
+	$('.print_wrap').show();
+	$('.print_wrap .msgTitle').html('请选择打印机');
+	updateMenu( treeObj.getSelectedNodes() );
+}
+
+function hidePrintCon() {
+	var idx = $('.currTab').data('idx');
+	treeObj = eval('treeObj'+(idx+1) );
+	$('.print_wrap').hide();
+	updateMenu( treeObj.getSelectedNodes() );
+}
 
 
 		function addTreeNode() {
@@ -924,8 +941,6 @@ function reloadTree2(fileKey, shareID, switchTo){
 			$.fn.zTree.init($("#fileTreeTemplate"), setting, zNodesTemplate);
 			treeObjTemplate = $.fn.zTree.getZTreeObj("fileTreeTemplate");
 
-			$.fn.zTree.init($("#printTree"), setting, zNodesPrint);
-			treeObjPrint = $.fn.zTree.getZTreeObj("printTree");
 
 			treeObj = treeObj1;
 
@@ -1184,6 +1199,13 @@ function getFileKeys(node){
 						$('.fAddShare').show();
 					} else {
 						$('.fAddShare').hide();
+					}
+				} else if(targetNode.isPrint) {
+					$('.printMenu').show();
+					if(!targetNode.isParent){
+						$('.fConfirmPrint').show();
+					} else {
+						$('.fConfirmPrint').hide();
 					}
 				} else if( $('.templateFile_wrap').is(':visible') && targetNode.isTemplate) {
 					$('.templateMenu').show();
@@ -2045,13 +2067,6 @@ $(function  () {
 	</div>
 </div>
 
-<div class="popupWin print_wrap">
-	<div class="msgTitle"></div>
-	<div class="popcon PrintCon">
-		<ul id="printTree" class="ztree ztreePrint"></ul>
-	</div>
-</div>
-
 
 <div class="popupWin company_wrap">
 	<div class="msgTitle"></div>
@@ -2059,6 +2074,15 @@ $(function  () {
 		<ul id="companyTree" class="ztree ztreeCompany"></ul>
 	</div>
 </div>
+
+
+<div class="popupWin print_wrap">
+	<div class="msgTitle"></div>
+	<div class="popcon PrintCon">
+		<ul id="printTree" class="ztree ztreePrint"></ul>
+	</div>
+</div>
+
 
 <div class="msg_wrap">
 	<div class="msgTitle"></div>
@@ -2083,7 +2107,7 @@ $(function  () {
 		<a class="fShare" href="javascript:;" onclick="beginFlow()">流程</a>
 		<a class="fAdmin fSetTemplate" href="javascript:;" onclick="setFileTemplate(true)">设为模板</a>
 		<a class="fAdmin fRemoveTemplate" href="javascript:;" onclick="setFileTemplate(false)">取消模板</a>
-		<a class="fPrint" href="javascript:;" onclick="printFile()">打印</a>
+		<a class="fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>
 	</div>
 
 	<div class="dirMenu">
@@ -2116,7 +2140,7 @@ $(function  () {
 		<a class="fView" href="javascript:;" onclick="">查看文件</a>
 		<a class="fShare" href="javascript:;" onclick="shareFile()">分享</a>
 		<a class="fRemove" href="javascript:;" onclick="viewDetail()">消息记录</a>
-		<a class="fPrint" href="javascript:;" onclick="printFile()">打印</a>
+		<a class="fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>
 	</div>
 
 	<div class="receiveMenu">
@@ -2124,12 +2148,17 @@ $(function  () {
 		<a class="fView" href="javascript:;" onclick="">查看文件</a>
 		<a class="fShare" href="javascript:;" onclick="shareFile()">分享</a>
 		<a class="fRemove" href="javascript:;" onclick="viewDetail()">消息记录</a>
-		<a class="fPrint" href="javascript:;" onclick="printFile()">打印</a>
+		<a class="fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>
 	</div>
 
 	<div class="templateMenu">
 		<a class="fBackTemplate" href="javascript:;" onclick="hideTemplateCon()">返回</a>
 		<a class="fConfirmTemplate" href="javascript:;" onclick="applyTemplate()">确定选择</a>
+	</div>
+
+	<div class="printMenu">
+		<a class="fBackPrint" href="javascript:;" onclick="hidePrintCon()">返回</a>
+		<a class="fConfirmPrint" href="javascript:;" onclick="applyPrint()">确定选择</a>
 	</div>
 
 	<div class="msgMenu">
