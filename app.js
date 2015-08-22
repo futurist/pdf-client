@@ -130,6 +130,12 @@ wss.on('connection', function connection(ws) {
   ws.send('connected');
 });
 
+function wsBroadcast(data) {
+  wss.clients.forEach(function each(client) {
+    client.send( JSON.stringify(data)  );
+  });
+};
+
 function getWsData(msgid){
   if(!msgid || !WSMSG.msgid) return;
   return WSMSG.msgid.data;
@@ -210,7 +216,7 @@ app.use(allowCrossDomain);
 
 app.post("/pdfCanvasDataLatex", function (req, res) {
   res.send("You sent ok" );
-  //broadcast(req.body);
+  //wsBroadcast(req.body);
   var data = req.body;
   var src = data.src.replace(/^data:image\/png+;base64,/, "").replace(/ /g, '+');
 
@@ -683,8 +689,8 @@ app.post("/saveCanvas", function (req, res) {
       res.send(err);
     } );
   } else{
-    col.findOneAndUpdate({role:'share', shareID:shareID, 'files.key':filename }, { $set: { 'files.$.drawData':data }  }, 
-                        { projection:{'files':1, msg:1, fromPerson:1, toPerson:1, flowName:1, isSign:1  } }, 
+    col.findOneAndUpdate({role:'share', shareID:shareID, 'files.key':filename }, { $set: { 'files.$.drawData':data }  },
+                        { projection:{'files':1, msg:1, fromPerson:1, toPerson:1, flowName:1, isSign:1  } },
                         function(err, result){
       res.send(err);
 
@@ -695,7 +701,7 @@ app.post("/saveCanvas", function (req, res) {
             var msg = colShare.msg;
             var isSign = colShare.isSign;
             var overAllPath = util.format('%s#file=%s&shareID=%d&isSign=%d', VIEWER_URL, FILE_HOST+ encodeURIComponent(fileKey), shareID, isSign?1:0 ) ;
-            var content = 
+            var content =
             colShare.isSign?
             util.format('<a href="%s">流程%d %s (%s-%s)标注已由%s更新，点此查看</a>',
                     overAllPath,  // if we need segmented path:   pathName.join('-'),
@@ -1074,7 +1080,7 @@ app.post("/finishSign", function (req, res) {
       }else{
         var nextPerson = colShare.selectRange[curFlowPos];
         var toPerson = colShare.toPerson;
-        
+
         //info to all person about the status
         var wxmsg = {
          "touser": colShare.toPerson.map(function(v){return v.userid}).join('|'),
@@ -1098,7 +1104,7 @@ app.post("/finishSign", function (req, res) {
           shareID:shareID
         };
         sendWXMessage(wxmsg);
-        
+
         //info to next Person via WX
         var wxmsg = {
          "touser": nextPerson.userid,
@@ -1215,16 +1221,16 @@ app.post("/sendShareMsg", function (req, res) {
 
   col.findOne( { role:'share', shareID:shareID }, {}, function(err, data) {
       if(err) {
-        return res.send('error');
+        return res.send('');	//error
       }
 
       if(!data){
-          return res.send('此共享已删除');
+          return res.send('');	//此共享已删除
         }
 
       var users = data.fromPerson.concat(data.toPerson).filter(function(v){return v.userid==person});
       if(!users.length){
-        return res.send('没有此组权限');
+        return res.send('');	//没有此组权限
       }
 
       //get segmented path, Target Path segment and A link
@@ -1265,8 +1271,12 @@ app.post("/sendShareMsg", function (req, res) {
         shareID:shareID
       };
       if(hash) msg.hash = hash;
+      sendWXMessage(msg);
 
-      res.send( sendWXMessage(msg) );
+      res.send( msg );
+
+      wsBroadcast(msg);
+
   });
 
 
@@ -1395,40 +1405,6 @@ var insertDoc = function(data, callback) {
   var col = db.collection('test31');
   console.log(data);
 }
-
-/********* WebSocket Part ************/
-var WebSocketServer = require('ws').Server;
-var wss = new WebSocketServer({ port: 888 });
-
-wss.on('connection', function connection(ws) {
-  ws.on('close', function incoming(code, message) {
-    console.log("WS close: ", code, message);
-    console.log("now close all process");
-    if(db) db.close();
-    process.exit(1);
-  });
-  ws.on('message', function incoming(data) {
-    //console.log('received: %s', data);
-    var msg = JSON.parse(data);
-    var msgid = msg.msgid;
-    delete msg.msgid;
-
-    //if(msg.type!='search_result') console.log(msgid, msg);
-
-    var cb = msgid? function  (retJson) {
-      ws.send(JSON.stringify( {msgid:msgid, result:retJson} ) );
-    } : null;
-
-    insertDoc( msg, cb );
-  });
-
-  ws.send('connected to ws');
-});
-function broadcast(data) {
-  wss.clients.forEach(function each(client) {
-    client.send( JSON.stringify(data) );
-  });
-};
 
 
 

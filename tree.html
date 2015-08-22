@@ -25,8 +25,35 @@
 	<!--  <script type="text/javascript" src="./js/jquery.ztree.excheck-3.5.js"></script>
 	  <script type="text/javascript" src="./js/jquery.ztree.exedit-3.5.js"></script>-->
 
+	  <script type="text/javascript" src="js/fingerprint2.min.js"></script>
+	  <script type="text/javascript" src="js/reconnecting-websocket.js"></script>
+	  <script type="text/javascript" src="js/ws.js"></script>
+
+
 	<SCRIPT type="text/javascript">
 
+//******* Websocket part **************
+
+
+	ws.addEventListener('open', function(){
+		console.log('ws opened init function');
+
+	});
+	ws.addEventListener('message', function(data){
+		if( !data || !data.data || !data.data.match(/^\s*{/) ) return;
+		var msg = JSON.parse(data.data);
+
+		switch(msg.role){
+			case 'shareMsg':
+				appendShareMsg(msg);
+				break;
+		}
+
+	});
+
+
+
+//******* Common Function & Variable part **************
 
 function searchToObject(search) {
   return search.substring(1).split("&").reduce(function(result, value) {
@@ -279,11 +306,13 @@ function hideTemplateCon() {
 	var idx = $('.currTab').data('idx');
 	treeObj = eval('treeObj'+(idx+1) );
 	$('.templateFile_wrap').hide();
+	$('.content_wrap').show();
 	updateMenu( treeObj.getSelectedNodes() );
 }
 function addTemplateCon() {
 	treeObj = treeObjTemplate;
 	$('.templateFile_wrap').show();
+	$('.content_wrap').hide();
 	$('.templateFile_wrap .msgTitle').html('请选择模板');
 	updateMenu( treeObj.getSelectedNodes() );
 };
@@ -305,13 +334,13 @@ function initTemplateFileTree (data) {
 function initPrintTree (data) {
 
 	data.isPrint = true;
-	console.log($("#printTree").html(), setting)
-	$.fn.zTree.init( $("#printTree"), setting, data);
+
+	$.fn.zTree.init( $("#printTree"), $.extend(setting, {data:{key:{title:'name'}} } ) , data);
 	treeObjPrint = $.fn.zTree.getZTreeObj("printTree");
 
 	var rootNode = treeObjPrint.getNodes()[0];
-	console.log(treeObjPrint, data, rootNode);
 	treeObjPrint.addNodes( rootNode , root );
+
 	treeObjPrint.expandNode( rootNode, true );
 	treeObjPrint.selectNode( rootNode );
 	addAttrToNode( rootNode, {isPrint:true} );
@@ -322,6 +351,7 @@ function initPrintTree (data) {
 
 function openPrintCon(){
 	treeObj = treeObjPrint;
+	$('.content_wrap').hide();
 	$('.print_wrap').show();
 	$('.print_wrap .msgTitle').html('请选择打印机');
 	updateMenu( treeObj.getSelectedNodes() );
@@ -331,6 +361,7 @@ function hidePrintCon() {
 	var idx = $('.currTab').data('idx');
 	treeObj = eval('treeObj'+(idx+1) );
 	$('.print_wrap').hide();
+	$('.content_wrap').show();
 	updateMenu( treeObj.getSelectedNodes() );
 }
 
@@ -1517,6 +1548,7 @@ function viewDetail () {
 	$('.header').hide();
 	$('.ztreeFile').hide();
 	$('.msg_wrap').show();
+	$('.content_wrap').hide();
 
 	var title = getPath(sel);
 	title = title.split('/').slice(0,2).join('/')+'/';
@@ -1572,25 +1604,40 @@ function viewDetail () {
 		if(lastData.touserName) $('.msgTitle').html( '群成员:<b>'+ $.unique(lastData.touserName.split('|')).join(',') + '</b> 文件:'+ title );
 		data.forEach(function  (v) {
 
-			var titleReg = title.replace(/\(/g, '\\(').replace(/\)/g, '\\)');
-			var content = v.text.content.replace(new RegExp(titleReg,'ig'), '');
-
-			var $div = $('<div></div>');
-			$div.html(content);
-			$div.find('a').each(function  () {
-				if( $(this).html()=='' ) $(this).remove();
-			});
-			content = $div.html().replace(/对\s+/, '');
-
-			var li = $('<li>'+ content +'</li>');
-			$('.msgTree ul').append(li);
+			appendShareMsg(v);
 		});
 	});
+}
+
+function appendShareMsg(v){
+	if( !$('.msg_wrap').is(':visible') ) return;
+	var sel = treeObj.getSelectedNodes();
+	if(!sel.length) return;
+	sel = sel[0];
+	if(!(sel.isSend||sel.isReceive)) return;
+
+	var title = getPath(sel);
+	title = title.split('/').slice(0,2).join('/')+'/';
+
+	var titleReg = title.replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+	var content = v.text.content.replace(new RegExp(titleReg,'ig'), '');
+
+	var $div = $('<div></div>');
+	$div.html(content);
+	$div.find('a').each(function  () {
+		if( $(this).html()=='' ) $(this).remove();
+	});
+	content = $div.html().replace(/对\s+/, '');
+
+	var li = $('<li>'+ content +'</li>');
+	$('.msgTree ul').append(li);
+	$('.msgTree').scrollTop( Infinity )
 }
 
 function closeViewDetail () {
 	var sel = treeObj.getSelectedNodes()[0];
 	$('.msg_wrap').hide();
+	$('.content_wrap').show();
 	$('.header').show();
 	showTab();
 
@@ -1638,7 +1685,11 @@ function sendShareMsg () {
 	var data = { person: rootPerson.userid, shareID:p.shareID, text:$('.inputMsg').val(), hash:hash, fileKey:sel.key, path:path.split('/'), fileName: fileName };
 
 	$.post(host+'/sendShareMsg', data , function(ret){
-		console.log(ret);
+		if(!ret){
+			return alert('消息发送错误，请复试');
+		}
+		$('.msg_wrap .inputMsg').val('');
+		//appendShareMsg(ret);
 	});
 
 }
@@ -1855,16 +1906,26 @@ $(function  () {
 
 
 	.popupWin {
-	  position: fixed;
+	  position: absolute;
 	  z-index: 9;
-	  top: 0px;
+	  top: 0;
 	  left: 0;
-	  bottom:45px;
 	  right:0px;
+	  margin-top: 43px;
+	  margin-bottom: 45px;
 	  overflow: hidden;
 	  display: none;
       background-color: #fff;
 
+	}
+	.popcon {
+	  position: static;
+	  background-color: white;
+	  left: 0;
+    	top: 43px;
+	  height: 100%;
+	  width: 100%;
+	  border-left: 1px solid #ccc;
 	}
 
 	.msg_wrap{
@@ -1891,21 +1952,18 @@ $(function  () {
 		margin:10px 0;
 	}
 	.msgTitle{
+		position: fixed;
+		top:0;
+		z-index: 9;
+		left:0;
+		width: 100%;
 		height: 42px;
 		border-bottom: 1px solid #ccc;
 		background: #eee;
 	  text-align: center;
 	  line-height: 41px;
 	}
-	.popcon {
-	  position: absolute;
-	  background-color: white;
-	  left: 0;
-    	top: 43px;
-	  height: 100%;
-	  width: 100%;
-	  border-left: 1px solid #ccc;
-	}
+
 	#shareMsg{
 		width: 95%;
 		height: 80px;
