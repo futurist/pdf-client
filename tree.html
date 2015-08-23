@@ -317,6 +317,19 @@ function addTemplateCon() {
 	updateMenu( treeObj.getSelectedNodes() );
 };
 
+function addPictureCon() {
+	wxUploadImage();
+	return;
+
+	treeObj = treeObjTemplate;
+	$('.templateFile_wrap').show();
+	$('.content_wrap').hide();
+	$('.templateFile_wrap .msgTitle').html('请选择模板');
+	updateMenu( treeObj.getSelectedNodes() );
+};
+
+
+
 function initTemplateFileTree (data) {
 	root= [];
 	data.forEach(function(v){
@@ -1733,13 +1746,27 @@ wx.showMenuItems({
 
 function wxUploadImage(){
 	if(!window.wxReady) return;
+	var sourceType = window.confirm('是否要上传压缩图？(这样会比较省流量但质量一般，按取消上传原始图)') ? 'compressed' : 'original';
 	wx.chooseImage({
 	    count: 1, // 默认9
-	    sizeType: ['original', 'compressed'], // 可以指定是原图还是压缩图，默认二者都有
+	    sizeType: [sourceType], // 可以指定是原图还是压缩图，默认二者都有 ['original', 'compressed']
 	    sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
 	    success: function (res) {
 	        var localIds = res.localIds; // 返回选定照片的本地ID列表，localId可以作为img标签的src属性显示图片
 	        console.log(res);
+	        localIds.forEach(function(v){
+	        	wx.uploadImage({
+	        	    localId: v, // 需要上传的图片的本地ID，由chooseImage接口获得
+	        	    isShowProgressTips: 1, // 默认为1，显示进度提示
+	        	    success: function (res) {
+	        	        var serverId = res.serverId; // 返回图片的服务器端ID
+	        	        $.get(host+'/uploadWXImage', {mediaID:serverId}, function(data){
+	        	        	console.log(data);
+	        	        });
+	        	    }
+	        	});
+	        });
+
 	    },
 	    fail:function(res){
 
@@ -2179,6 +2206,7 @@ $(function  () {
 	<div class="rootMenu1">
 		<a class="fRename" href="javascript:;" onclick="addTreeNode()">新文件夹</a>
 		<a class="fShare" href="javascript:;" onclick="addTemplateCon()">新模板文件</a>
+		<a class="fPicture" href="javascript:;" onclick="addPictureCon()">新图片文件</a>
 	</div>
 
 	<div class="moveMenu">

@@ -351,6 +351,32 @@ app.post("/getJSTicket", function (req, res) {
 
 });
 
+app.get("/uploadWXImage", function (req, res) {
+  var mediaID = req.query.mediaID;
+  api.getMedia(mediaID, function(err, buffer, httpRes){
+    if(err) return res.send('');
+
+    var filename = httpRes.headers['content-disposition'].match(/filename="(.*)"/i).pop();
+    var ext = filename.split(/\./).pop();
+
+    var path = 'uploads/'+ moment().format('YYYYMMDDHHmmss') + '.'+ ext;
+
+    fs.open(path, 'w', function(err, fd) {
+        if (err) {
+            throw 'error opening file: ' + err;
+        }
+
+        fs.write(fd, buffer, 0, buffer.length, null, function(err) {
+            if (err) throw 'error writing file: ' + err;
+            fs.close(fd, function() {
+                console.log('file written');
+                res.send('file:'+path);
+            })
+        });
+    });
+
+  });
+});
 
 app.post("/getJSConfig", function (req, res) {
 
