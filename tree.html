@@ -47,6 +47,12 @@
 			case 'shareMsg':
 				appendShareMsg(msg);
 				break;
+			case 'upfile':
+				appendTree1(msg);
+				break;
+			case 'share':
+				reloadTree2(msg.files[0].key, msg.shareID, false);
+				break;
 		}
 
 	});
@@ -925,21 +931,20 @@ function reloadTree1(fileObj, switchTo){
 }
 
 function reloadTree2(fileKey, shareID, switchTo){
-
+	shareID = shareID || urlQuery.shareID;
 	$.post(host+'/getShareFrom', {person:rootPerson.userid}, function  (data) {
 		if(!data) window.location.reload();
 
 		initShareFrom(JSON.parse(data));
 		treeObj2.expandNode(sendRoot, true);
-		if(urlQuery.shareID){
+		if(shareID){
 			locateNode(sendRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, switchTo );
-
 		}
 		$.post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
 			if(!data) window.location.reload();
 			initShareTo(JSON.parse(data));
 			treeObj3.expandNode(receiveRoot, true);
-			if(urlQuery.shareID){
+			if(shareID) {
 				locateNode(receiveRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, switchTo );
 			}
 			if(urlQuery.openShare){
@@ -1222,7 +1227,10 @@ function getFileKeys(node){
 				return;
 			}
 
+
 			if(targetNode){
+
+				if( !$('#'+targetNode.tId).is(':visible') ) return;
 
 				$('.botmenu>div').hide().parent().show();
 				if(targetNode.isSend) {
@@ -1393,6 +1401,7 @@ function onClick2(event, treeId, treeNode, clickFlag) {
 function hideShare () {
 	var sel = treeObj.getSelectedNodes()[0];
 	$('.company_wrap').hide();
+	$('.content_wrap').show();
 	$('.header').show();
 	//$('.treeCompanyCon').css({left: $('.company_wrap').width() });
 	updateMenu(sel);
@@ -1535,7 +1544,7 @@ function shareNode(){
 	//console.log(json);return;
 	$.post(host+'/shareFile', {data: JSON.stringify(json) }, function(data){
 		$( "#mydialog" ).trigger( "dialog-close" );
-		reloadTree2(files[0].key, data.shareID, true);
+		//reloadTree2(files[0].key, data.shareID, true);
 	});
 }
 
@@ -1545,6 +1554,7 @@ function shareFile(){
 	sel2 = sel[0];
 	var title = sel.length>1?  sel2.name+'..' : sel2.name;
 	$('.company_wrap').show();
+	$('.content_wrap').hide();
 	$('.header').hide();
 	$('.msgTitle').html( "分享 "+  title +' 给:' );
 	$('.treeCompanyCon').css({}, 300, 'linear');
@@ -1746,22 +1756,28 @@ wx.showMenuItems({
 
 function wxUploadImage(){
 	if(!window.wxReady) return;
-	var sourceType = window.confirm('是否要上传压缩图？(这样会比较省流量但质量一般，按取消上传原始图)') ? 'compressed' : 'original';
+	var sourceType = window.confirm('压缩图片吗？(上传较快)') ? 'compressed' : 'original';
+
+	//选择微信照片
 	wx.chooseImage({
 	    count: 1, // 默认9
 	    sizeType: [sourceType], // 可以指定是原图还是压缩图，默认二者都有 ['original', 'compressed']
 	    sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
 	    success: function (res) {
 	        var localIds = res.localIds; // 返回选定照片的本地ID列表，localId可以作为img标签的src属性显示图片
-	        console.log(res);
 	        localIds.forEach(function(v){
+
+	        	//开始上传图片
 	        	wx.uploadImage({
 	        	    localId: v, // 需要上传的图片的本地ID，由chooseImage接口获得
 	        	    isShowProgressTips: 1, // 默认为1，显示进度提示
 	        	    success: function (res) {
 	        	        var serverId = res.serverId; // 返回图片的服务器端ID
-	        	        $.get(host+'/uploadWXImage', {mediaID:serverId}, function(data){
-	        	        	console.log(data);
+	        	        $.get(host+'/uploadWXImage', {mediaID:serverId, person:rootPerson.userid}, function(data){
+	        	        	
+	        	        	if(!data) return alert('上传图片错误');
+	        	        	//appendTree1(data);
+
 	        	        });
 	        	    }
 	        	});
@@ -1778,7 +1794,17 @@ function wxUploadImage(){
 }
 
 
-function initOAth(){
+function appendTree1(node) {
+	node.name = node.name||node.title;
+	var rootNode = treeObj1.getNodes()[0];
+	treeObj1.addNodes( rootNode , node );
+	treeObj1.expandNode( rootNode, true );
+	var sel =rootNode.children[0];
+	treeObj1.selectNode( sel );
+	updateMenu(sel);
+}
+
+function initOAth() {
 	$.get('https://qyapi.weixin.qq.com/cgi-bin/user/getuserinfo?access_token=ACCESS_TOKEN&code=CODE');
 }
 if(isWeiXin) initWX();
@@ -1938,7 +1964,7 @@ $(function  () {
 	  top: 0;
 	  left: 0;
 	  right:0px;
-	  margin-top: 43px;
+	  margin-top: 0;
 	  margin-bottom: 45px;
 	  overflow: hidden;
 	  display: none;
@@ -1950,6 +1976,7 @@ $(function  () {
 	  background-color: white;
 	  left: 0;
     	top: 43px;
+	  margin-top: 43px;
 	  height: 100%;
 	  width: 100%;
 	  border-left: 1px solid #ccc;

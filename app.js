@@ -76,7 +76,7 @@ function qiniu_uploadFile(file, callback ){
 	  // ret.person = "yangjiming";
 	  // ret.savePath = savePath;
 	  //ret.path = "/abc/";
-	  callback( ret );
+	  if(callback) callback( ret );
 
 	});
 
@@ -353,14 +353,57 @@ app.post("/getJSTicket", function (req, res) {
 
 app.get("/uploadWXImage", function (req, res) {
   var mediaID = req.query.mediaID;
+  var person = req.query.person;
   api.getMedia(mediaID, function(err, buffer, httpRes){
-    if(err) return res.send('');
+    if(err) {console.log(err); return res.send('');}
 
     var filename = httpRes.headers['content-disposition'].match(/filename="(.*)"/i).pop();
     var ext = filename.split(/\./).pop();
 
-    var path = 'uploads/'+ moment().format('YYYYMMDDHHmmss') + '.'+ ext;
+    var folder = 'uploads/' ;
+    var baseName = moment().format('YYYYMMDDHHmmss') ;
+    var fileName = folder+ baseName + '.'+ ext;
 
+    fs.writeFile(fileName, buffer, function(err){
+      console.log(err, 'image file written', fileName);
+      if (err) return res.send( '' );
+
+      var cmd = 'cd '+folder+'; /bin/cp -rf make.tex '+ baseName +'.tex; xelatex "\\def\\IMG{'+ baseName +'} \\input{'+ baseName +'.tex}"';
+
+      exec(cmd, function(err,stdout,stderr){
+        console.log('pdf file info: ' + baseName,  err, stderr);
+        if (err||stderr) return res.send( '' );
+        
+        exec('cd '+folder+'; rm -f '+baseName+'.tex *.log *.aux; ');
+
+        qiniu_uploadFile(folder+ baseName+ '.pdf', function(ret){
+
+
+          if(ret.error) return res.send('');
+
+          ret.person = person;
+          ret.client = '';
+          ret.title = '图片上传-'+baseName;
+          ret.path = '/';
+          ret.fileType = ext;
+          
+          qiniu_uploadFile(fileName);
+
+          upfileFunc(ret, function(ret2){
+            res.send(ret2);
+            wsBroadcast(ret2);
+
+          });
+
+        } );
+
+      });
+      
+      
+    });
+
+
+    return;
     fs.open(path, 'w', function(err, fd) {
         if (err) {
             throw 'error opening file: ' + err;
@@ -432,7 +475,7 @@ function upfileFunc(data, callback) {
     maxOrder = item? item.order+1 : 1;
     console.log( 'maxOrder:', maxOrder );
 
-    var newData = { person: person, role:'upfile', date: new Date(), client:data.client, title:data.title, path:savePath, key:data.key, fname:fname, hash:data.hash, type:data.type, fsize:data.fsize, imageWidth:data.imageWidth, imageHeight:data.imageHeight, order:maxOrder };
+    var newData = _.extend( data, { person: person, role:'upfile', date: new Date(), path:savePath, order:maxOrder } );
 
     col.update({ hash:data.hash }, newData , {upsert:true, w: 1}, function(err, result) {
         console.log('upfile: ', newData.hash, newData.key, result.result.nModified);
@@ -520,11 +563,11 @@ app.post("/rotateFile", function (req, res) {
 			        		ret.path = oldFile.path;
 			        	} else if ( ret.error.match(/file exists/) ) {
 			        		// file exists or other error
-							delete oldFile._id;
-							oldFile.date = new Date();
-							oldFile.key = newName;
-							oldFile.fname = newName;
-							oldFile.title += '('+dirName+')';
+    							delete oldFile._id;
+    							oldFile.date = new Date();
+    							oldFile.key = newName;
+    							oldFile.fname = newName;
+    							oldFile.title += '('+dirName+')';
 				        	oldFile.hash = ret.hash? ret.hash : +new Date()+Math.random();
 				        	ret = oldFile;
 				        	console.log('ret:', ret)
@@ -1366,7 +1409,8 @@ app.post("/shareFile", function (req, res) {
         };
         sendWXMessage(msg);
         res.send( data );
-
+        wsBroadcast(data);
+        
       }
     });
 
@@ -1675,6 +1719,8 @@ wechat(config, wechat
 var CompanyName = 'lianrun';
 var API = require('wechat-enterprise-api');
 var api = new API("wx59d46493c123d365", "5dyRsI3Wa5gS2PIOTIhJ6jISHwkN68cryFJdW_c9jWDiOn2D7XkDRYUgHUy1w3Hd", 1);
+api.setOpts({timeout: 15000});
+
 // get accessToken for first time to cache it.
 api.getLatestToken(function () {});
 
