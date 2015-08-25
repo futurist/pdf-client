@@ -38,13 +38,22 @@ QiniuBucket = 'bucket01';
 FILE_HOST = 'http://7xkeim.com1.z0.glb.clouddn.com/';
 TREE_URL = "http://1111hui.com/pdf/client/tree.html";
 VIEWER_URL = "http://1111hui.com/pdf/webpdf/viewer.html";
+IMAGE_UPFOLDER = 'uploads/' ;
+
+var fileStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, IMAGE_UPFOLDER)
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.fieldname + '-' + Date.now())
+  }
+})
+
+var fileUploader = multer({ storage: fileStorage })
 
 
-function qiniu_uploadFile(file, callback ){
 
-	var ext = path.extname(file);
-	var saveFile = path.basename(file); //formatDate('yyyymmdd-hhiiss') + Math.random().toString().slice(1,5) + ext;
-
+function qiniu_getUpToken() {
 	var responseBody =
 	{
 		"key":"$(key)",
@@ -67,8 +76,18 @@ function qiniu_uploadFile(file, callback ){
 	);
 
 	var uptoken = putPolicy.token();
+	return uptoken;
+}
 
-	console.log( uptoken,saveFile, file );
+
+function qiniu_uploadFile(file, callback ){
+
+	var ext = path.extname(file);
+	var saveFile = path.basename(file); //formatDate('yyyymmdd-hhiiss') + Math.random().toString().slice(1,5) + ext;
+
+	var uptoken = qiniu_getUpToken();
+
+	//console.log( uptoken,saveFile, file );
 
 	qiniu.io.putFile(uptoken, saveFile, file, null, function(err, ret) {
 	  console.log(err, ret);
@@ -81,6 +100,21 @@ function qiniu_uploadFile(file, callback ){
 	});
 
 }
+
+
+/********* Net Socket Part ************/
+// server
+require('net').createServer(function (socket) {
+    //console.log("connected");
+	socket.on('error', function(err){
+        //console.log(err);
+    });
+    socket.on('data', function (data) {
+        console.log(data.toString());
+    });
+})
+//.listen(81, function(){ console.log('socket ready') });
+
 
 
 /********* Redis Part ************/
@@ -198,21 +232,25 @@ function wsend(data, that, callback){
 
 var app = express();
 
+var allowCrossDomain = function(req, res, next) {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Content-Range, Content-Disposition, Content-Description, X-Requested-With,X-File-Type,Origin,Accept,*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+
+    next();
+}
+app.use(allowCrossDomain);
+
+
 app.use(bodyParser.urlencoded({limit: '2mb', extended: true })); // for parsing application/x-www-form-urlencoded
 app.use(bodyParser.json({limit: '2mb'}));
 
-app.use(multer()); // for parsing multipart/form-data
+//app.use(multer()); // for parsing multipart/form-data
 
 var DOWNLOAD_DIR = './downloads/';
 
 
-var allowCrossDomain = function(req, res, next) {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
-    res.header('Access-Control-Allow-Headers', '*');
-    next();
-}
-app.use(allowCrossDomain);
 
 app.post("/pdfCanvasDataLatex", function (req, res) {
   res.send("You sent ok" );
@@ -241,6 +279,10 @@ app.post("/pdfCanvasDataLatex", function (req, res) {
 
 
 
+
+app.post("/getUpToken", function (req, res) {
+	res.send( qiniu_getUpToken() );
+});
 
 app.post("/getFinger", function (req, res) {
   var msgid = req.body.msgid;
@@ -351,6 +393,56 @@ app.post("/getJSTicket", function (req, res) {
 
 });
 
+
+function imageToPDF(person, fileName, res){
+	var ext = path.extname(fileName);
+	var baseName = path.basename(fileName, ext);
+  var cmd = 'cd '+IMAGE_UPFOLDER+'; /bin/cp -rf make.tex '+ baseName +'.tex; xelatex "\\def\\IMG{'+ baseName +'} \\input{'+ baseName +'.tex}"';
+  exec(cmd, function(err,stdout,stderr){
+    console.log('pdf file info: ' + baseName,  err, stderr);
+    if (err||stderr) return res.send( '' );
+
+    exec('cd '+IMAGE_UPFOLDER+'; rm -f '+baseName+'.tex *.log *.aux; ');
+
+    qiniu_uploadFile(IMAGE_UPFOLDER+ baseName+ '.pdf', function(ret){
+
+
+      if(ret.error) return res.send('');
+
+      ret.person = person;
+      ret.client = '';
+      ret.title = '图片上传-'+baseName;
+      ret.path = '/';
+      ret.fileType = ext;
+
+      qiniu_uploadFile(fileName);
+
+      upfileFunc(ret, function(ret2){
+        res.send(ret2);
+        wsBroadcast(ret2);
+
+      });
+
+    } );
+  });
+}
+
+app.post("/uploadPCImage", function (req, res) {
+  var filename = req.body.filename;
+  var person = req.body.person;
+
+  var ext = filename.split(/\./).pop();
+
+  var baseName = moment().format('YYYYMMDDHHmmss') ;
+  var fileName = IMAGE_UPFOLDER+ baseName + '.'+ ext;
+  fs.rename(IMAGE_UPFOLDER+ filename, fileName, function(err){
+
+    imageToPDF(person, fileName, res);
+
+  });
+
+});
+
 app.get("/uploadWXImage", function (req, res) {
   var mediaID = req.query.mediaID;
   var person = req.query.person;
@@ -360,46 +452,14 @@ app.get("/uploadWXImage", function (req, res) {
     var filename = httpRes.headers['content-disposition'].match(/filename="(.*)"/i).pop();
     var ext = filename.split(/\./).pop();
 
-    var folder = 'uploads/' ;
     var baseName = moment().format('YYYYMMDDHHmmss') ;
-    var fileName = folder+ baseName + '.'+ ext;
+    var fileName = IMAGE_UPFOLDER+ baseName + '.'+ ext;
 
     fs.writeFile(fileName, buffer, function(err){
       console.log(err, 'image file written', fileName);
       if (err) return res.send( '' );
+      imageToPDF(person, fileName, res);
 
-      var cmd = 'cd '+folder+'; /bin/cp -rf make.tex '+ baseName +'.tex; xelatex "\\def\\IMG{'+ baseName +'} \\input{'+ baseName +'.tex}"';
-
-      exec(cmd, function(err,stdout,stderr){
-        console.log('pdf file info: ' + baseName,  err, stderr);
-        if (err||stderr) return res.send( '' );
-        
-        exec('cd '+folder+'; rm -f '+baseName+'.tex *.log *.aux; ');
-
-        qiniu_uploadFile(folder+ baseName+ '.pdf', function(ret){
-
-
-          if(ret.error) return res.send('');
-
-          ret.person = person;
-          ret.client = '';
-          ret.title = '图片上传-'+baseName;
-          ret.path = '/';
-          ret.fileType = ext;
-          
-          qiniu_uploadFile(fileName);
-
-          upfileFunc(ret, function(ret2){
-            res.send(ret2);
-            wsBroadcast(ret2);
-
-          });
-
-        } );
-
-      });
-      
-      
     });
 
 
@@ -489,6 +549,7 @@ app.post("/upfile", function (req, res) {
 
 	upfileFunc(req.body, function(ret){
 		res.send( JSON.stringify(ret) );
+		wsBroadcast(ret);
 	});
 
 } );
@@ -576,6 +637,7 @@ app.post("/rotateFile", function (req, res) {
 
 	        			upfileFunc(ret, function(ret2){
 	        				res.send( JSON.stringify(ret2)  );
+	        				wsBroadcast(ret);
 	        			});
 
 		        		return;
@@ -962,7 +1024,7 @@ app.post("/getShareFrom", function (req, res) {
   var connInter = setTimeout(function(){
     timeout = true;
     return res.send('');
-  }, 5000);
+  }, 15000);
   col.find( { 'fromPerson.userid': person, role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
       if(err) {
@@ -979,7 +1041,7 @@ app.post("/getShareTo", function (req, res) {
   var connInter = setTimeout(function(){
     timeout = true;
     return res.send('');
-  }, 5000);
+  }, 15000);
   col.find( { 'toPerson.userid': person, role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
       if(err) {
@@ -1409,8 +1471,11 @@ app.post("/shareFile", function (req, res) {
         };
         sendWXMessage(msg);
         res.send( data );
+
+        data.openShare = false;
+        data.openMessage = false;
         wsBroadcast(data);
-        
+
       }
     });
 
@@ -1457,18 +1522,30 @@ console.log("Listening");
 var authUrl = 'mongodb://1111hui.com:27017/admin';
 var db = null;
 var col = null;
-MongoClient.connect(authUrl, function(err, _db) {
-  assert.equal(null, err);
-  _db.authenticate('root', '820125', function(err, res){
-  	assert.equal(null, err);
-  	console.log("Connected to mongodb server");
-	db = _db.db("test");
-  col = db.collection('qiniu_bucket01');
-	// db.collection('test').find().toArray(function(err, items){ console.log(items); });
-	//runCmd("phantomjs main.js");
-  });
-});
+var MONGO_AUTH = false;
 
+if(MONGO_AUTH) {
+	MongoClient.connect(authUrl, function(err, _db) {
+	  assert.equal(null, err);
+	  _db.authenticate('root', '820125', function(err, res){
+	  	assert.equal(null, err);
+	  	console.log("Connected to mongodb server");
+		db = _db.db("test");
+	  col = db.collection('qiniu_bucket01');
+		// db.collection('test').find().toArray(function(err, items){ console.log(items); });
+		//runCmd("phantomjs main.js");
+	  });
+	});
+} else {
+	MongoClient.connect('mongodb://localhost:27017/admin', function(err, _db) {
+	  	assert.equal(null, err);
+
+	  	console.log("Connected to mongodb server");
+		db = _db.db("test");
+	  	col = db.collection('qiniu_bucket01');
+
+	});
+}
 
 var insertDoc = function(data, callback) {
   assert.notEqual(null, db, "Mongodb not connected. ");

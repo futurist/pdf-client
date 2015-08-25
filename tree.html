@@ -51,7 +51,7 @@
 				appendTree1(msg);
 				break;
 			case 'share':
-				reloadTree2(msg.files[0].key, msg.shareID, false);
+				reloadTree2(msg.files[0].key, msg.shareID, false, msg.openShare, msg.openMessage);
 				break;
 		}
 
@@ -324,7 +324,8 @@ function addTemplateCon() {
 };
 
 function addPictureCon() {
-	wxUploadImage();
+	if(isWeiXin) wxUploadImage();
+	else pcUploadImage();
 	return;
 
 	treeObj = treeObjTemplate;
@@ -930,8 +931,10 @@ function reloadTree1(fileObj, switchTo){
 
 }
 
-function reloadTree2(fileKey, shareID, switchTo){
+function reloadTree2(fileKey, shareID, switchTo, openShare, openMessage){
 	shareID = shareID || urlQuery.shareID;
+	openShare = openShare || urlQuery.openShare;
+	openMessage = openMessage || urlQuery.openMessage;
 	$.post(host+'/getShareFrom', {person:rootPerson.userid}, function  (data) {
 		if(!data) window.location.reload();
 
@@ -947,10 +950,10 @@ function reloadTree2(fileKey, shareID, switchTo){
 			if(shareID) {
 				locateNode(receiveRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, switchTo );
 			}
-			if(urlQuery.openShare){
+			if(openShare){
 				shareFile();
 			}
-			if(urlQuery.openMessage){
+			if(openMessage){
 				viewDetail();
 			}
 		});
@@ -1265,6 +1268,7 @@ function getFileKeys(node){
 				} else {
 					if(targetNode.isParent && targetNode.level==0){
 						$('.rootMenu1').show();
+						isWeiXin ? $('#fileupload').hide() : $('#fileupload').width( $('.fPicture').width() );
 					} else if(targetNode.isParent) {
 						$('.dirMenu').show();
 					} else {
@@ -1754,6 +1758,11 @@ wx.showMenuItems({
 
 }
 
+function pcUploadImage(){
+
+}
+
+
 function wxUploadImage(){
 	if(!window.wxReady) return;
 	var sourceType = window.confirm('压缩图片吗？(上传较快)') ? 'compressed' : 'original';
@@ -1774,7 +1783,7 @@ function wxUploadImage(){
 	        	    success: function (res) {
 	        	        var serverId = res.serverId; // 返回图片的服务器端ID
 	        	        $.get(host+'/uploadWXImage', {mediaID:serverId, person:rootPerson.userid}, function(data){
-	        	        	
+
 	        	        	if(!data) return alert('上传图片错误');
 	        	        	//appendTree1(data);
 
@@ -2112,11 +2121,132 @@ $(function  () {
 	}
 
 
+
+
+
+	#dropzone {
+		display: none;
+	    background: palegreen;
+	    width: 150px;
+	    height: 50px;
+	    line-height: 50px;
+	    text-align: center;
+	    font-weight: bold;
+	}
+	#dropzone.in {
+		border:5px dotted green;
+	    font-size: larger;
+	}
+	#dropzone.hover {
+	    background: lawngreen;
+	}
+	#dropzone.fade {
+	    -webkit-transition: all 0.3s ease-out;
+	    -moz-transition: all 0.3s ease-out;
+	    -ms-transition: all 0.3s ease-out;
+	    -o-transition: all 0.3s ease-out;
+	    transition: all 0.3s ease-out;
+	    opacity: 1;
+	}
+
+	.fPicture{
+		position: relative;
+	}
+	#fileupload{
+		position: absolute;
+		z-index: 9999;
+		top: 0;
+		left: 0;
+		bottom: 0;
+		right: 0;
+		opacity: 0;
+	}
+
+	.bg_mask{
+		position: fixed;
+		top:0;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		z-index: 99999;
+		background-color: rgba(0,0,0,0.3);
+		display: none;
+	}
 </style>
 
 </HEAD>
 
 <BODY>
+
+
+
+<div id="dropzone" class="fade well">Drop files here</div>
+
+<script src="js/vendor/jquery.ui.widget.js"></script>
+<script src="js/jquery.iframe-transport.js"></script>
+<script src="js/jquery.fileupload.js"></script>
+<script>
+$(function () {
+    $('#fileupload').fileupload({
+        dataType: 'json',
+        add: function (e, data) {
+        	if (data.autoUpload || (data.autoUpload !== false &&
+    	            $(this).fileupload('option', 'autoUpload'))) {
+    	        data.process().done(function () {
+    	            data.submit();
+    	        });
+    	    }
+    	    $('.bg_mask').show();
+        },
+        done: function (e, data) {
+            $.each(data.result.files, function (index, file) {
+            	$('.bg_mask').hide();
+            	if(file.error) return alert(file.error);
+            	$.post(host+'/uploadPCImage', {person:rootPerson.userid, filename:file.name}, function(data){
+            		//console.log(data);
+            	}  );
+            });
+        }
+    });
+});
+
+
+$(document).bind('dragover', function (e) {
+    var dropZone = $('#dropzone'),
+        timeout = window.dropZoneTimeout;
+    if (!timeout) {
+        dropZone.addClass('in');
+    } else {
+        clearTimeout(timeout);
+    }
+    var found = false,
+        node = e.target;
+    do {
+        if (node === dropZone[0]) {
+            found = true;
+            break;
+        }
+        node = node.parentNode;
+    } while (node != null);
+    if (found) {
+        dropZone.addClass('hover');
+    } else {
+        dropZone.removeClass('hover');
+    }
+    window.dropZoneTimeout = setTimeout(function () {
+        window.dropZoneTimeout = null;
+        dropZone.removeClass('in hover');
+    }, 100);
+});
+
+$(document).bind('drop dragover', function (e) {
+    e.preventDefault();
+});
+
+</script>
+
+
+<div class="bg_mask"></div>
 
 <div class="dialog" id="mydialog">
     <div class="shareMsg">
@@ -2233,7 +2363,9 @@ $(function  () {
 	<div class="rootMenu1">
 		<a class="fRename" href="javascript:;" onclick="addTreeNode()">新文件夹</a>
 		<a class="fShare" href="javascript:;" onclick="addTemplateCon()">新模板文件</a>
-		<a class="fPicture" href="javascript:;" onclick="addPictureCon()">新图片文件</a>
+		<a class="fPicture" href="javascript:;" onclick="addPictureCon()">新图片文件
+		<input id="fileupload" type="file" name="files[]" data-url="../phpupload/">
+		</a>
 	</div>
 
 	<div class="moveMenu">
