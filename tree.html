@@ -22,6 +22,7 @@
 	<script type="text/javascript" src="./js/jquery.ztree.all-3.5.js"></script>
 	<script type="text/javascript" src="./js/dialog.build.js"></script>
 	<script type="text/javascript" src="./js/draggable.js"></script>
+	<script type="text/javascript" src="./js/moment.js"></script>
 	<!--  <script type="text/javascript" src="./js/jquery.ztree.excheck-3.5.js"></script>
 	  <script type="text/javascript" src="./js/jquery.ztree.exedit-3.5.js"></script>-->
 
@@ -2187,20 +2188,56 @@ $(function  () {
 <script src="js/jquery.fileupload.js"></script>
 <script>
 $(function () {
+	var UploadNonImage = false;
     $('#fileupload').fileupload({
         dataType: 'json',
         add: function (e, data) {
-        	if (data.autoUpload || (data.autoUpload !== false &&
-    	            $(this).fileupload('option', 'autoUpload'))) {
-    	        data.process().done(function () {
-    	            data.submit();
-    	        });
-    	    }
+			var isImage = false;
+        	var filename = data.files[0].name;
+        	var baseName = filename.split('.');
+        	var ext = baseName.pop();
+        	baseName = baseName.join('.');
+        	if( ext.match(/(gif|jpe?g|png|bmp)$/i) ){
+        		isImage = true;
+        	}
+
+        	if(isImage ||UploadNonImage ) {
+        		// if it's  images, upload to our server to generate right PDF.
+	        	if (data.autoUpload || (data.autoUpload !== false &&
+	    	            $(this).fileupload('option', 'autoUpload') ) ) {
+	    	        data.process().done(function () {
+	    	            data.submit();
+	    	        });
+	    	    }
+	    	} else {
+	    		
+        		// if it's not images, then we upload using Cloud
+	    		$.post(host+'/getUpToken', function(token){
+	    			if(!token) return alert('上传错误');
+
+
+	    			// $(this).fileupload('option', 'url', 'http://up.qiniu.com');
+	    			// data.formData = {key: moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'.'+ext, token:token };
+	    			var key =moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'.'+ext;
+	    			UploadNonImage = true;
+	    			$('#fileupload').fileupload('add', {files: data.files, formData:{key:key, token:token}, url: 'http://up.qiniu.com'} );
+	    			// This will trigger ADD event again, with UploadNonImage = true
+
+	    		});
+
+	    	}
     	    $('.bg_mask').show();
+
         },
+
         done: function (e, data) {
-            $.each(data.result.files, function (index, file) {
-            	$('.bg_mask').hide();
+        	console.log(e,data);
+        	
+        	$('.bg_mask').hide();
+
+        	if( !data.result.file ) return;
+
+            $.each(data.result.file, function (index, file) {
             	if(file.error) return alert(file.error);
             	$.post(host+'/uploadPCImage', {person:rootPerson.userid, filename:file.name}, function(data){
             		//console.log(data);
@@ -2208,6 +2245,10 @@ $(function () {
             });
         }
     });
+
+
+
+
 });
 
 
@@ -2247,6 +2288,7 @@ $(document).bind('drop dragover', function (e) {
 
 
 <div class="bg_mask"></div>
+
 
 <div class="dialog" id="mydialog">
     <div class="shareMsg">
@@ -2364,7 +2406,7 @@ $(document).bind('drop dragover', function (e) {
 		<a class="fRename" href="javascript:;" onclick="addTreeNode()">新文件夹</a>
 		<a class="fShare" href="javascript:;" onclick="addTemplateCon()">新模板文件</a>
 		<a class="fPicture" href="javascript:;" onclick="addPictureCon()">新图片文件
-		<input id="fileupload" type="file" name="files[]" data-url="../phpupload/">
+		<input id="fileupload" type="file" name="file" data-url="./phpupload/">
 		</a>
 	</div>
 
