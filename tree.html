@@ -2202,6 +2202,7 @@ $(function () {
         	}
 
         	if(isImage ||UploadNonImage ) {
+        		UploadNonImage = false;
         		// if it's  images, upload to our server to generate right PDF.
 	        	if (data.autoUpload || (data.autoUpload !== false &&
 	    	            $(this).fileupload('option', 'autoUpload') ) ) {
@@ -2210,7 +2211,7 @@ $(function () {
 	    	        });
 	    	    }
 	    	} else {
-	    		
+
         		// if it's not images, then we upload using Cloud
 	    		$.post(host+'/getUpToken', function(token){
 	    			if(!token) return alert('上传错误');
@@ -2232,17 +2233,25 @@ $(function () {
 
         done: function (e, data) {
         	console.log(e,data);
-        	
+
         	$('.bg_mask').hide();
 
-        	if( !data.result.file ) return;
+        	if( data.result.file ) {
+	            $.each(data.result.file, function (index, file) {
+	            	if(file.error) return alert(file.error);
+	            	$.post(host+'/uploadPCImage', {person:rootPerson.userid, filename:file.name}, function(ret){
+	            		//console.log(ret);
+	            	}  );
+	            });
+	        }
 
-            $.each(data.result.file, function (index, file) {
-            	if(file.error) return alert(file.error);
-            	$.post(host+'/uploadPCImage', {person:rootPerson.userid, filename:file.name}, function(data){
-            		//console.log(data);
-            	}  );
-            });
+	        if( data.result.key ) {
+
+	        	$.post(host+'/generatePDFAtPrinter', data.result, function(ret){
+	        		//console.log(ret);
+	        	}  );
+
+	        }
         }
     });
 

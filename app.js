@@ -143,6 +143,7 @@ var wss = new WebSocketServer({ port: 3000 });
 //     }
 // }
 var WSMSG = {};
+var WSCLIENT = {};
 wss.on('connection', function connection(ws) {
   ws.on('close', function incoming(code, message) {
     console.log("WS close: ", code, message);
@@ -153,16 +154,58 @@ wss.on('connection', function connection(ws) {
 
     // Server response data format:
     // resData = { msgid:14324.34, result:{ userid:'yangjiming' } }
-    var msg = JSON.parse(data);
+    try{
+      var msg = JSON.parse(data);
+    } catch(e){
+      return console.log(data);
+    }
+
     var msgid = msg.msgid;
-    delete msg.msgid;
-    console.log(msgid, msg);
-    WSMSG.msgid = {ws:ws, timeStamp:+new Date(), data:msg.data};
+    if(msgid){
+        delete msg.msgid;
+        console.log(msgid, msg);
+        WSMSG.msgid = {ws:ws, timeStamp:+new Date(), data:msg.data};
+    }
+
+    if(msg.clientName && msg.clientRole){
+
+      // msg format: { clientName:clientName, clientRole:'printer', clientOrder:1 }
+
+      console.log( 'printer up', msg );
+      WSCLIENT[msg.clientName] = _.extend( msg, {ws:ws, timeStamp:+new Date()} );
+    }
 
   });
   console.log('new client connected');
   ws.send('connected');
 });
+
+function wsSendClient (clientName, msg) {
+  var client = WSCLIENT[clientName];
+  msg.clientName = clientName;
+  client.ws.send( JSON.stringify(msg)  );
+}
+
+function choosePrinter () {
+  var printers = _.sortBy( _.where(WSCLIENT, {clientRole:'printer'}) , 'clientOrder'  );
+  return printers.length ? printers[0] : null;
+}
+
+function wsSendPrinter (msg, printerName) {
+
+  if(!printerName) {
+
+    var printer = choosePrinter();
+    if(!printer) return null;
+
+    printerName = printer.clientName;
+  }
+
+  wsSendClient(printerName, msg);
+  return printerName;
+
+}
+
 
 function wsBroadcast(data) {
   wss.clients.forEach(function each(client) {
@@ -332,7 +375,9 @@ app.get("/putFingerInfo", function (req, res) {
             return doit();
           }
           console.log("wx client auth: ", finger, data.toString() );
-          var ret = JSON.parse( data.toString() );
+          try{
+            var ret = JSON.parse( data.toString() );
+          }catch(e){ return res.send(''); }
           ret.finger = finger;
           //ret.state = state;
           res.send( JSON.stringify(ret) );
@@ -367,7 +412,9 @@ app.get("/getUserID", function (req, res) {
             return doit();
           }
           console.log("new wx client: ", data.toString() );
+          try{
           var ret = JSON.parse( data.toString() );
+          }catch(e){ return res.send(''); }
           //ret.state = state;
           res.send( JSON.stringify(ret) );
         });
@@ -426,6 +473,13 @@ function imageToPDF(person, fileName, res){
     } );
   });
 }
+
+app.post("/generatePDFAtPrinter", function (req, res) {
+  var data = req.body;
+  data.task = 'generatePDF';
+  res.send( wsSendPrinter(data) );
+});
+
 
 app.post("/uploadPCImage", function (req, res) {
   var filename = req.body.filename;
@@ -1417,7 +1471,9 @@ app.post("/sendShareMsg", function (req, res) {
 
 app.post("/shareFile", function (req, res) {
   var data = req.body.data;
+  try{
   data = JSON.parse(data);
+  }catch(e){ return res.send(''); }
   data.date = new Date();
 
   col.findOneAndUpdate({role:'config'}, {$inc:{ shareID:1 } }, function  (err, result) {
