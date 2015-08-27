@@ -147,6 +147,7 @@ var WSCLIENT = {};
 wss.on('connection', function connection(ws) {
   ws.on('close', function incoming(code, message) {
     console.log("WS close: ", code, message);
+    //_.where( WSCLIENT, {ws:ws} ).forEach();
   });
   ws.on('message', function incoming(data) {
     // Client side data format:
@@ -182,6 +183,7 @@ wss.on('connection', function connection(ws) {
 
 function wsSendClient (clientName, msg) {
   var client = WSCLIENT[clientName];
+  if(!client) return;
   msg.clientName = clientName;
   client.ws.send( JSON.stringify(msg)  );
 }
@@ -478,6 +480,13 @@ app.post("/generatePDFAtPrinter", function (req, res) {
   var data = req.body;
   data.task = 'generatePDF';
   res.send( wsSendPrinter(data) );
+});
+
+app.post("/printPDF", function (req, res) {
+	// req data: {server, printer, fileKey}
+  var data = req.body;
+  data.task = 'printPDF';
+  res.send( wsSendPrinter(data, data.server) );
 });
 
 
@@ -1940,7 +1949,7 @@ app.get("/createDepartment", function (req, res) {
 app.post("/getPrintList", function (req, res) {
   var data = req.body;
   var company = data.company;
-  col.findOne( { company: company, role:'print' } , {limit:1}, function(err, doc){
+  col.findOne( { company: company, role:'printer' } , {limit:1}, function(err, doc){
       if(err|| !doc) return res.send('');
       res.send( doc );
   });

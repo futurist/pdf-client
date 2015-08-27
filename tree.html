@@ -360,7 +360,7 @@ function initPrintTree (data) {
 	treeObjPrint = $.fn.zTree.getZTreeObj("printTree");
 
 	var rootNode = treeObjPrint.getNodes()[0];
-	treeObjPrint.addNodes( rootNode , root );
+	//treeObjPrint.addNodes( rootNode , root );
 
 	treeObjPrint.expandNode( rootNode, true );
 	treeObjPrint.selectNode( rootNode );
@@ -369,8 +369,29 @@ function initPrintTree (data) {
 
 }
 
+function applyPrint () {
+	
+	var p = treeObjPrint.getSelectedNodes()[0];
+	var server = p.server;
+	var printer = p.name;
 
-function openPrintCon(){
+	var idx = $('.currTab').data('idx');
+	var tree = eval('treeObj'+(idx+1) );
+	var sel = tree.getSelectedNodes();
+	if(!sel.length)return;
+	sel=sel[0];
+
+	var info = getFileKeys(sel);
+
+	$.post(host+'/printPDF', { server:server, printer:printer, fileKey:info.key, userid: rootPerson.userid }, function  (data) {
+		console.log(data);
+		hidePrintCon();
+	});
+
+}
+
+function openPrintCon (){
+
 	treeObj = treeObjPrint;
 	$('.content_wrap').hide();
 	$('.print_wrap').show();
@@ -975,7 +996,7 @@ function reloadTree2(fileKey, shareID, switchTo, openShare, openMessage){
 		    var zNodesTemplate = {userid:rootPerson.userid, name:'模板文件柜', title:'模板文件柜', isTemplate:true, isParent:true, children: []} ;
 		    var zNodesPrint = {userid:rootPerson.userid, name:'打印机列表', title:'打印机列表', isPrint:true, isParent:true, children: []} ;
 
-			fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "order", "imageWidth", "imageHeight", 'isTemplate', 'drawData', 'inputData'];
+			fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "order", "imageWidth", "imageHeight", 'isTemplate', 'drawData', 'inputData', 'server'];
 			//fileKeys = fileKeys.concat( ['path', 'hash'].filter(function (item) { return fileKeys.indexOf(item) < 0 }) );
 			//fileKeys.splice( fileKeys.indexOf('_id'), 1 );
 
@@ -2199,6 +2220,9 @@ $(function () {
         	baseName = baseName.join('.');
         	if( ext.match(/(gif|jpe?g|png|bmp)$/i) ){
         		isImage = true;
+        	}
+        	if( ! (isImage || ext.match(/(docx?|xlsx?|pptx?|txt)$/i) ) ) {
+        		return alert('文件格式不支持，请选择图片、OFFICE文档、TXT文本文件');
         	}
 
         	if(isImage ||UploadNonImage ) {
