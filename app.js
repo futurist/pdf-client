@@ -455,11 +455,12 @@ app.post("/getJSTicket", function (req, res) {
 });
 
 
-function imageToPDF(person, fileName, res){
+function imageToPDF(person, fileName, res, oldData ){
 	var ext = path.extname(fileName);
 	var baseName = path.basename(fileName, ext);
   var cmd = 'cd '+IMAGE_UPFOLDER+'; /bin/cp -rf make.tex '+ baseName +'.tex; xelatex "\\def\\IMG{'+ baseName +'} \\input{'+ baseName +'.tex}"';
   exec(cmd, function(err,stdout,stderr){
+    console.log(stdout);
     console.log('pdf file info: ' + baseName,  err, stderr);
     if (err||stderr) return res.send( '' );
 
@@ -470,13 +471,26 @@ function imageToPDF(person, fileName, res){
 
       if(ret.error) return res.send('');
 
-      ret.person = person;
-      ret.client = '';
-      ret.title = '图片上传-'+baseName;
-      ret.path = '/';
-      ret.srcFile = fileName;
+      if(oldData){
 
-      qiniu_uploadFile(fileName);
+        ret.person = oldData.person;
+        ret.client = oldData.client;
+        ret.title = oldData.title+'.pdf';
+        ret.path = oldData.path;
+        ret.srcFile = oldData.key;
+
+
+      } else {
+        ret.person = person;
+        ret.client = '';
+        ret.title = '图片上传-'+baseName;
+        ret.path = '/';
+        ret.srcFile = fileName;
+        qiniu_uploadFile(fileName);
+
+      }
+
+      console.log(ret);
 
       upfileFunc(ret, function(ret2){
         res.send(ret2);
@@ -503,18 +517,47 @@ app.post("/printPDF", function (req, res) {
 
 
 app.post("/uploadPCImage", function (req, res) {
+  var data = req.body.data;
   var filename = req.body.filename;
   var person = req.body.person;
 
-  var ext = filename.split(/\./).pop();
+  // we convert from QINIU cloud
+  if(data){
 
-  var baseName = moment().format('YYYYMMDDHHmmss') ;
-  var fileName = IMAGE_UPFOLDER+ baseName + '.'+ ext;
-  fs.rename(IMAGE_UPFOLDER+ filename, fileName, function(err){
+    filename = data.key;
+     var ext = filename.split(/\./).pop();
 
-    imageToPDF(person, fileName, res);
+    var baseName = moment().format('YYYYMMDDHHmmss') ;
+    var destPath = IMAGE_UPFOLDER+ baseName + '.'+ ext;
 
-  });
+    var wget = 'wget -P ' + IMAGE_UPFOLDER + ' -N "' + FILE_HOST+filename +'"';
+    var child = exec(wget, function(err, stdout, stderr) {
+      console.log( err, stdout, stderr );
+
+      fs.rename(IMAGE_UPFOLDER+ filename, destPath, function(err){
+
+        imageToPDF(person, destPath, res, data);
+
+      });
+
+    });
+
+  } else{
+    // we convert from our server uploaded already from client
+
+
+      var ext = filename.split(/\./).pop();
+
+     var baseName = moment().format('YYYYMMDDHHmmss') ;
+     var destPath = IMAGE_UPFOLDER+ baseName + '.'+ ext;
+     fs.rename(IMAGE_UPFOLDER+ filename, destPath, function(err){
+
+       imageToPDF(person, destPath, res);
+
+     });
+
+  }
+
 
 });
 
@@ -853,7 +896,7 @@ app.get("/downloadFile", function (req, res) {
 	var file = FILE_HOST+req.query.key;
 	return res.send(file);
 
-	
+
 	var filename = path.basename(file);
   	var mimetype = mime.lookup(file);
 
@@ -905,8 +948,8 @@ var escapeRe = function(str) {
     return re;
 
     // replace unicode Then
-    var ret = ''; 
-    for(var i=0;i<re.length;i++) { 
+    var ret = '';
+    for(var i=0;i<re.length;i++) {
     	ret += /[\x00-\x7F]/.test(re[i])?re[i]: '\\u'+re[i].charCodeAt(0).toString(16);
     }
     return ret;

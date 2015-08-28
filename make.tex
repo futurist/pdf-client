@@ -1,0 +1,66 @@
+%!TEX TS-program = xelatex
+%!TEX encoding = UTF-8 Unicode
+
+% Install Tex Live Suite first: http://anorien.csc.warwick.ac.uk/mirrors/CTAN/systems/texlive/Images/texlive2015.iso
+% Or follow the link: http://www.cnblogs.com/Z-X-L/articles/2636107.html
+% fc-list :lang=zh-cn to view Installed Chinese fonts
+%
+% Command line :
+%    xelatex "\def\WIDTH{600pt} \def\HEIGHT{600pt} \def\X{0pt} \def\Y{0pt} \def\W{550pt} \def\IMG{aaa.png} \input{imagela.tex}"
+
+\documentclass[oneside,final,12pt]{article}
+
+\usepackage{calc}
+
+% \usepackage[
+%   paperwidth=\WIDTH,
+%   paperheight=\HEIGHT,
+%   margin=0pt,
+% ]{geometry}
+
+
+\usepackage{graphicx}
+\usepackage[absolute,overlay]{textpos}
+\textblockorigin{0pt}{0pt}
+
+\thispagestyle{empty} %% Remove header and footer.
+\setlength{\marginparsep}{0pt}
+\setlength{\marginparwidth}{0pt}
+\setlength{\marginparpush}{0pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+
+
+\newlength\imageheight
+\newlength\imagewidth
+
+\settoheight\imageheight{\includegraphics{\IMG}}
+\settowidth\imagewidth{\includegraphics{\IMG}}
+
+\ifnum\imageheight < \imagewidth
+	\usepackage[a4paper,landscape, margin=0pt]{geometry}	% landscape, portrait
+\else
+	\usepackage[a4paper,portrait, margin=0pt]{geometry}	% landscape, portrait
+\fi
+
+\begin{document}
+
+% BELOW IS BAD!!!!! use textblock
+% \begin{center}
+%   \makebox[\textwidth]{\includegraphics[width=\textwidth,height=\textheight,keepaspectratio]{20150823224851.jpg}}
+% \end{center}
+
+
+% Height: \the\imageheight
+% Width: \the\imagewidth\ \the\textwidth % \hspace{1cm}
+
+
+\begin{textblock*}{\textwidth}(0pt,0pt)
+	\includegraphics[keepaspectratio=true,width=\textwidth]{\IMG}%
+\end{textblock*}
+
+
+%\includepdf[keepaspectratio=true, pages=-, width=\textwidth, delta=0 0, offset=0 0pt]{mongodb.pdf}
+
+
+\end{document}

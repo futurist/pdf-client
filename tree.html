@@ -397,7 +397,7 @@ function getSelectFiles () {
 	var idx = $('.currTab').data('idx');
 	var tree = eval('treeObj'+(idx+1) );
 	var sel = tree.getSelectedNodes();
-	return sel;	
+	return sel;
 }
 
 function openPrintCon (){
@@ -822,7 +822,7 @@ function locateNode (rootNode, path, shareID, switchTo){
 			return  (node.key==path || node.hash==path) && (!shareID? 1 : shareID==getShareID(node) ) ;
 		}, true, rootNode);
 	}
-	console.log(targetNode);
+
 	if( targetNode ) {
 		if(switchTo){
 			if(targetNode.isSend) showTab(1);
@@ -1325,7 +1325,13 @@ function getFileKeys(node){
 				}
 				if(targetNode){
 					$('.fView').attr( 'href', getFileUrl(targetNode) );
-					$('.fDownload').attr( 'href', FILE_HOST+(targetNode.key) );
+
+					var srcFile = FILE_HOST+(targetNode.key);
+					if(isWeiXin){
+						$('.fDownload').removeAttr('download').attr( 'href', 'http://1111hui.com/pdf/getSrcFile.php?url='+ encodeURIComponent(srcFile)  );
+					}else {
+						$('.fDownload').attr( 'href', srcFile );
+					}
 
 						var shareStr = targetNode.level==0?'':
 						 ( targetNode.isSend||targetNode.isReceive||targetNode.isSign ? '&shareID='+ getShareID(targetNode) : '' );
@@ -2236,8 +2242,30 @@ $(function  () {
 <script src="js/jquery.iframe-transport.js"></script>
 <script src="js/jquery.fileupload.js"></script>
 <script>
+
+var regex_image= /(gif|jpe?g|png|bmp)$/i;
+var regex_can_be_convert = /(docx?|xlsx?|pptx?|txt)$/i;
+var UploadNonImage = false;
+
+function convertPDF () {
+	var sel = getSelectFiles().shift();
+	if(!sel || sel.isParent) return;
+
+
+	if( sel.key.match( regex_image ) ){
+		$.post(host+'/uploadPCImage', {person:rootPerson.userid, data: getFileKeys(sel) }, function(ret){
+			//console.log(ret);
+		}  );
+	}
+
+	if( sel.key.match( regex_can_be_convert ) ){
+		$.post(host+'/generatePDFAtPrinter', getFileKeys(sel), function(ret){
+			//console.log(ret);
+		}  );
+	}
+}
+
 $(function () {
-	var UploadNonImage = false;
     $('#fileupload').fileupload({
         dataType: 'json',
         add: function (e, data) {
@@ -2247,7 +2275,7 @@ $(function () {
         	var baseName = filename.split('.');
         	var ext = baseName.pop();
         	baseName = baseName.join('.');
-        	if( ext.match(/(gif|jpe?g|png|bmp)$/i) ){
+        	if( ext.match(regex_image) ){
         		isImage = true;
         	}
 
@@ -2255,7 +2283,7 @@ $(function () {
         		isPDF = true;
         	}
 
-        	if( ! (isImage || isPDF || ext.match(/(docx?|xlsx?|pptx?|txt)$/i) ) ) {
+        	if( ! (isImage || isPDF || ext.match(regex_can_be_convert) ) ) {
         		//return alert('文件格式不支持，请选择图片、OFFICE文档、TXT文本文件');
         	}
 
@@ -2538,7 +2566,7 @@ $(document).bind('drop dragover', function (e) {
 
 	<div class="unknownMenu">
 		<a class="fDownload" href="#" download onclick="">下载</a>
-		<a class="fConvert" href="javascript:;" onclick="downloadFile()">转为PDF</a>
+		<a class="fConvert" href="javascript:;" onclick="convertPDF()">转为PDF</a>
 	</div>
 
 	<div class="dirMenu">
