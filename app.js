@@ -26,6 +26,7 @@ var multer = require("multer");
 
 var Datauri = require('datauri');
 var QREncoder = require('qr').Encoder;
+var mime = require('mime');
 
 
 var redis = require("redis"),
@@ -846,6 +847,22 @@ function breakIntoPath(path){
   }
   return ret.slice(1);
 }
+
+app.get("/downloadFile", function (req, res) {
+
+	var file = FILE_HOST+req.query.key;
+	return res.send(file);
+
+	
+	var filename = path.basename(file);
+  	var mimetype = mime.lookup(file);
+
+	res.setHeader('Content-disposition', 'attachment; filename=' + filename);
+	res.setHeader('Content-type', mimetype);
+
+	var filestream = fs.createReadStream(file);
+	filestream.pipe(res);
+});
 
 app.post("/updatefile", function (req, res) {
   var data = req.body.data;

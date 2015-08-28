@@ -33,6 +33,10 @@
 
 	<SCRIPT type="text/javascript">
 
+
+FILE_HOST = 'http://7xkeim.com1.z0.glb.clouddn.com/';
+
+
 //******* Websocket part **************
 
 
@@ -365,7 +369,6 @@ function initPrintTree (data) {
 	treeObjPrint.expandNode( rootNode, true );
 	treeObjPrint.selectNode( rootNode );
 	addAttrToNode( rootNode, {isPrint:true} );
-
 
 }
 
@@ -1302,7 +1305,14 @@ function getFileKeys(node){
 					} else if(targetNode.isParent) {
 						$('.dirMenu').show();
 					} else {
-						$('.fileMenu').show();
+
+						if( targetNode.key.match(/\.pdf$/) ){
+							$('.fileMenu').show();
+						} else {
+							$('.unknownMenu').show();
+						}
+
+
 						$('.fAdmin').hide();
 
 						if(rootPerson.isAdmin)
@@ -1315,6 +1325,7 @@ function getFileKeys(node){
 				}
 				if(targetNode){
 					$('.fView').attr( 'href', getFileUrl(targetNode) );
+					$('.fDownload').attr( 'href', FILE_HOST+(targetNode.key) );
 
 						var shareStr = targetNode.level==0?'':
 						 ( targetNode.isSend||targetNode.isReceive||targetNode.isSign ? '&shareID='+ getShareID(targetNode) : '' );
@@ -1748,6 +1759,15 @@ function sendShareMsg () {
 		$('.msg_wrap .inputMsg').val('');
 		//appendShareMsg(ret);
 	});
+
+}
+
+function downloadFile () {
+	var sel = getSelectFiles().shift();
+	if(!sel) return;
+	$.get( host+'/downloadFile', {key:getFileKeys(sel).key}, function  (path) {
+		$('.downloadIFrame').attr('src', path);
+	} );
 
 }
 
@@ -2239,7 +2259,8 @@ $(function () {
         		//return alert('文件格式不支持，请选择图片、OFFICE文档、TXT文本文件');
         	}
 
-        	if(isImage ||UploadNonImage ) {
+        	//if(isImage ||UploadNonImage ) {
+        	if( UploadNonImage ) {
         		UploadNonImage = false;
         		// if it's  images, upload to our server to generate right PDF.
 	        	if (data.autoUpload || (data.autoUpload !== false &&
@@ -2409,6 +2430,7 @@ $(document).bind('drop dragover', function (e) {
 
 <div class="bg_mask"></div>
 
+<iframe class="downloadIFrame" style="display:none"></iframe>
 
 <div class="dialog" id="mydialog">
     <div class="shareMsg">
@@ -2512,6 +2534,11 @@ $(document).bind('drop dragover', function (e) {
 		<a class="fAdmin fSetTemplate" href="javascript:;" onclick="setFileTemplate(true)">设为模板</a>
 		<a class="fAdmin fRemoveTemplate" href="javascript:;" onclick="setFileTemplate(false)">取消模板</a>
 		<a class="fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>
+	</div>
+
+	<div class="unknownMenu">
+		<a class="fDownload" href="#" download onclick="">下载</a>
+		<a class="fConvert" href="javascript:;" onclick="downloadFile()">转为PDF</a>
 	</div>
 
 	<div class="dirMenu">
