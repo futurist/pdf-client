@@ -49,7 +49,7 @@
 				appendShareMsg(msg);
 				break;
 			case 'upfile':
-				appendTree1(msg);
+				reloadTree1(msg);
 				break;
 			case 'share':
 				reloadTree2(msg.files[0].key, msg.shareID, false, msg.openShare, msg.openMessage);
@@ -370,7 +370,7 @@ function initPrintTree (data) {
 }
 
 function applyPrint () {
-	
+
 	var p = treeObjPrint.getSelectedNodes()[0];
 	var server = p.server;
 	var printer = p.name;
@@ -388,6 +388,13 @@ function applyPrint () {
 		hidePrintCon();
 	});
 
+}
+
+function getSelectFiles () {
+	var idx = $('.currTab').data('idx');
+	var tree = eval('treeObj'+(idx+1) );
+	var sel = tree.getSelectedNodes();
+	return sel;	
 }
 
 function openPrintCon (){
@@ -771,7 +778,7 @@ function getFilesData () {
 
 		init(data);
 		if(!urlQuery.shareID){
-			locateNode( treeObj.getNodes()[0], urlQuery.path, null, true );
+			locateNode ( treeObj.getNodes()[0], urlQuery.path, null, true );
 		}
 
 		reloadTree2(null, null, true);
@@ -794,7 +801,7 @@ function getFilesData () {
 
 
 
-function locateNode(rootNode, path, shareID, switchTo){
+function locateNode (rootNode, path, shareID, switchTo){
 	if( !rootNode || !path ) return;
 	var targetNode;
 	var treeObj = rootNode.isSend ? treeObj2 : ( rootNode.isReceive? treeObj3 : treeObj1 );
@@ -804,14 +811,15 @@ function locateNode(rootNode, path, shareID, switchTo){
 		//path = '/'+rootNode.name+path;
 		targetNode = treeObj.getNodesByFilter(function(node){
 			var p = getPath(node);
-			p += (node.key||'');
+			p += (node.key||node.hash||'');
 			return p==path;
 		}, true, rootNode);
 	}else{
 		targetNode = treeObj.getNodesByFilter(function(node){
-			return  node.key==path && (!shareID? 1 : shareID==getShareID(node) ) ;
+			return  (node.key==path || node.hash==path) && (!shareID? 1 : shareID==getShareID(node) ) ;
 		}, true, rootNode);
 	}
+	console.log(targetNode);
 	if( targetNode ) {
 		if(switchTo){
 			if(targetNode.isSend) showTab(1);
@@ -932,7 +940,7 @@ function reloadTree1(fileObj, switchTo){
 	$.post(host+'/getfile', {person:rootPerson.userid}, function  (data) {
 		data = JSON.parse(data);
 		root = [];
-		data.forEach(function(v){
+		data.forEach(function(v) {
 			pathToObj( v );
 			fileKeys = Object.keys(v);
 		});
@@ -943,7 +951,7 @@ function reloadTree1(fileObj, switchTo){
 		treeObj1 = $.fn.zTree.getZTreeObj("fileTree");
 
 		if(fileObj){
-			locateNode( treeObj1.getNodes()[0],  fileObj.key, null, switchTo );
+			locateNode( treeObj1.getNodes()[0],  fileObj.returnPath || fileObj.key || fileObj.hash, null, switchTo );
 		}
 
 		if(switchTo){
@@ -2214,6 +2222,7 @@ $(function () {
         dataType: 'json',
         add: function (e, data) {
 			var isImage = false;
+			var isPDF = false;
         	var filename = data.files[0].name;
         	var baseName = filename.split('.');
         	var ext = baseName.pop();
@@ -2221,8 +2230,13 @@ $(function () {
         	if( ext.match(/(gif|jpe?g|png|bmp)$/i) ){
         		isImage = true;
         	}
-        	if( ! (isImage || ext.match(/(docx?|xlsx?|pptx?|txt)$/i) ) ) {
-        		return alert('文件格式不支持，请选择图片、OFFICE文档、TXT文本文件');
+
+        	if( ext.match(/(pdf)$/i) ){
+        		isPDF = true;
+        	}
+
+        	if( ! (isImage || isPDF || ext.match(/(docx?|xlsx?|pptx?|txt)$/i) ) ) {
+        		//return alert('文件格式不支持，请选择图片、OFFICE文档、TXT文本文件');
         	}
 
         	if(isImage ||UploadNonImage ) {
@@ -2245,7 +2259,7 @@ $(function () {
 	    			// data.formData = {key: moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'.'+ext, token:token };
 	    			var key =moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'.'+ext;
 	    			UploadNonImage = true;
-	    			$('#fileupload').fileupload('add', {files: data.files, formData:{key:key, token:token}, url: 'http://up.qiniu.com'} );
+	    			$('#fileupload').fileupload('add', {files: data.files, formData:{key:key, token:token, 'x:path': data.files[0].relativePath }, url: 'http://up.qiniu.com'} );
 	    			// This will trigger ADD event again, with UploadNonImage = true
 
 	    		});
@@ -2256,7 +2270,7 @@ $(function () {
         },
 
         done: function (e, data) {
-        	console.log(e,data);
+        	//console.log(e,data);
 
         	$('.bg_mask').hide();
 
@@ -2270,6 +2284,24 @@ $(function () {
 	        }
 
 	        if( data.result.key ) {
+	        	var result = data.result;
+				result.person = rootPerson.userid;
+				result.client = '';
+				result.title = result.fname;
+
+				var sel = getSelectFiles().shift();
+				var oldPath = sel? getPath(sel) : '/';
+
+				result.path = oldPath.replace(/[^/]+$/,'') + result.srcPath ;
+
+				result.returnPath = oldPath;
+
+        		$.post(host+'/upfile', result, function(ret){  });
+
+	        	if( data.result.key.match(/(pdf)$/i) ) {
+
+	        	}
+	        	return;
 
 	        	$.post(host+'/generatePDFAtPrinter', data.result, function(ret){
 	        		//console.log(ret);
@@ -2316,6 +2348,61 @@ $(document).bind('dragover', function (e) {
 $(document).bind('drop dragover', function (e) {
     e.preventDefault();
 });
+
+
+
+
+
+
+    window.addEventListener('keydown', handleShortKey);
+
+    function handleShortKey (evt) {
+
+      var handled = false;
+      var cmd = (evt.ctrlKey ? 1 : 0) |
+            (evt.altKey ? 2 : 0) |
+            (evt.shiftKey ? 4 : 0) |
+            (evt.metaKey ? 8 : 0);
+
+      if (cmd === 0) { // no control key pressed at all.
+        //console.log(evt, evt.keyCode);
+        switch (evt.keyCode) {
+          case 116:  //F5 key
+          	window.location.reload();
+            handled = true;
+            break;
+        }
+      }
+
+    if (cmd === 1 || cmd === 8) {
+      switch (evt.keyCode) {
+        case 82:  //Ctrl+R
+          window.location.reload();
+          break;
+      }
+    }
+
+    if (cmd === 5 || cmd === 12) {
+      switch (evt.keyCode) {
+        case 90:
+
+          break;
+      }
+    }
+
+
+
+    if(handled){
+      evt.preventDefault();
+      return;
+    }
+
+}
+
+
+
+
+
 
 </script>
 
@@ -2439,7 +2526,7 @@ $(document).bind('drop dragover', function (e) {
 		<a class="fRename" href="javascript:;" onclick="addTreeNode()">新文件夹</a>
 		<a class="fShare" href="javascript:;" onclick="addTemplateCon()">新模板文件</a>
 		<a class="fPicture" href="javascript:;" onclick="addPictureCon()">新图片文件
-		<input id="fileupload" type="file" name="file" data-url="./phpupload/">
+		<input id="fileupload" type="file" name="file" data-url="./phpupload/" multiple>
 		</a>
 	</div>
 

@@ -56,6 +56,7 @@ var fileUploader = multer({ storage: fileStorage })
 function qiniu_getUpToken() {
 	var responseBody =
 	{
+    "srcPath":"$(x:path)",
 		"key":"$(key)",
 		"hash":"$(hash)",
 		"imageWidth":"$(imageInfo.width)",
@@ -356,13 +357,22 @@ app.post("/getFinger", function (req, res) {
 });
 
 
-app.get("/putFingerInfo", function (req, res) {
-  var code = req.query.code;
-  var msgid = req.query.msgid;
+app.post("/confirmFingerInfo", function (req, res) {
+  	var msgid = req.body.msgid;
+	sendWsMsg( msgid, JSON.stringify(req.body) );
+
+	getUserInfo(req.body.UserId, res);
+
+});
+
+app.post("/putFingerInfo", function (req, res) {
+  var code = req.body.code;
+  var msgid = req.body.msgid;
   var reqData = getWsData(msgid);
   if(!code || !reqData) return res.send('');
 
   var finger = reqData.finger;
+  console.log(finger, msgid, code);
 
   var tryCount = 0;
   function doit(){
@@ -382,8 +392,9 @@ app.get("/putFingerInfo", function (req, res) {
           }catch(e){ return res.send(''); }
           ret.finger = finger;
           //ret.state = state;
-          res.send( JSON.stringify(ret) );
-          sendWsMsg( msgid, JSON.stringify(ret) );
+          ret.msgid = msgid;
+          res.send( ret );
+
         });
     });
 
@@ -462,7 +473,7 @@ function imageToPDF(person, fileName, res){
       ret.client = '';
       ret.title = '图片上传-'+baseName;
       ret.path = '/';
-      ret.fileType = ext;
+      ret.srcFile = fileName;
 
       qiniu_uploadFile(fileName);
 
@@ -583,13 +594,12 @@ app.post("/getJSConfig", function (req, res) {
 });
 
 
-function upfileFunc(data, callback) {
+function upfileFunc (data, callback) {
   var person = data.person;
-  var savePath = data.savePath || data.path || '/';   //first upload to root path
+  var savePath = data.path || data.savePath || '/';   //first upload to root path
   var fname = data.fname;
   var maxOrder = 0;
 
-  console.log(data);
 
   col.find( { person: person, role:'upfile', status:{$ne:-1} } , {limit:2000} ).sort({order:-1}).limit(1).nextObject(function(err, item) {
     if(err) {
@@ -721,16 +731,17 @@ app.post("/getUserInfo", function (req, res) {
 
   var data = req.body;
   var userid = data.userid;
+  getUserInfo(userid, res);
+});
 
-  col.findOne( { company:CompanyName, role:"companyTree", 'stuffList.userid': userid, 'stuffList.status': 1 } , {limit:1, fields:{'stuffList.$':1} }, function(err, item){
+function getUserInfo (userid, res) {
+	col.findOne( { company:CompanyName, role:"companyTree", 'stuffList.userid': userid, 'stuffList.status': 1 } , {limit:1, fields:{'stuffList.$':1} }, function(err, item){
     if(err ||  !item.stuffList || !item.stuffList.length) {
       return res.send('');
     }
       res.send( item.stuffList[0] );
-  });
-
-});
-
+  	});
+}
 
 
 
@@ -779,6 +790,8 @@ app.post("/applyTemplate", function (req, res) {
 	});
 
 });
+
+
 
 
 app.post("/getTemplateFiles", function (req, res) {
@@ -840,6 +853,8 @@ app.post("/updatefile", function (req, res) {
   var hashArr = data.map(function  (v) {
     return v.hash;
   });
+
+  var isErr = false;
   data.forEach(function  (v,i) {
     var newV = _.extend(v, {date:new Date() } );
     newV.order = parseFloat(newV.order);
@@ -847,7 +862,8 @@ app.post("/updatefile", function (req, res) {
     console.log('updatefile:', v.hash,  newV.order);
     col.update({hash: v.hash}, newV, {upsert:true, w:1}, function  (err, result) {
       if(err) {
-        return res.send('error');
+      	console.log(err);
+        return isErr=true;
       }
       var pathPart = breakIntoPath(v.path);
       if(err==null && pathPart.length && hashArr.length ) {
@@ -856,7 +872,8 @@ app.post("/updatefile", function (req, res) {
     } );
   });
 
-  res.send("update file ok");
+  // can also check res.headerSent is true
+  res.send(isErr ? "error update file" : "update file ok");
 });
 
 app.post("/removeFile", function (req, res) {
@@ -865,9 +882,23 @@ app.post("/removeFile", function (req, res) {
   res.send("delete file ok");
 });
 
+
+var escapeRe = function(str) {
+    var re = (str+'').replace(/[.?*+^$[\]\\/(){}|-]/g, "\\$&");
+    return re;
+
+    // replace unicode Then
+    var ret = ''; 
+    for(var i=0;i<re.length;i++) { 
+    	ret += /[\x00-\x7F]/.test(re[i])?re[i]: '\\u'+re[i].charCodeAt(0).toString(16);
+    }
+    return ret;
+};
+
 app.post("/removeFolder", function (req, res) {
   var data = req.body;
-  if(data.deleteAll) col.update({path: new RegExp('^'+ data.path) }, {$set:{status:-1}}, {multi:true});
+
+  if(data.deleteAll) col.update({path: new RegExp('^'+ escapeRe(data.path) ) }, {$set:{status:-1}}, {multi:true});
   res.send("delete folder ok");
 });
 
