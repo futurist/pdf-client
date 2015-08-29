@@ -43,11 +43,20 @@
 	\usepackage[a4paper,portrait, margin=0pt]{geometry}	% landscape, portrait
 \fi
 
+
+\usepackage{pdfpages}
+\setboolean{@twoside}{false}
+
 \begin{document}
 
+
+% http://mirror.neu.edu.cn/CTAN/macros/latex/contrib/pdfpages/pdfpages.pdf
+% http://tex.stackexchange.com/questions/21627/image-from-includegraphics-showing-in-wrong-image-size
+\includepdf[pages={1},fitpaper=false]{\IMG}
+
 % BELOW IS BAD!!!!! use textblock
+%   \makebox[\textwidth]{\includegraphics[width=\paperwidth,height=\paperheight,keepaspectratio=true]{\IMG}}
 % \begin{center}
-%   \makebox[\textwidth]{\includegraphics[width=\textwidth,height=\textheight,keepaspectratio]{20150823224851.jpg}}
 % \end{center}
 
 
@@ -55,9 +64,9 @@
 % Width: \the\imagewidth\ \the\textwidth % \hspace{1cm}
 
 
-\begin{textblock*}{\textwidth}(0pt,0pt)
-	\includegraphics[keepaspectratio=true,width=\textwidth]{\IMG}%
-\end{textblock*}
+% \begin{textblock*}{\textwidth}(0pt,0pt)
+% 	\includegraphics[keepaspectratio=true,resolution=58,width=\textwidth,height=\paperheight]{\IMG}%
+% \end{textblock*}
 
 
 %\includepdf[keepaspectratio=true, pages=-, width=\textwidth, delta=0 0, offset=0 0pt]{mongodb.pdf}

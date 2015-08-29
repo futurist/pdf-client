@@ -1310,6 +1310,9 @@ function getFileKeys(node){
 							$('.fileMenu').show();
 						} else {
 							$('.unknownMenu').show();
+							targetNode.key.match(regex_can_be_convert)|| targetNode.key.match(regex_image)
+								? $('.fConvert').show()
+								: $('.fConvert').hide();
 						}
 
 
@@ -2246,22 +2249,38 @@ $(function  () {
 var regex_image= /(gif|jpe?g|png|bmp)$/i;
 var regex_can_be_convert = /(docx?|xlsx?|pptx?|txt)$/i;
 var UploadNonImage = false;
+var CONVERT_TIMEOUT = 5*60*1000 ; 	//5 mins
 
 function convertPDF () {
 	var sel = getSelectFiles().shift();
 	if(!sel || sel.isParent) return;
 
+	$('.fConvert').hide();
 
 	if( sel.key.match( regex_image ) ){
 		$.post(host+'/uploadPCImage', {person:rootPerson.userid, data: getFileKeys(sel) }, function(ret){
 			//console.log(ret);
+			if(!ret) alert('转换文件发生错误');
 		}  );
 	}
 
 	if( sel.key.match( regex_can_be_convert ) ){
-		$.post(host+'/generatePDFAtPrinter', getFileKeys(sel), function(ret){
-			//console.log(ret);
-		}  );
+		$.ajax({
+		  type: 'POST',
+		  url: host+'/generatePDFAtPrinter',
+		  data: getFileKeys(sel),
+		  // type of data we are expecting in return:
+		  dataType: 'json',
+		  timeout: CONVERT_TIMEOUT,
+		  success: function(ret){
+		    if(!ret) return alert('转换超时');
+			console.log(ret);
+			alert(ret.errMsg!='ok' ? ret.errMsg : '转换成功,已自动加入文件柜并高亮' );
+		  },
+		  error: function(xhr, type){
+		    alert('连接超时');
+		  }
+		});
 	}
 }
 

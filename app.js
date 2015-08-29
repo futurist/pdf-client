@@ -144,7 +144,10 @@ var wss = new WebSocketServer({ port: 3000 });
 //       data:[json data from client]
 //     }
 // }
-var WSMSG = {};
+
+
+var JOBS = {};  // store printer jobs same format as WSMSG
+var WSMSG = {}; // store client persistent message
 var WSCLIENT = {};
 wss.on('connection', function connection(ws) {
   ws.on('close', function incoming(code, message) {
@@ -163,6 +166,21 @@ wss.on('connection', function connection(ws) {
       return console.log(data);
     }
 
+    if(msg.type=='printerConnected' && msg.clientName && msg.clientRole){
+
+      // msg format: { clientName:clientName, clientRole:'printer', clientOrder:1 }
+      console.log( 'printer up', msg );
+      WSCLIENT[msg.clientName] = _.extend( msg, {ws:ws, timeStamp:+new Date()} );
+      return;
+    }
+
+    if(msg.type=='printerMsg' && msg.msgid) {
+      var res = JOBS[msg.msgid].res;
+      console.log('job:', msg.printerName, msg.data.key, msg.errMsg);
+      if(! res.finished) res.send( msg );
+      return;
+    }
+
     var msgid = msg.msgid;
     if(msgid){
         delete msg.msgid;
@@ -170,13 +188,6 @@ wss.on('connection', function connection(ws) {
         WSMSG.msgid = {ws:ws, timeStamp:+new Date(), data:msg.data};
     }
 
-    if(msg.clientName && msg.clientRole){
-
-      // msg format: { clientName:clientName, clientRole:'printer', clientOrder:1 }
-
-      console.log( 'printer up', msg );
-      WSCLIENT[msg.clientName] = _.extend( msg, {ws:ws, timeStamp:+new Date()} );
-    }
 
   });
   console.log('new client connected');
@@ -187,7 +198,10 @@ function wsSendClient (clientName, msg) {
   var client = WSCLIENT[clientName];
   if(!client) return;
   msg.clientName = clientName;
+
   client.ws.send( JSON.stringify(msg)  );
+
+  return client;
 }
 
 function choosePrinter () {
@@ -195,7 +209,7 @@ function choosePrinter () {
   return printers.length ? printers[0] : null;
 }
 
-function wsSendPrinter (msg, printerName) {
+function wsSendPrinter (msg, printerName, res) {
 
   if(!printerName) {
 
@@ -205,7 +219,10 @@ function wsSendPrinter (msg, printerName) {
     printerName = printer.clientName;
   }
 
-  wsSendClient(printerName, msg);
+  var client = wsSendClient(printerName, msg);
+
+  JOBS[msg.msgid] = { ws:client.ws, res:res, printerName:client.clientName, timeStamp:+new Date(), data:msg};
+
   return printerName;
 
 }
@@ -458,9 +475,9 @@ app.post("/getJSTicket", function (req, res) {
 function imageToPDF(person, fileName, res, oldData ){
 	var ext = path.extname(fileName);
 	var baseName = path.basename(fileName, ext);
-  var cmd = 'cd '+IMAGE_UPFOLDER+'; /bin/cp -rf make.tex '+ baseName +'.tex; xelatex "\\def\\IMG{'+ baseName +'} \\input{'+ baseName +'.tex}"';
+  var cmd = ' rm -f '+IMAGE_UPFOLDER+'/*.pdf; cd '+IMAGE_UPFOLDER+'; /bin/cp -rf ../make.tex '+ baseName +'.tex; xelatex "\\def\\IMG{'+ baseName +'} \\input{'+ baseName +'.tex}"';
   exec(cmd, function(err,stdout,stderr){
-    console.log(stdout);
+    //console.log(stdout);
     console.log('pdf file info: ' + baseName,  err, stderr);
     if (err||stderr) return res.send( '' );
 
@@ -503,9 +520,37 @@ function imageToPDF(person, fileName, res, oldData ){
 }
 
 app.post("/generatePDFAtPrinter", function (req, res) {
+
+  var CONVERT_TIMEOUT = 5*60*1000 ;
   var data = req.body;
   data.task = 'generatePDF';
-  res.send( wsSendPrinter(data) );
+  data.msgid = +new Date()+Math.random();
+  wsSendPrinter(data, null, res);
+  // will wait for job done WS Message from printer client app. check ws message: type=printerMsg 
+
+  setTimeout(function printTimeout () {
+    if(res.finished) return;
+    var job = JOBS[data.msgid];
+    if(!job ) return res.send('');
+    console.log('job timeout:' , job.printerName, job.data.key);
+    return res.send('');
+  }, CONVERT_TIMEOUT );
+
+  return;
+
+  var count =0;
+  var inter1=setInterval(function  () {
+    if( count++ > 120 ){
+      clearInterval(inter1);
+      res.send('');
+    }
+    if( JOBS[data.msgid].done ){
+      clearInterval(inter1);
+      res.send(data);
+    }
+  }, 1000);
+  
+
 });
 
 app.post("/printPDF", function (req, res) {
@@ -533,8 +578,11 @@ app.post("/uploadPCImage", function (req, res) {
     var wget = 'wget -P ' + IMAGE_UPFOLDER + ' -N "' + FILE_HOST+filename +'"';
     var child = exec(wget, function(err, stdout, stderr) {
       console.log( err, stdout, stderr );
+      if(err) return res.send('');
 
-      fs.rename(IMAGE_UPFOLDER+ filename, destPath, function(err){
+      exec( util.format( 'convert "%s" -density 72 "%s"', IMAGE_UPFOLDER+ filename, destPath), function(err, stdout, stderr) {
+      	console.log(err,stdout,stderr);
+      	if(err) return res.send('');
 
         imageToPDF(person, destPath, res, data);
 
@@ -550,7 +598,8 @@ app.post("/uploadPCImage", function (req, res) {
 
      var baseName = moment().format('YYYYMMDDHHmmss') ;
      var destPath = IMAGE_UPFOLDER+ baseName + '.'+ ext;
-     fs.rename(IMAGE_UPFOLDER+ filename, destPath, function(err){
+     exec( util.format( 'convert "%s" -density 72 "%s"', IMAGE_UPFOLDER+ filename, destPath), function(err, stdout, stderr) {
+     	if(err) return res.send('');
 
        imageToPDF(person, destPath, res);
 
@@ -720,7 +769,7 @@ app.post("/rotateFile", function (req, res) {
 	    function upToQiniu(){
 
 		    // compose the wget command
-		    var wget = 'wget -P ' + DOWNLOAD_DIR + ' "' + file_url+'"';
+		    var wget = 'wget -P ' + DOWNLOAD_DIR + ' -N "' + file_url+'"';
 		    // excute wget using child_process' exec function
 
 		    var child = exec(wget, function(err, stdout, stderr) {
@@ -932,7 +981,7 @@ app.post("/updatefile", function (req, res) {
     } );
   });
 
-  // can also check res.headerSent is true
+  // can also check res.finished is true
   res.send(isErr ? "error update file" : "update file ok");
 });
 
