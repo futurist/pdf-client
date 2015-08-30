@@ -850,7 +850,8 @@ function getUserInfo (userid, res) {
 app.post("/applyTemplate", function (req, res) {
 
 	var data = req.body;
-	var info = data.info;
+  var info = data.info;
+	var path = data.path;
   	var userid = data.userid;
   	var key = info.key;
   	var newKey = moment().format('YYYYMMDDHHmmss') + '-'+ key.split('-').pop();
@@ -869,7 +870,7 @@ app.post("/applyTemplate", function (req, res) {
 			person:userid,
 			client:'',
 			title: info.title+'_'+moment().format('YYYYMMDD'),
-			path: '/',
+			path: path,
 			date: new Date(),
 			key: newKey,
 			fname:newKey,

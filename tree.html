@@ -36,11 +36,11 @@
 
 //Check if we are in NW.JS env
 
-if(typeof require !='undefined'){
+if(typeof require !='undefined') {
 
 	var el = document.createElement('script');
 	el.async = false;
-	el.src = 'app://js/js/mainNW.js';
+	el.src = 'app://js/js/nwMain.js';
 	el.type = 'text/javascript';
 
 	(document.getElementsByTagName('HEAD')[0]||document.body).appendChild(el);
@@ -345,14 +345,21 @@ var formatDate = function(format) {
 		}
 
 function applyTemplate(){
-	var sel = treeObj.getSelectedNodes();
-	if(!sel.length)return;
+
+
+	var sel = treeObjTemplate.getSelectedNodes();
+	if(!sel.length) return;
 	sel=sel[0];
 
 	var info = getFileKeys(sel);
 
-	$.post(host+'/applyTemplate', { info:info, userid: rootPerson.userid }, function  (data) {
-		console.log(data);
+	var path = getPath(getSelectFiles().shift());
+	if(!path) return;
+
+	$('.bg_mask').show();
+
+	$.post(host+'/applyTemplate', { info:info, userid: rootPerson.userid, path:path }, function  (data) {
+		$('.bg_mask').hide();
 		hideTemplateCon();
 		reloadTree1(data);
 	});
@@ -371,6 +378,7 @@ function addTemplateCon() {
 	$('.content_wrap').hide();
 	$('.templateFile_wrap .msgTitle').html('请选择模板');
 	updateMenu( treeObj.getSelectedNodes() );
+
 };
 
 function addPictureCon() {
@@ -445,6 +453,8 @@ function getSelectFiles () {
 	return sel;
 }
 
+
+
 function openPrintCon (){
 
 	treeObj = treeObjPrint;
@@ -463,17 +473,28 @@ function hidePrintCon() {
 }
 
 
-		function addTreeNode() {
+		function addTreeNode () {
 			hideRMenu();
 			var node;
 			var name = "新建文件夹 " + (addCount++);
 			name = formatDate('yyyy-mm-dd hh:ii:ss');
 			var newNode = { name:name, title:name, role:'upfile', hash:+new Date()+Math.random()+'', person:rootPerson.userid, isNew:true, isParent:true};
-			var pNode = treeObj.getSelectedNodes()[0];
+			var targetNode = treeObj.getSelectedNodes()[0];
+			var pNode = targetNode;
+			if(!pNode.isParent) pNode = pNode.getParentNode();
 			if (pNode) {
 				newNode.checked = pNode.checked;
 				treeObj.expandNode(pNode,true);
 				node = treeObj.addNodes(pNode, newNode);
+				// If targetNode is a file, move it into new folder
+				if(!targetNode.isParent) {
+					if(node.length) node=node[0];
+					node = treeObj.moveNode(targetNode, node, 'prev');
+					treeObj.moveNode(node, targetNode, 'inner');
+					treeObj.editName(node);
+					$('input.rename', $('#'+node.tId) ).get(0).select();
+					return;
+				}
 			} else {
 				pNode = treeObj.getNodes()[0];
 				treeObj.expandNode(pNode,true);
@@ -738,13 +759,13 @@ function hidePrintCon() {
 		}
 
 
-		function beforeDblClick(treeId, treeNode) {
+		function beforeDblClick (treeId, treeNode) {
 			if( treeNode && treeNode.key && treeNode.key.match(/\.pdf$/) ){
 				return true;
 			}
 			return false;
 		}
-		function onDblClick(event, treeId, treeNode) {
+		function onDblClick (event, treeId, treeNode) {
 			var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
 			shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
 
@@ -752,7 +773,7 @@ function hidePrintCon() {
 		}
 
 
-		function beforeClick(treeId, treeNode, clickFlag) {
+		function beforeClick (treeId, treeNode, clickFlag) {
 			if(treeNode.isCur) return false;
 			var nodes = treeObj.getSelectedNodes();
 			className = (className === "dark" ? "":"dark");
@@ -764,7 +785,7 @@ function hidePrintCon() {
 			showLog("[ "+getTime()+" beforeClick ]&nbsp;&nbsp;" + treeNode.name );
 			return (treeNode.click != false);
 		}
-		function onClick(event, treeId, treeNode, clickFlag) {
+		function onClick (event, treeId, treeNode, clickFlag) {
 			showLog("[ "+getTime()+" onClick ]&nbsp;&nbsp;clickFlag = " + clickFlag + " (" + (clickFlag===1 ? "普通选中": (clickFlag===0 ? "<b>取消选中</b>" : "<b>追加选中</b>")) + ")");
 
 			if(curSrcNode) return;
@@ -1092,6 +1113,7 @@ function reloadTree2(fileKey, shareID, switchTo, openShare, openMessage){
 		}
 
 		function getPath (node, includeSelf) {
+			if(!node) return node;
 			var pstr = [];
 			var pNode = node;
 			if(includeSelf || (node && node.isParent) ) pstr.push(pNode.name);
@@ -1330,11 +1352,18 @@ function getFileKeys(node){
 					}
 				} else if(targetNode.isReceive) {
 					$('.receiveMenu').show();
+					$('.receiveMenu .fCommon').show();
 					if(targetNode.level==-1){
 						$('.fAddShare').show();
 					} else {
 						$('.fAddShare').hide();
 					}
+					if(targetNode.isParent){
+						$('.fFolder').show();
+					} else {
+						$('.fFile').show();
+					}
+
 				} else if(targetNode.isPrint) {
 					$('.printMenu').show();
 					if(!targetNode.isParent){
@@ -1372,7 +1401,8 @@ function getFileKeys(node){
 						}
 					}
 				}
-				if(targetNode){
+				if(targetNode && $('.content_wrap').is(':visible') ) {
+
 					$('.fView').attr( 'href', getFileUrl(targetNode) );
 
 					var srcFile = FILE_HOST+(targetNode.key);
@@ -1468,6 +1498,8 @@ var companySetting = {
 }
 
 function showTab(idx) {
+
+	if( !$('.content_wrap').is(':visible') ) return;
 
 	curSrcNode = null;
 
@@ -2265,8 +2297,8 @@ $(function  () {
 		z-index: 9999;
 		top: 0;
 		left: 0;
-		bottom: 0;
-		right: 0;
+		height: 84px;
+		width: 100%;
 		opacity: 0;
 		cursor: pointer;
 	}
@@ -2301,7 +2333,8 @@ $(function  () {
 .selTab li div.menuPopup.hidden{
     display: none;
 }
-.selTab li div.menuPopup p{
+.selTab li div.menuPopup a{
+	display: block;
     border-bottom: 1px solid #eee;
     padding: 0px 40px;
     position: relative;
@@ -2560,9 +2593,10 @@ $(function initPopupMenu () {
 		$(this).next('div').toggleClass('hidden');
 
 		//$('#fileupload1').width( $('#fileupload1').parent().get(0).offsetWidth );
+		var menuHeight = $('.addImageBtn').get(0).offsetHeight;
 
 		isWeiXin
-		? $('#fileupload1').css({top: $('.addImageBtn').get(0).offsetHeight+'px' })
+		? $('#fileupload1').css({top: menuHeight+'px', height:menuHeight+'px' })
 		:''
 
 	});
@@ -2579,7 +2613,6 @@ $(function initPopupMenu () {
 
 
 });
-
 
 
 
@@ -2624,10 +2657,12 @@ $(function initPopupMenu () {
 	<ul class="tab selTab">
 		<li data-idx=0 class="noselect">我的文件柜<span class="popBtn addFileBtn">+</span>
 			<div class="menuPopup hidden addFilePopup">
-				<p class="addImageBtn" onclick="addPictureCon()">图片
-				</p>
-				<p onclick="addFile()">文件</p>
-			<input id="fileupload1" type="file" name="file" data-url="./phpupload/" multiple>
+				<a class="addImageBtn" onclick="addPictureCon()">图片
+				</a>
+				<a onclick="addFile()">文件</a>
+				<input id="fileupload1" type="file" name="file" data-url="./phpupload/" multiple>
+				<a class="fRename" onclick="addTreeNode()">文件夹</a>
+				<a class="fShare" onclick="addTemplateCon()">模板</a>
 			</div>
 		</li>
 		<li data-idx=1 class="tab noselect">发件柜<span class="filterFileBtn">+</span></li>
@@ -2715,9 +2750,7 @@ $(function initPopupMenu () {
 	</div>
 
 	<div class="rootMenu1">
-		<a class="fRename" href="javascript:;" onclick="addTreeNode()">新文件夹</a>
-		<a class="fShare" href="javascript:;" onclick="addTemplateCon()">新模板文件</a>
-		<a class="fPicture" href="javascript:;" onclick="addPictureCon()">新图片文件</a>
+
 	</div>
 
 	<div class="moveMenu">
@@ -2743,9 +2776,11 @@ $(function initPopupMenu () {
 	<div class="receiveMenu">
 		<a class="fAddShare" href="javascript:;" onclick="addShareFiles()">添加文件</a>
 		<a class="fView" href="javascript:;" onclick="">查看文件</a>
-		<a class="fShare" href="javascript:;" onclick="shareFile()">分享</a>
-		<a class="fRemove" href="javascript:;" onclick="viewDetail()">消息记录</a>
-		<a class="fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>
+		<a class="fFile fShare" href="javascript:;" onclick="shareFile()">分享</a>
+		<a class="fCommon fMessage" href="javascript:;" onclick="viewDetail()">消息记录</a>
+		<a class="fFile fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>
+		<a class="fFolder fFinish" href="javascript:;" onclick="markNotFinish()">未完成</a>
+		<a class="fFolder fNotFinish" href="javascript:;" onclick="markFinish()">已完成</a>
 	</div>
 
 	<div class="templateMenu">
