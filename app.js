@@ -53,6 +53,15 @@ var fileStorage = multer.diskStorage({
 var fileUploader = multer({ storage: fileStorage })
 
 
+function safeEval (str) {
+  try{
+    var ret = JSON.parse(str);
+  }catch(e){
+    ret = str
+  }
+  return /object/i.test(typeof ret) ? (ret===null?null:str) : ret;
+}
+
 
 function qiniu_getUpToken() {
 	var responseBody =
@@ -521,12 +530,12 @@ function imageToPDF(person, fileName, res, oldData ){
 
 app.post("/generatePDFAtPrinter", function (req, res) {
 
-  var CONVERT_TIMEOUT = 5*60*1000 ;
+  var CONVERT_TIMEOUT = 2*60*1000 ;
   var data = req.body;
   data.task = 'generatePDF';
   data.msgid = +new Date()+Math.random();
   wsSendPrinter(data, null, res);
-  // will wait for job done WS Message from printer client app. check ws message: type=printerMsg 
+  // will wait for job done WS Message from printer client app. check ws message: type=printerMsg
 
   setTimeout(function printTimeout () {
     if(res.finished) return;
@@ -549,7 +558,7 @@ app.post("/generatePDFAtPrinter", function (req, res) {
       res.send(data);
     }
   }, 1000);
-  
+
 
 });
 
@@ -903,7 +912,7 @@ app.post("/getTemplateFiles", function (req, res) {
 app.post("/setFileTemplate", function (req, res) {
   var data = req.body;
   var hashA = data.hashA;
-  var isSet = eval(data.isSet);
+  var isSet = safeEval(data.isSet);
   col.update({role:'upfile', hash:{$in:hashA} }, { $set:{ isTemplate:isSet } }, {multi:1, w:1}, function(err, result){
   	return res.send(err);
   } );
@@ -1211,7 +1220,7 @@ app.post("/getFlowList", function (req, res) {
 
 
 app.post("/getShareData", function (req, res) {
-  var shareID = eval(req.body.shareID);
+  var shareID = safeEval(req.body.shareID);
   col.findOne( { 'shareID': shareID, role:'share' } , {limit:500} , function(err, item){
       if(err) {
         return res.send('');
@@ -1334,10 +1343,10 @@ app.post("/beginSign", function (req, res) {
   var pos = data.pos;
   var isMobile = data.isMobile;
 
-  data.isMobile = eval(data.isMobile);
-  data.shareID = eval(data.shareID);
-  data.page = eval(data.page);
-  data.scale = eval(data.scale);
+  data.isMobile = safeEval(data.isMobile);
+  data.shareID = safeEval(data.shareID);
+  data.page = safeEval(data.page);
+  data.scale = safeEval(data.scale);
   data.role = 'sign';
   data.date = new Date();
 
@@ -1365,7 +1374,7 @@ function getSubStr (str, len) {
 
 
 app.post("/finishSign", function (req, res) {
-  var shareID =  eval(req.body.shareID);
+  var shareID =  safeEval(req.body.shareID);
   var person =  req.body.person;
 
   col.findOne({shareID:shareID, role:'share'}, function(err, colShare){
@@ -1485,8 +1494,8 @@ app.post("/saveSign", function (req, res) {
   var data =  req.body.data;
   var signID =  req.body.signID;
   var hisID =  req.body.hisID;
-  var width =  eval(req.body.width);
-  var height =  eval(req.body.height);
+  var width =  safeEval(req.body.width);
+  var height =  safeEval(req.body.height);
   var person;
 
 

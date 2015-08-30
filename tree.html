@@ -34,8 +34,53 @@
 	<SCRIPT type="text/javascript">
 
 
+//Check if we are in NW.JS env
+
+if(typeof require !='undefined'){
+
+	var el = document.createElement('script');
+	el.async = false;
+	el.src = 'app://js/js/mainNW.js';
+	el.type = 'text/javascript';
+
+	(document.getElementsByTagName('HEAD')[0]||document.body).appendChild(el);
+}
+
+
 FILE_HOST = 'http://7xkeim.com1.z0.glb.clouddn.com/';
 
+
+function eve (el, type){
+    el= ('get' in el)? el.get(0) : el ;	//(typeof el['jquery']!='undefined')
+    if(typeof type=='undefined') type='click';
+    var click = document.createEvent("MouseEvents");
+    click.initMouseEvent(type, true, true, window,
+                         0, 0, 0, 0, 0, false, false, false, false, 0, null);
+    button = el;
+    button.dispatchEvent(click);
+    button.focus();
+}
+function simulateKeyPress (character) {
+    jQuery.event.trigger({ type : 'keypress', which : character.charCodeAt(0) });
+}
+
+// http://stackoverflow.com/questions/10420352/converting-file-size-in-bytes-to-human-readable
+function humanFileSize(bytes, si) {
+	if(!si) si = true;
+    var thresh = si ? 1000 : 1024;
+    if(Math.abs(bytes) < thresh) {
+        return bytes + ' B';
+    }
+    var units = si
+        ? ['kB','MB','GB','TB','PB','EB','ZB','YB']
+        : ['KiB','MiB','GiB','TiB','PiB','EiB','ZiB','YiB'];
+    var u = -1;
+    do {
+        bytes /= thresh;
+        ++u;
+    } while(Math.abs(bytes) >= thresh && u < units.length - 1);
+    return bytes.toFixed(1)+' '+units[u];
+}
 
 //******* Websocket part **************
 
@@ -499,6 +544,7 @@ function hidePrintCon() {
 					treeObj.removeNode(nodes[0]);
 				}
 			}
+			updateMenu();
 		}
 		function renameTreeNode() {
 			var nodes = treeObj.getSelectedNodes();
@@ -780,6 +826,7 @@ function getFilesData () {
 		data = JSON.parse(data);
 
 		init(data);
+
 		if(!urlQuery.shareID){
 			locateNode ( treeObj.getNodes()[0], urlQuery.path, null, true );
 		}
@@ -1301,7 +1348,6 @@ function getFileKeys(node){
 				} else {
 					if(targetNode.isParent && targetNode.level==0){
 						$('.rootMenu1').show();
-						isWeiXin ? $('#fileupload').hide() : $('#fileupload').width( $('.fPicture').width() );
 					} else if(targetNode.isParent) {
 						$('.dirMenu').show();
 					} else {
@@ -1336,8 +1382,10 @@ function getFileKeys(node){
 						$('.fDownload').attr( 'href', srcFile );
 					}
 
-						var shareStr = targetNode.level==0?'':
-						 ( targetNode.isSend||targetNode.isReceive||targetNode.isSign ? '&shareID='+ getShareID(targetNode) : '' );
+					$('.fDownload').html( '下载(' + humanFileSize(targetNode.fsize) +')' );
+
+					var shareStr = targetNode.level==0?'':
+					 ( targetNode.isSend||targetNode.isReceive||targetNode.isSign ? '&shareID='+ getShareID(targetNode) : '' );
 
 					if(changeURL) window.location = '#path='+ encodeURIComponent( getPath(targetNode)+(targetNode.key||'') ) + shareStr;
 					// window.location.replace(window.location);
@@ -2159,6 +2207,7 @@ $(function  () {
 	}
 	.header ul li{
 		display: table-cell;
+		position: relative;
 		width: 2%;
 		line-height: 41px;
 		border-right:1px solid #ccc;
@@ -2211,7 +2260,7 @@ $(function  () {
 	.fPicture{
 		position: relative;
 	}
-	#fileupload{
+	#fileupload1{
 		position: absolute;
 		z-index: 9999;
 		top: 0;
@@ -2219,6 +2268,7 @@ $(function  () {
 		bottom: 0;
 		right: 0;
 		opacity: 0;
+		cursor: pointer;
 	}
 
 	.bg_mask{
@@ -2231,6 +2281,35 @@ $(function  () {
 		background-color: rgba(0,0,0,0.3);
 		display: none;
 	}
+
+.selTab li span{
+	position: absolute;
+	right:0;
+	top:0;
+	bottom: 0;
+	width: 44px;
+	font:22px/41px Arial;
+}
+.selTab li div.menuPopup{
+	position: absolute;
+    right: 0;
+    top: 41px;
+    background-color: white;
+    border: 1px solid #ccc;
+    overflow: hidden;
+}
+.selTab li div.menuPopup.hidden{
+    display: none;
+}
+.selTab li div.menuPopup p{
+    border-bottom: 1px solid #eee;
+    padding: 0px 40px;
+    position: relative;
+}
+
+
+
+
 </style>
 
 </HEAD>
@@ -2249,7 +2328,7 @@ $(function  () {
 var regex_image= /(gif|jpe?g|png|bmp)$/i;
 var regex_can_be_convert = /(docx?|xlsx?|pptx?|txt)$/i;
 var UploadNonImage = false;
-var CONVERT_TIMEOUT = 5*60*1000 ; 	//5 mins
+var CONVERT_TIMEOUT = 2*60*1000 ; 	//5 mins
 
 function convertPDF () {
 	var sel = getSelectFiles().shift();
@@ -2285,7 +2364,7 @@ function convertPDF () {
 }
 
 $(function () {
-    $('#fileupload').fileupload({
+    $('#fileupload1').fileupload({
         dataType: 'json',
         add: function (e, data) {
 			var isImage = false;
@@ -2327,7 +2406,7 @@ $(function () {
 	    			// data.formData = {key: moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'.'+ext, token:token };
 	    			var key =moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'.'+ext;
 	    			UploadNonImage = true;
-	    			$('#fileupload').fileupload('add', {files: data.files, formData:{key:key, token:token, 'x:path': data.files[0].relativePath }, url: 'http://up.qiniu.com'} );
+	    			$('#fileupload1').fileupload('add', {files: data.files, formData:{key:key, token:token, 'x:path': data.files[0].relativePath||'' }, url: 'http://up.qiniu.com'} );
 	    			// This will trigger ADD event again, with UploadNonImage = true
 
 	    		});
@@ -2422,9 +2501,9 @@ $(document).bind('drop dragover', function (e) {
 
 
 
-    window.addEventListener('keydown', handleShortKey);
+window.addEventListener('keydown', handleShortKey);
 
-    function handleShortKey (evt) {
+function handleShortKey (evt) {
 
       var handled = false;
       var cmd = (evt.ctrlKey ? 1 : 0) |
@@ -2432,9 +2511,14 @@ $(document).bind('drop dragover', function (e) {
             (evt.shiftKey ? 4 : 0) |
             (evt.metaKey ? 8 : 0);
 
+		console.log(evt.keyCode)
+
       if (cmd === 0) { // no control key pressed at all.
         //console.log(evt, evt.keyCode);
         switch (evt.keyCode) {
+          case 46:  //Delete key
+          	removeTreeNode();
+          	break;
           case 116:  //F5 key
           	window.location.reload();
             handled = true;
@@ -2468,6 +2552,33 @@ $(document).bind('drop dragover', function (e) {
 }
 
 
+
+
+$(function initPopupMenu () {
+
+	$('.addFileBtn').click(function  () {
+		$(this).next('div').toggleClass('hidden');
+
+		//$('#fileupload1').width( $('#fileupload1').parent().get(0).offsetWidth );
+
+		isWeiXin
+		? $('#fileupload1').css({top: $('.addImageBtn').get(0).offsetHeight+'px' })
+		:''
+
+	});
+
+
+
+	$(document).click(function hideMenu (e) {
+
+		if( $(e.target).hasClass('popBtn') ) return;
+		$('.menuPopup').addClass('hidden');
+
+	});
+
+
+
+});
 
 
 
@@ -2510,10 +2621,17 @@ $(document).bind('drop dragover', function (e) {
 
 
 <div class="header">
-	<ul class="selTab">
-		<li data-idx=0>我的文件柜</li>
-		<li data-idx=1>发件柜</li>
-		<li data-idx=2>收件柜</li>
+	<ul class="tab selTab">
+		<li data-idx=0 class="noselect">我的文件柜<span class="popBtn addFileBtn">+</span>
+			<div class="menuPopup hidden addFilePopup">
+				<p class="addImageBtn" onclick="addPictureCon()">图片
+				</p>
+				<p onclick="addFile()">文件</p>
+			<input id="fileupload1" type="file" name="file" data-url="./phpupload/" multiple>
+			</div>
+		</li>
+		<li data-idx=1 class="tab noselect">发件柜<span class="filterFileBtn">+</span></li>
+		<li data-idx=2 class="tab noselect">收件柜<span class="filterFileBtn">+</span></li>
 	</ul>
 </div>
 
@@ -2599,9 +2717,7 @@ $(document).bind('drop dragover', function (e) {
 	<div class="rootMenu1">
 		<a class="fRename" href="javascript:;" onclick="addTreeNode()">新文件夹</a>
 		<a class="fShare" href="javascript:;" onclick="addTemplateCon()">新模板文件</a>
-		<a class="fPicture" href="javascript:;" onclick="addPictureCon()">新图片文件
-		<input id="fileupload" type="file" name="file" data-url="./phpupload/" multiple>
-		</a>
+		<a class="fPicture" href="javascript:;" onclick="addPictureCon()">新图片文件</a>
 	</div>
 
 	<div class="moveMenu">
