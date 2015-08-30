@@ -101,6 +101,9 @@ function humanFileSize(bytes, si) {
 				reloadTree1(msg);
 				break;
 			case 'share':
+				if(typeof msg.isFinish!='undefined') {
+					return reloadTree2();
+				}
 				reloadTree2(msg.files[0].key, msg.shareID, false, msg.openShare, msg.openMessage);
 				break;
 		}
@@ -164,7 +167,8 @@ if(!DEBUG)
 				expandSpeed: "",
 				txtSelectedEnable:true,
 				showLine:false,
-				nameIsHTML:true
+				nameIsHTML:true,
+				fontCss: getFont,
 			},
 			data: {
 				keep:{
@@ -224,6 +228,8 @@ if(!DEBUG)
 		];
 
 
+
+
 //FOR QT, but no use, we changed to NW.js
 // setTimeout(function  () {
 // 	//document.title = JSON.stringify(zNodes00);
@@ -246,6 +252,10 @@ var sendRoot = null;
 var receiveRoot = null;
 var urlQuery = searchToObject( window.location.hash );
 
+
+function getFont(treeId, node) {
+	return node.font ? node.font : {};
+}
 
 function pathToObj (v) {
 	var path = v.path;
@@ -919,6 +929,7 @@ function initShareFrom (data) {
 		var shareID = data[i].shareID;
 		var files = data[i].files;
 		var isSign = data[i].isSign;
+		var isFinish = data[i].isFinish;
 		var msg = data[i].msg||'';
 		var fromPerson = data[i].fromPerson.map(function(v){return v.name});
 		var fromPersonStr =  '('+fromPerson.join(',')+')';
@@ -932,6 +943,8 @@ function initShareFrom (data) {
 			pathToObj( v );
 			root[root.length-1].shareID = shareID;
 			root[root.length-1].isSign = isSign;
+			root[root.length-1].isFinish = isFinish;
+			if(isFinish) root[root.length-1].font = {color:'blue'};
 		});
 	}
 
@@ -956,6 +969,7 @@ function initShareTo (data) {
 		var shareID = data[i].shareID;
 		var files = data[i].files;
 		var isSign = data[i].isSign;
+		var isFinish = data[i].isFinish;
 		var msg = data[i].msg||'';
 		var fromPerson = data[i].fromPerson.map(function(v){return v.name});
 		var fromPersonStr =  '('+fromPerson.join(',')+')';
@@ -970,6 +984,9 @@ function initShareTo (data) {
 			pathToObj( v );
 			root[root.length-1].shareID = shareID;
 			root[root.length-1].isSign = isSign;
+			root[root.length-1].isFinish = isFinish;
+			if(isFinish) root[root.length-1].font = {color:'blue'};
+
 		});
 	}
 
@@ -1032,7 +1049,7 @@ function reloadTree1(fileObj, switchTo){
 
 }
 
-function reloadTree2(fileKey, shareID, switchTo, openShare, openMessage){
+function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 	shareID = shareID || urlQuery.shareID;
 	openShare = openShare || urlQuery.openShare;
 	openMessage = openMessage || urlQuery.openMessage;
@@ -1352,6 +1369,7 @@ function getFileKeys(node){
 					}
 				} else if(targetNode.isReceive) {
 					$('.receiveMenu').show();
+					$('.receiveMenu>a').hide();
 					$('.receiveMenu .fCommon').show();
 					if(targetNode.level==-1){
 						$('.fAddShare').show();
@@ -1360,6 +1378,7 @@ function getFileKeys(node){
 					}
 					if(targetNode.isParent){
 						$('.fFolder').show();
+						!targetNode.isFinish ? $('.fFinish').hide() : $('.fNotFinish').hide();
 					} else {
 						$('.fFile').show();
 					}
@@ -1941,6 +1960,14 @@ function wxUploadImage(){
 	});
 }
 
+
+function markFinish (isFinish) {
+	var sel = getSelectFiles().shift();
+	var shareID = getShareID(sel);
+	$.post(host+'/markFinish', { personName:rootPerson.name, path:getPath(sel), shareID:shareID, isFinish: isFinish }, function  (data) {
+		//console.log(data);
+	});
+}
 
 function appendTree1(node) {
 	node.name = node.name||node.title;
@@ -2779,8 +2806,8 @@ $(function initPopupMenu () {
 		<a class="fFile fShare" href="javascript:;" onclick="shareFile()">分享</a>
 		<a class="fCommon fMessage" href="javascript:;" onclick="viewDetail()">消息记录</a>
 		<a class="fFile fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>
-		<a class="fFolder fFinish" href="javascript:;" onclick="markNotFinish()">未完成</a>
-		<a class="fFolder fNotFinish" href="javascript:;" onclick="markFinish()">已完成</a>
+		<a class="fFolder fFinish" href="javascript:;" onclick="markFinish(false)">未完成</a>
+		<a class="fFolder fNotFinish" href="javascript:;" onclick="markFinish(true)">完成</a>
 	</div>
 
 	<div class="templateMenu">

@@ -847,6 +847,51 @@ function getUserInfo (userid, res) {
 
 
 
+app.post("/markFinish", function (req, res) {
+
+    var data = req.body;
+    var personName = data.personName;
+    var shareID = safeEval(data.shareID) ;
+    var path = safeEval(data.path) ;
+    var isFinish = safeEval(data.isFinish) ;
+
+    col.findOneAndUpdate({role:'share', shareID:shareID }, { $set: { 'isFinish':!!isFinish }  },
+        function(err, result){
+
+          var colShare = result.value;
+
+          res.send(result);
+          wsBroadcast( {role:'share', isFinish:isFinish, data:colShare } );
+
+          var overAllPath = util.format('%s#path=%s&shareID=%d', TREE_URL, encodeURIComponent(path), shareID ) ;
+
+          var wxmsg = {
+           "touser": colShare.toPerson.map(function(v){return v.userid}).join('|'),
+           "touserName": colShare.toPerson.map(function(v){return v.name}).join('|'),
+           "msgtype": "text",
+           "text": {
+             "content":
+             util.format('<a href="%s">%s</a>已由%s标记为：%s',
+                overAllPath,  // if we need segmented path:   pathName.join('-'),
+                path.replace(/^\/|\/$/g,''),
+                personName,
+                isFinish?'已完成' : '未完成'
+              )
+           },
+           "safe":"0",
+            date : new Date(),
+            role : 'shareMsg',
+            shareID:shareID
+          };
+
+          sendWXMessage(wxmsg);
+
+    });
+
+});
+
+
+
 app.post("/applyTemplate", function (req, res) {
 
 	var data = req.body;
