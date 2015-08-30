@@ -72,7 +72,7 @@ function humanFileSize(bytes, si) {
         return bytes + ' B';
     }
     var units = si
-        ? ['kB','MB','GB','TB','PB','EB','ZB','YB']
+        ? ['KB','MB','GB','TB','PB','EB','ZB','YB']
         : ['KiB','MiB','GiB','TiB','PiB','EiB','ZiB','YiB'];
     var u = -1;
     do {
@@ -82,20 +82,39 @@ function humanFileSize(bytes, si) {
     return bytes.toFixed(1)+' '+units[u];
 }
 
-//******* Websocket part **************
 
+
+//******* Websocket part **************
 
 	ws.addEventListener('open', function(){
 		console.log('ws opened init function');
-
+		ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client' }) );
 	});
+
 	ws.addEventListener('message', function(data){
 		if( !data || !data.data || !data.data.match(/^\s*{/) ) return;
 		var msg = JSON.parse(data.data);
 
 		switch(msg.role){
 			case 'shareMsg':
+
+				// Update Message window, when the window is open
 				appendShareMsg(msg);
+
+				if (nwNotify) {
+					nwNotify.notify({
+						title:'有消息',
+						text: msg.text.content,
+						onClickFunc: function(event) { event.closeNotification(); },
+					});
+				}
+
+				if( $('.msg_wrap').is(':visible') ) {
+
+				} else {
+
+				}
+
 				break;
 			case 'upfile':
 				reloadTree1(msg);
@@ -2624,7 +2643,7 @@ $(function initPopupMenu () {
 
 		isWeiXin
 		? $('#fileupload1').css({top: menuHeight+'px', height:menuHeight+'px' })
-		:''
+		: $('#fileupload1').css({top: 0+'px', height:menuHeight*2+'px' })
 
 	});
 
@@ -2682,11 +2701,11 @@ $(function initPopupMenu () {
 
 <div class="header">
 	<ul class="tab selTab">
-		<li data-idx=0 class="noselect">我的文件柜<span class="popBtn addFileBtn">+</span>
+		<li data-idx=0 class="noselect">我的文件<span class="popBtn addFileBtn">+</span>
 			<div class="menuPopup hidden addFilePopup">
 				<a class="addImageBtn" onclick="addPictureCon()">图片
 				</a>
-				<a onclick="addFile()">文件</a>
+				<a onclick="">文件</a>
 				<input id="fileupload1" type="file" name="file" data-url="./phpupload/" multiple>
 				<a class="fRename" onclick="addTreeNode()">文件夹</a>
 				<a class="fShare" onclick="addTemplateCon()">模板</a>

@@ -160,8 +160,18 @@ var WSMSG = {}; // store client persistent message
 var WSCLIENT = {};
 wss.on('connection', function connection(ws) {
   ws.on('close', function incoming(code, message) {
-    console.log("WS close: ", code, message);
+    //console.log("WS close: ", code, message);
+
+    // Find clientName from ws
+    var clientName = _.findKey(WSCLIENT, function(v){ return v.ws&&v.ws==ws } );
+    console.log('client leave:', clientName, code, message);
+    delete WSCLIENT[clientName];
+
     //_.where( WSCLIENT, {ws:ws} ).forEach();
+    // _.where( WSCLIENT, {ws:ws} ).forEach(function(v){
+    //     var idx = WSCLIENT.indexOf(v);
+    //     if(idx>-1) WSCLIENT.splice( idx , 1  );
+    //   });
   });
   ws.on('message', function incoming(data) {
     // Client side data format:
@@ -175,10 +185,10 @@ wss.on('connection', function connection(ws) {
       return console.log(data);
     }
 
-    if(msg.type=='printerConnected' && msg.clientName && msg.clientRole){
+    if(msg.type=='clientConnected' && msg.clientName && msg.clientRole){
 
       // msg format: { clientName:clientName, clientRole:'printer', clientOrder:1 }
-      console.log( 'printer up', msg );
+      console.log( 'client up', msg.clientName );
       WSCLIENT[msg.clientName] = _.extend( msg, {ws:ws, timeStamp:+new Date()} );
       return;
     }
@@ -1640,7 +1650,7 @@ app.post("/sendShareMsg", function (req, res) {
       	link = a+fileKey;
       	a = a +fileName;
       }
-     var overAllPath = util.format('<a href="%s#path=%s&shareID=%d">%s</a>', TREE_URL, encodeURIComponent(link), shareID, a ) ;
+     var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, encodeURIComponent(link), shareID, a ) ;
 
       var msg = {
        "touser": data.toPerson.map(function(v){return v.userid}).join('|'),
@@ -1664,7 +1674,7 @@ app.post("/sendShareMsg", function (req, res) {
 
       res.send( msg );
 
-      wsBroadcast(msg);
+      //wsBroadcast(msg);
 
   });
 
@@ -1750,6 +1760,13 @@ function sendWXMessage (msg) {
   if(!msg.tryCount){
     col.insert(msg);
     msg.tryCount = 1;
+
+    // send client message vai ws
+    var touser = _.uniq( msg.touser.split('|') );
+    touser.forEach(function sendToUserWS (v) {
+      wsSendClient(v, msg);
+    });
+
   }
 
   var msgTo = {};
