@@ -188,8 +188,9 @@ wss.on('connection', function connection(ws) {
     if(msg.type=='clientConnected' && msg.clientName && msg.clientRole){
 
       // msg format: { clientName:clientName, clientRole:'printer', clientOrder:1 }
-      console.log( 'client up', msg.clientName );
-      WSCLIENT[msg.clientName] = _.extend( msg, {ws:ws, timeStamp:+new Date()} );
+      var suffix = (msg.from? ':'+msg.from: '');
+      console.log( 'client up', msg.clientName+suffix );
+      WSCLIENT[msg.clientName+suffix] = _.extend( msg, {ws:ws, timeStamp:+new Date()} );
       return;
     }
 
@@ -214,13 +215,17 @@ wss.on('connection', function connection(ws) {
 });
 
 function wsSendClient (clientName, msg) {
-  var client = WSCLIENT[clientName];
-  if(!client) return;
-  msg.clientName = clientName;
+  var lastClient;
+  ['',':mobile',':pc'].forEach(function sendToClient (v) {
+    var client = WSCLIENT[clientName+v];
+    if(!client) return true;
+    msg.clientName = clientName;
 
-  client.ws.send( JSON.stringify(msg)  );
+    client.ws.send( JSON.stringify(msg)  );
+    lastClient = client;
+  })
 
-  return client;
+  return lastClient;
 }
 
 function choosePrinter () {

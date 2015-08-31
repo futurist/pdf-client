@@ -44,11 +44,49 @@ if(typeof require !='undefined') {
 	el.type = 'text/javascript';
 
 	(document.getElementsByTagName('HEAD')[0]||document.body).appendChild(el);
+
+
+	$(document).on('click','a', function  (e) {
+		var link = e.target.href;
+		if(!link) return e.preventDefault();
+
+		if( link.match(/viewer\.html/) ){
+			e.preventDefault();
+			nwOpenLink(link);
+		}
+	});
+
+	var popupList = {};
+	function findKey (obj, val) {
+		for(var i in obj){
+			if(obj[i]==val) return i;
+		}
+	}
+
+	function nwOpenLink (link) {
+		var pop = popupList[link];
+
+		if(pop){
+			pop.show();
+			pop.focus();
+			return;
+		}
+
+		pop = nwMain.showReader(link);
+
+		popupList[link] = pop;
+
+		pop.on('closed', function() {
+			var link = findKey(popupList, pop);
+			delete popupList[link];
+		});
+		
+	}
+
 }
 
 
 FILE_HOST = 'http://7xkeim.com1.z0.glb.clouddn.com/';
-
 
 function eve (el, type){
     el= ('get' in el)? el.get(0) : el ;	//(typeof el['jquery']!='undefined')
@@ -88,7 +126,7 @@ function humanFileSize(bytes, si) {
 
 	ws.addEventListener('open', function(){
 		console.log('ws opened init function');
-		ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client' }) );
+		ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc' }) );
 	});
 
 	ws.addEventListener('message', function(data){
@@ -105,7 +143,9 @@ function humanFileSize(bytes, si) {
 					nwNotify.notify({
 						title:'有消息',
 						text: msg.text.content,
-						onClickFunc: function(event) { event.closeNotification(); },
+						onClickFunc: function(event) { 
+							//event.closeNotification(); 
+						},
 					});
 				}
 
@@ -840,14 +880,19 @@ function hidePrintCon() {
 
 		function sendClientMsg (url, text) {
 
+			var viewerURL = 'http://1111hui.com/pdf/webpdf/viewer.html#file='+ FILE_HOST +url;
+
 			if(isQT){
 
 				document.title = "";
 				//document.title = JSON.stringify({action:"openPDF", url:'http://1111hui.com/pdf/dragShape/path.html', text:text });
-				document.title = JSON.stringify({action:"openPDF", url:'http://1111hui.com/pdf/webpdf/viewer.html#file=http://7xkeim.com1.z0.glb.clouddn.com/'+url, text:text });
+				document.title = JSON.stringify({action:"openPDF", url:viewerURL, text:text });
 			} else{
 
-				window.location = 'http://1111hui.com/pdf/webpdf/viewer.html#file=http://7xkeim.com1.z0.glb.clouddn.com/'+url;
+				if(nwMain){
+					nwOpenLink(viewerURL);
+				}else
+					window.location = viewerURL;
 			}
 		}
 
@@ -1471,7 +1516,7 @@ function getFileUrl(targetNode){
 	shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
 	shareStr += treeNode.isTemplate ? '&isTemplate=1' : '';
 
-	return !treeNode.isParent ? 'http://1111hui.com/pdf/webpdf/viewer.html#file='+encodeURIComponent('http://7xkeim.com1.z0.glb.clouddn.com/'+treeNode.key)+shareStr : '';
+	return !treeNode.isParent ? 'http://1111hui.com/pdf/webpdf/viewer.html#file='+encodeURIComponent(FILE_HOST+treeNode.key)+shareStr : '';
 
 }
 
@@ -2210,6 +2255,7 @@ $(function  () {
 		background: #eee;
 	  text-align: center;
 	  line-height: 41px;
+	    overflow: hidden;
 	}
 
 	#shareMsg{
