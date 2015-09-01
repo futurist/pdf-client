@@ -3,20 +3,43 @@
 <head>
 <title></title>
 <script type="text/javascript" src="http://1111hui.com/js/zepto.js"></script>
+<style type="text/css">
+body{
+	margin:0;
+	padding:0;
+}
+#container{
+	overflow: hidden;
+}
+.page{
+	position: relative;
+}
+.textCon{
+	position: absolute;
+	top:0;
+	left:0;
+}
+.textWrap{
+	position: absolute;
+}
+</style>
 </head>
 <body>
 <div id="container">
-	
+
 </div>
 
 <script type="text/javascript">
 
+	var W,H;
 	var host = 'http://1111hui.com:88'
 	var savedCanvasData = [];
 	var container = $('#container');
 
-	var W = 595.1999999999988;
-	var H = 841.7999999999982;
+
+	function _CMD (type, json) {
+		console.log('_PHANTOMDATA', JSON.stringify( {type:type, data:json} ) );
+	}
 
     $drawCon = $('<div id="drawViewer" class="drawViewer">').appendTo( $(container) );
 
@@ -34,6 +57,8 @@ window.isSign = urlQuery.isSign;
 window.isTemplate = urlQuery.isTemplate;
 window.signID = urlQuery.signID;
 
+var PDFSize;
+
 
 	$.post( host + '/getCanvas', { file:curFile, shareID:shareID }, function(data){
 		if(data) data = JSON.parse( data );
@@ -44,34 +69,59 @@ window.signID = urlQuery.signID;
 
 	function getScale (div) {
 		var match = $(div).get(0).style.cssText.match(/scale\(([0-9.]+)\)/i);
-		return match.length?match.pop():0;
+		return match?match.pop():0;
 	}
 
+	function getViewPortWH (svg) {
+	  var box = $(svg).attr('viewBox').split(/\s+/g).map(function(v){return parseInt(v)});
+	  var bw = box[2];
+	  var bh = box[3];
+	  return {bw:bw, bh:bh};
+	}
 
   	function renderPage () {
 
-  	savedCanvasData.forEach(function  (v, i) {
+	  	savedCanvasData.forEach(function  (v, i) {
+	  		if(!v) return true;
 
-  		var div = document.createElement('div');
-	    div.id = 'drawerLayer' + i;
-	    div.className = 'page drawerLayer';
-	    div.style.width = Math.floor(600) + 'px';
-	    div.style.height = Math.floor(800) + 'px';
-	    div.setAttribute('data-page-number', i);
-	    this.div = div;
+	  		var div = document.createElement('div');
+		    div.id = 'drawerLayer' + i;
+		    div.className = 'page drawerLayer';
+		    div.style.width = Math.floor(600) + 'px';
+		    div.style.height = Math.floor(800) + 'px';
+		    div.setAttribute('data-page-number', i);
+		    this.div = div;
 
-		$drawCon.append(div);
+			$drawCon.append(div);
 
-		$(div).html(v);
+			$(div).html(v);
 
-		var scale  = getScale( $(div).find('.textCon') );
-		
-		var w = $(div).find('.svgCon').width();
-		var h = $(div).find('.svgCon').height();
-  		$(div).find('.svgCon').width(w/scale);
-  		$(div).find('.svgCon').height(h/scale);
+			var scale  = getScale( $(div).find('.textCon') );
 
-  	})
+			$(div).find('.textCon').removeAttr('style');
+			$(div).find('.textWrap').show();
+
+			var w = $(div).find('.svgCon').width();
+			var h = $(div).find('.svgCon').height();
+
+			PDFSize = getViewPortWH( $(div).find('svg.canvas') );
+			_CMD('ScreenSize', PDFSize);
+
+	  		$(div).find('.svgCon').width(PDFSize.bw);
+	  		$(div).find('.svgCon').height(PDFSize.bh);
+
+	  		$(div).width(PDFSize.bw);
+	  		$(div).height(PDFSize.bh);
+
+	  	});
+
+	  	if(PDFSize) {
+	  		$('#container').width( PDFSize.bw );
+	  		$('#container').height( PDFSize.bh*savedCanvasData.length );
+	  	}
+
+
+	  	_CMD('RenderPage');
 
   	}
 

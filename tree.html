@@ -36,7 +36,7 @@
 
 //Check if we are in NW.JS env
 
-if(typeof require !='undefined') {
+if(typeof global !='undefined') {
 
 	var el = document.createElement('script');
 	el.async = false;
@@ -117,8 +117,8 @@ function humanFileSize(bytes, si) {
 					nwNotify.notify({
 						title:'有消息',
 						text: msg.text.content,
-						onClickFunc: function(event) { 
-							//event.closeNotification(); 
+						onClickFunc: function(event) {
+							//event.closeNotification();
 						},
 					});
 				}
@@ -863,7 +863,7 @@ function hidePrintCon() {
 				document.title = JSON.stringify({action:"openPDF", url:viewerURL, text:text });
 			} else{
 
-				if(global){
+				if(typeof global!='undefined'){
 					global._nwMain.showReader(viewerURL);
 				}else
 					window.location = viewerURL;
