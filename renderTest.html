@@ -3,7 +3,14 @@
 <head>
 <title></title>
 <script type="text/javascript" src="http://1111hui.com/js/zepto.js"></script>
+<script type="text/javascript" src="http://1111hui.com/js/moment.js"></script>
 <style type="text/css">
+
+* {
+  padding: 0;
+  margin: 0;
+}
+
 body{
 	margin:0;
 	padding:0;
@@ -22,6 +29,104 @@ body{
 .textWrap{
 	position: absolute;
 }
+
+
+.page .signImg{
+  position: absolute;
+  border:0;
+  outline: 0;
+  z-index: 999999999;
+}
+
+.page .signImg .img{
+  position: absolute;
+  bottom: 0;
+  width:100%;
+  height: auto;
+}
+.page .signImg.active .img{
+  border:1px solid red;
+}
+
+.inputCon{
+  position: absolute;
+  overflow: visible;
+  z-index: 999999999999999999;
+  top: 0;
+  left: 0;
+  transform-origin: left top;
+}
+.userInputText {
+  position: absolute;
+  z-index: 9999999999999999;
+}
+
+.userInputText textarea{
+  width: 100%;
+  height: 100%;
+  font:18px/1 '黑体';
+  border:none;
+  background: none;
+      resize: none;
+      overflow: hidden;
+}
+
+body.shareMode .userInputText textarea{
+  font:18px/1 '黑体';
+  border:none;
+  background: none;
+      resize: none;
+      overflow: hidden;
+}
+
+.userInputText select{
+  position: absolute;
+  left:0;
+  top:0;
+  width: 100%;
+  height: 100%;
+  font:18px/1 '黑体';
+  border:none;
+  background: none;
+      resize: none;
+      overflow: hidden;
+  -webkit-appearance: none;
+}
+
+
+
+.page .textWrap[data-template] {
+  border: 1px dotted red;
+}
+.page .textWrap {
+  position: absolute;
+  z-index: 99999;
+}
+
+.page .textCon .text {
+  position: absolute;
+}
+.page .textWrap pre {
+  white-space: pre-wrap;
+  white-space: -moz-pre-wrap;
+  white-space: -pre-wrap;
+  white-space: -o-pre-wrap;
+  word-wrap: break-word;
+  overflow: hidden;
+  padding-left: 0px;
+  display: inline-block;
+  width: 100%;
+}
+
+[data-template] .bbox {
+  background-color: rgba(255,255,0,0.2);
+}
+.page .bbox {
+  position: absolute;
+  z-index: 9999999;
+  background-color: rgba(0,0,255,0);
+}
+
 </style>
 </head>
 <body>
@@ -31,17 +136,30 @@ body{
 
 <script type="text/javascript">
 
-	var W,H;
-	var host = 'http://1111hui.com:88'
-	var savedCanvasData = [];
-	var container = $('#container');
+var W,H;
+var host = 'http://1111hui.com:88'
+var savedCanvasData = [];
+var savedSignData = [];
+var savedInputData = [];
+var container = $('#container');
 
 
-	function _CMD (type, json) {
-		console.log('_PHANTOMDATA', JSON.stringify( {type:type, data:json} ) );
-	}
+var urlQuery = searchToObject(window.location.hash);
+window.curFile = urlQuery.file;
+window.shareID = urlQuery.shareID;
+window.isSign = urlQuery.isSign;
+window.isTemplate = urlQuery.isTemplate;
+window.signID = urlQuery.signID;
+window.curScale = 1;
 
-    $drawCon = $('<div id="drawViewer" class="drawViewer">').appendTo( $(container) );
+var PDFSize;
+
+
+function _CMD (type, json) {
+	console.log('_PHANTOMDATA', JSON.stringify( {type:type, data:json} ) );
+}
+
+$drawCon = $('<div id="drawViewer" class="drawViewer">').appendTo( $(container) );
 
 function searchToObject(search) {
   return search.substring(1).split("&").reduce(function(result, value) {
@@ -50,21 +168,116 @@ function searchToObject(search) {
     return result;
   }, {})
 }
-var urlQuery = searchToObject(window.location.hash);
-window.curFile = urlQuery.file;
-window.shareID = urlQuery.shareID;
-window.isSign = urlQuery.isSign;
-window.isTemplate = urlQuery.isTemplate;
-window.signID = urlQuery.signID;
 
-var PDFSize;
+// Template parser:
+// {param} str: [姓名]osdif[这里不会解析]oisjdofj[部门]等等
+// if [keyword] not exists in TemplateField, then it will not touched.
+// {param} templateEl: the element which has [data-template] attr, used as select element
+
+var rootPerson = {userid: '', name:"", depart:"" };
+
+var TemplateField = {
+	'姓名':{demo:"[姓名]", callback: function(){
+		return rootPerson.name||'';
+	}},
+	'部门':{demo:"[部门]", callback: function(){
+		return rootPerson.depart||'';
+	}},
+	'年':{demo:"[年]", callback: function(){
+		return moment().format('YYYY');
+	}},
+	'月':{demo:"[月]", callback: function(){
+		return moment().format('MM');
+	}},
+	'日':{demo:"[日]", callback: function(){
+		return moment().format('DD');
+	}},
+	'可':{demo:"[可]", callback: function(a){
+		return a.join();
+	}},
+	'列表':{demo:"[列表:部门1,部门2]", callback: function(a, el){
+		a=a[0].split(/[,，]/);
+		var id = $(el).data('id');
+		var inputCon = $('[data-input-id="'+id+'"]');
+		var textarea = inputCon.find('textarea');
+
+    var sel = $('[data-text-id="'+id+'"]');
+    if (!sel.length){
+  		sel = $('<select></select>');
+  		sel.data('text-id', id);
+      sel.appendTo( inputCon );
+    }
+    sel.html('<option value="">请选择</option>');
+
+		a.forEach(function(v){
+			var option = $('<option>'+v+'</option>');
+			sel.append(option);
+		});
+		sel.off().change(function(){
+			textarea.val( $(this).val() );
+        textarea.trigger('change');
+		});
+		textarea.hide();
+		sel.get(0).style.cssText = $(el).find('pre').get(0).style.cssText;
+		return '';
+	}},
+
+}
+
+function setInputTextValue(id, val) {
+  var text = $('[data-input-id="'+id+'"]');
+  text.find('textarea,select').val( val );
+  text.find('textarea').trigger('change');
+}
+
+function parseTemplate(str, templateEl){
+	if(!str) return '';
+
+	var repA = [];
+	var re = /[\[［]([^\]］]+)[\]］]/;
+	function parseT(s){
+		str = s.replace(re, function(match, $1, offset, origin) {
+			var para = $1.split(/[：:]/);
+			var tempObj = TemplateField[para.shift()];
+			var func = tempObj && tempObj.callback;
+			repA.push(match);
+			if(!func){
+				return '{{'+repA.length+'}}';
+			}
+			var ret = func(para, templateEl);
+			return ret;
+		});
+		if( re.test(str) ) parseT(str);
+	}
+	parseT(str);
+
+	str = str.replace(/{{(\d+)}}/, function(match, $1, offset, origin) {
+		return repA[$1-1];
+	});
+
+	return str;
+}
 
 
 	$.post( host + '/getCanvas', { file:curFile, shareID:shareID }, function(data){
 		if(data) data = JSON.parse( data );
 		savedCanvasData.push(data[0]);
 		savedCanvasData.push(data[0]);
-		renderPage(data);
+
+
+		$.post( host + '/getSavedSign', { file:curFile, shareID:shareID }, function(data){
+		  if(data && data.map) savedSignData = data;
+
+		  $.post( host + '/getInputData', { file:curFile, shareID:shareID }, function(data){
+
+		    if(data) savedInputData = data;
+		    renderPage();
+
+		  } );
+
+
+		} );
+
 	} );
 
 	function getScale (div) {
@@ -79,16 +292,100 @@ var PDFSize;
 	  return {bw:bw, bh:bh};
 	}
 
+
+
+	function copyInputLayerData(pageIndex){
+
+	  var page = pageIndex;
+
+	  var drawCon = $('#drawerLayer'+page ).find('.textCon');
+
+	  var inputCon = $('#drawerLayer'+page ).find('.inputCon');
+
+	  var inputCon = $('#drawerLayer'+page ).find('.inputCon');
+	  inputCon.css({ '-webkit-transform': 'scale('+ curScale +')' });
+
+	  setTimeout(function() {
+
+	    var textCon = $('[data-template]', drawCon).toArray();
+	    textCon.forEach(function(v,i) {
+	      var offset = $(v).offset();
+	      var id = $(v).data('id');
+
+	      var text = $('[data-input-id="'+id+'"]');
+
+	      if( !text.length ){
+
+	        text = $('<div class="userInputText"><textarea name="userinput'+i+'"></textarea></div>');
+	        text.data('input-id', id );
+	        text.appendTo( inputCon );
+
+	      }
+
+	      text.get(0).style.cssText = v.style.cssText;
+	      if( $(v).find('.text').size() )
+	      	text.find('textarea').get(0).style.cssText = $(v).find('.text').get(0).style.cssText;
+	      var t = parseTemplate( $(v).text(), v );
+	      t = savedInputData[id] || t;
+	      setInputTextValue(id, t);
+
+	      if(shareID){
+	      	$('body').addClass('shareMode');
+	        text.find('textarea').show().prop('readonly', true);
+	      	//text.find('textarea').show().prop('disabled', true);
+	      	text.find('select').hide();
+	      }
+
+	    });
+
+	    $('.textCon .textWrap[data-template]').hide();
+	    $('.userInputText').show();
+
+	  }, 0);
+
+
+	}
+
+
+
+
+	function restoreSignature (pageIndex) {
+
+	  savedSignData.forEach(function  (v,i) {
+	    if(!v.sign) return true;
+	    var page = pageIndex+1;
+	    if(v.page!=page) return true;
+	    var scale = v.scale? window.curScale/v.scale : 1;
+	    //var img = $('<div class="signImg"><div class="img"></div></div>');
+	    var img = $('<div class="signImg"><img class="img"></div></div>');
+	    img.appendTo( $('.page').eq(v.page-1) );
+	    img.css({left:v.pos.left*scale+'px', top:v.pos.top*scale+'px', width:v.pos.width*scale+'px', height:v.pos.height*scale+'px' });
+	    img.find('.img').attr({ 'src': v.sign.signData });
+	    img.data('id', v._id);
+
+
+	    // var r = v.sign.width/v.sign.height;
+	    // var h = v.pos.width;
+	    // var w = h*r;
+	    // //img.find('.img').css({'background-image': 'url('+v.sign.signData+')',  width:w+'px', height: h+'px' });
+
+	  });
+	}
+
+
+
   	function renderPage () {
 
+
+  		// Copy Draw & Text Data
 	  	savedCanvasData.forEach(function  (v, i) {
 	  		if(!v) return true;
 
 	  		var div = document.createElement('div');
 		    div.id = 'drawerLayer' + i;
 		    div.className = 'page drawerLayer';
-		    div.style.width = Math.floor(600) + 'px';
-		    div.style.height = Math.floor(800) + 'px';
+		    div.style.width = Math.round(600) + 'px';
+		    div.style.height = Math.round(800) + 'px';
 		    div.setAttribute('data-page-number', i);
 		    this.div = div;
 
@@ -113,6 +410,14 @@ var PDFSize;
 	  		$(div).width(PDFSize.bw);
 	  		$(div).height(PDFSize.bh);
 
+	  		$inputCon = $('<div class="inputCon"></div>');
+	  		$(div).append($inputCon);
+	  		//$inputCon.hide();
+
+	  		copyInputLayerData(i);
+
+	  		restoreSignature(i);
+
 	  	});
 
 	  	if(PDFSize) {
@@ -121,7 +426,12 @@ var PDFSize;
 	  	}
 
 
-	  	_CMD('RenderPage');
+
+	  	setTimeout(function  () {
+	  		_CMD('RenderPage');
+
+	  	}, 1000);
+
 
   	}
 

@@ -129,8 +129,11 @@ function openCanvas(url, config) {
 		// }
 
 
+		//page.render( DATA_FOLDER + filename+".png", {format:'png', quality:'100' });
 		page.render( DATA_FOLDER + filename+".pdf", {format:'pdf', quality:'100' });
 		console.log("render page:",  filename+".pdf");
+
+		phantom.exit();
 
 	}
 
