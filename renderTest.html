@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<script type="text/javascript" src="http://1111hui.com/js/zepto.js"></script>
+</head>
+<body>
+<div id="container">
+	
+</div>
+
+<script type="text/javascript">
+
+	var host = 'http://1111hui.com:88'
+	var savedCanvasData = [];
+	var container = $('#container');
+
+	var W = 595.1999999999988;
+	var H = 841.7999999999982;
+
+    $drawCon = $('<div id="drawViewer" class="drawViewer">').appendTo( $(container) );
+
+function searchToObject(search) {
+  return search.substring(1).split("&").reduce(function(result, value) {
+    var parts = value.split('=');
+    if (parts[0]) result[decodeURIComponent(parts[0])] = decodeURIComponent(parts[1]);
+    return result;
+  }, {})
+}
+var urlQuery = searchToObject(window.location.hash);
+window.curFile = urlQuery.file;
+window.shareID = urlQuery.shareID;
+window.isSign = urlQuery.isSign;
+window.isTemplate = urlQuery.isTemplate;
+window.signID = urlQuery.signID;
+
+
+	$.post( host + '/getCanvas', { file:curFile, shareID:shareID }, function(data){
+		if(data) data = JSON.parse( data );
+		savedCanvasData.push(data[0]);
+		savedCanvasData.push(data[0]);
+		renderPage(data);
+	} );
+
+	function getScale (div) {
+		var match = $(div).get(0).style.cssText.match(/scale\(([0-9.]+)\)/i);
+		return match.length?match.pop():0;
+	}
+
+
+  	function renderPage () {
+
+  	savedCanvasData.forEach(function  (v, i) {
+
+  		var div = document.createElement('div');
+	    div.id = 'drawerLayer' + i;
+	    div.className = 'page drawerLayer';
+	    div.style.width = Math.floor(600) + 'px';
+	    div.style.height = Math.floor(800) + 'px';
+	    div.setAttribute('data-page-number', i);
+	    this.div = div;
+
+		$drawCon.append(div);
+
+		$(div).html(v);
+
+		var scale  = getScale( $(div).find('.textCon') );
+		
+		var w = $(div).find('.svgCon').width();
+		var h = $(div).find('.svgCon').height();
+  		$(div).find('.svgCon').width(w/scale);
+  		$(div).find('.svgCon').height(h/scale);
+
+  	})
+
+  	}
+
+</script>
+</body>
+</html>

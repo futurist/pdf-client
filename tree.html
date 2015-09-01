@@ -52,36 +52,10 @@ if(typeof require !='undefined') {
 
 		if( link.match(/viewer\.html/) ){
 			e.preventDefault();
-			nwOpenLink(link);
+			global._nwMain.showReader(link);
 		}
 	});
 
-	var popupList = {};
-	function findKey (obj, val) {
-		for(var i in obj){
-			if(obj[i]==val) return i;
-		}
-	}
-
-	function nwOpenLink (link) {
-		var pop = popupList[link];
-
-		if(pop){
-			pop.show();
-			pop.focus();
-			return;
-		}
-
-		pop = nwMain.showReader(link);
-
-		popupList[link] = pop;
-
-		pop.on('closed', function() {
-			var link = findKey(popupList, pop);
-			delete popupList[link];
-		});
-		
-	}
 
 }
 
@@ -438,13 +412,13 @@ function hideTemplateCon() {
 	var idx = $('.currTab').data('idx');
 	treeObj = eval('treeObj'+(idx+1) );
 	$('.templateFile_wrap').hide();
-	$('.content_wrap').show();
+	showContentWrap();
 	updateMenu( treeObj.getSelectedNodes() );
 }
 function addTemplateCon() {
 	treeObj = treeObjTemplate;
 	$('.templateFile_wrap').show();
-	$('.content_wrap').hide();
+	hideContentWrap();
 	$('.templateFile_wrap .msgTitle').html('请选择模板');
 	updateMenu( treeObj.getSelectedNodes() );
 
@@ -457,7 +431,7 @@ function addPictureCon() {
 
 	treeObj = treeObjTemplate;
 	$('.templateFile_wrap').show();
-	$('.content_wrap').hide();
+	hideContentWrap();
 	$('.templateFile_wrap .msgTitle').html('请选择模板');
 	updateMenu( treeObj.getSelectedNodes() );
 };
@@ -527,7 +501,7 @@ function getSelectFiles () {
 function openPrintCon (){
 
 	treeObj = treeObjPrint;
-	$('.content_wrap').hide();
+	hideContentWrap();
 	$('.print_wrap').show();
 	$('.print_wrap .msgTitle').html('请选择打印机');
 	updateMenu( treeObj.getSelectedNodes() );
@@ -537,7 +511,7 @@ function hidePrintCon() {
 	var idx = $('.currTab').data('idx');
 	treeObj = eval('treeObj'+(idx+1) );
 	$('.print_wrap').hide();
-	$('.content_wrap').show();
+	showContentWrap();
 	updateMenu( treeObj.getSelectedNodes() );
 }
 
@@ -889,8 +863,8 @@ function hidePrintCon() {
 				document.title = JSON.stringify({action:"openPDF", url:viewerURL, text:text });
 			} else{
 
-				if(nwMain){
-					nwOpenLink(viewerURL);
+				if(global){
+					global._nwMain.showReader(viewerURL);
 				}else
 					window.location = viewerURL;
 			}
@@ -923,7 +897,7 @@ function getFilesData () {
 		init(data);
 
 		if(!urlQuery.shareID){
-			locateNode ( treeObj.getNodes()[0], urlQuery.path, null, true );
+			locateNode( treeObj.getNodes()[0], urlQuery.path, null, true );
 		}
 
 		reloadTree2(null, null, true);
@@ -952,7 +926,7 @@ function locateNode (rootNode, path, shareID, switchTo){
 	var treeObj = rootNode.isSend ? treeObj2 : ( rootNode.isReceive? treeObj3 : treeObj1 );
 	treeObj.expandNode( rootNode, true );
 
-	if(path[0]=='/'){
+	if( path.match(/^\s*\//) ) {
 		//path = '/'+rootNode.name+path;
 		targetNode = treeObj.getNodesByFilter(function(node){
 			var p = getPath(node);
@@ -1117,6 +1091,10 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 	shareID = shareID || urlQuery.shareID;
 	openShare = openShare || urlQuery.openShare;
 	openMessage = openMessage || urlQuery.openMessage;
+
+	if(shareID && (openShare || openMessage ) ) {
+		//hideContentWrap();
+	}
 	$.post(host+'/getShareFrom', {person:rootPerson.userid}, function  (data) {
 		if(!data) window.location.reload();
 
@@ -1421,11 +1399,7 @@ function getFileKeys(node){
 				$('.botmenu>div').hide().parent().show();
 				if(targetNode.isSend) {
 					$('.sendMenu').show();
-					if(targetNode.level==-1){
-						$('.fAddShare').show();
-					} else {
-						$('.fAddShare').hide();
-					}
+
 					if(!targetNode.isParent){
 						$('.fView').show();
 					} else {
@@ -1435,11 +1409,7 @@ function getFileKeys(node){
 					$('.receiveMenu').show();
 					$('.receiveMenu>a').hide();
 					$('.receiveMenu .fCommon').show();
-					if(targetNode.level==-1){
-						$('.fAddShare').show();
-					} else {
-						$('.fAddShare').hide();
-					}
+
 					if(targetNode.isParent){
 						$('.fFolder').show();
 						!targetNode.isFinish ? $('.fFinish').hide() : $('.fNotFinish').hide();
@@ -1500,7 +1470,7 @@ function getFileKeys(node){
 					var shareStr = targetNode.level==0?'':
 					 ( targetNode.isSend||targetNode.isReceive||targetNode.isSign ? '&shareID='+ getShareID(targetNode) : '' );
 
-					if(changeURL) window.location = '#path='+ encodeURIComponent( getPath(targetNode)+(targetNode.key||'') ) + shareStr;
+					if(changeURL) window.location = '#path='+ ( getPath(targetNode)+(targetNode.key||'') ) + shareStr;
 					// window.location.replace(window.location);
 				}
 
@@ -1516,7 +1486,7 @@ function getFileUrl(targetNode){
 	shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
 	shareStr += treeNode.isTemplate ? '&isTemplate=1' : '';
 
-	return !treeNode.isParent ? 'http://1111hui.com/pdf/webpdf/viewer.html#file='+encodeURIComponent(FILE_HOST+treeNode.key)+shareStr : '';
+	return !treeNode.isParent ? 'http://1111hui.com/pdf/webpdf/viewer.html#file='+(FILE_HOST+treeNode.key)+shareStr : '';
 
 }
 
@@ -1618,7 +1588,7 @@ function onClick2(event, treeId, treeNode, clickFlag) {
 function hideShare () {
 	var sel = treeObj.getSelectedNodes()[0];
 	$('.company_wrap').hide();
-	$('.content_wrap').show();
+	showContentWrap();
 	$('.header').show();
 	//$('.treeCompanyCon').css({left: $('.company_wrap').width() });
 	updateMenu(sel);
@@ -1765,13 +1735,28 @@ function shareNode(){
 	});
 }
 
+
+function hideContentWrap () {
+	var top = $(window).scrollTop();
+	var left = $(window).scrollLeft();
+	$('.content_wrap').data({left:left, top:top}).hide();
+}
+function showContentWrap () {
+	var pos = $('.content_wrap').show().data();
+	setTimeout(function  () {
+		$(window).scrollTop(~~pos.top);
+		$(window).scrollLeft(~~pos.left);
+	},0);
+}
+
+
 function shareFile(){
 	var sel = treeObj.getSelectedNodes();
 	if(!sel.length) return;
 	sel2 = sel[0];
 	var title = sel.length>1?  sel2.name+'..' : sel2.name;
 	$('.company_wrap').show();
-	$('.content_wrap').hide();
+	hideContentWrap();
 	$('.header').hide();
 	$('.msgTitle').html( "分享 "+  title +' 给:' );
 	$('.treeCompanyCon').css({}, 300, 'linear');
@@ -1785,10 +1770,10 @@ function viewDetail () {
 	if(!sel.length) return;
 	sel = sel[0];
 
+	hideContentWrap();
 	$('.header').hide();
 	$('.ztreeFile').hide();
 	$('.msg_wrap').show();
-	$('.content_wrap').hide();
 
 	var title = getPath(sel);
 	title = title.split('/').slice(0,2).join('/')+'/';
@@ -1877,7 +1862,7 @@ function appendShareMsg(v){
 function closeViewDetail () {
 	var sel = treeObj.getSelectedNodes()[0];
 	$('.msg_wrap').hide();
-	$('.content_wrap').show();
+	showContentWrap();
 	$('.header').show();
 	showTab();
 
@@ -2259,10 +2244,16 @@ $(function  () {
 	}
 
 	#shareMsg{
+		border:1px solid #666;
+		border-radius: 4px;
 		width: 95%;
 		height: 80px;
 		font:18px/1 Arial;
 		color: #999;
+	}
+	#shareMsg:focus{
+		border:1px solid #666;
+		border-radius: 4px;
 	}
 
 	.dialog{
@@ -2636,7 +2627,7 @@ function handleShortKey (evt) {
             (evt.shiftKey ? 4 : 0) |
             (evt.metaKey ? 8 : 0);
 
-		console.log(evt.keyCode)
+		//console.log(evt.keyCode)
 
       if (cmd === 0) { // no control key pressed at all.
         //console.log(evt, evt.keyCode);
@@ -2858,16 +2849,14 @@ $(function initPopupMenu () {
 	</div>
 
 	<div class="sendMenu">
-		<a class="fAddShare" href="javascript:;" onclick="addShareFiles()">添加文件</a>
 		<a class="fView" href="javascript:;" onclick="">查看文件</a>
-		<a class="fShare" href="javascript:;" onclick="shareFile()">分享</a>
 		<a class="fRemove" href="javascript:;" onclick="viewDetail()">消息记录</a>
+		<a class="fShare" href="javascript:;" onclick="shareFile()">分享</a>
 		<a class="fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>
 	</div>
 
 	<div class="receiveMenu">
-		<a class="fAddShare" href="javascript:;" onclick="addShareFiles()">添加文件</a>
-		<a class="fView" href="javascript:;" onclick="">查看文件</a>
+		<a class="fFile fView" href="javascript:;" onclick="">查看文件</a>
 		<a class="fFile fShare" href="javascript:;" onclick="shareFile()">分享</a>
 		<a class="fCommon fMessage" href="javascript:;" onclick="viewDetail()">消息记录</a>
 		<a class="fFile fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>

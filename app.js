@@ -215,6 +215,7 @@ wss.on('connection', function connection(ws) {
 });
 
 function wsSendClient (clientName, msg) {
+  console.log('wssend', clientName);
   var lastClient;
   ['',':mobile',':pc'].forEach(function sendToClient (v) {
     var client = WSCLIENT[clientName+v];
@@ -244,6 +245,8 @@ function wsSendPrinter (msg, printerName, res) {
   }
 
   var client = wsSendClient(printerName, msg);
+
+  if(!client) return res.send('');
 
   JOBS[msg.msgid] = { ws:client.ws, res:res, printerName:client.clientName, timeStamp:+new Date(), data:msg};
 
