@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta content="text/html; charset=utf-8" http-equiv="content-type" />
 <title></title>
 <script type="text/javascript" src="http://1111hui.com/js/zepto.js"></script>
 <script type="text/javascript" src="http://1111hui.com/js/moment.js"></script>
@@ -196,6 +197,7 @@ var TemplateField = {
 		return a.join();
 	}},
 	'列表':{demo:"[列表:部门1,部门2]", callback: function(a, el){
+		if(!a || !a.length) return '';
 		a=a[0].split(/[,，]/);
 		var id = $(el).data('id');
 		var inputCon = $('[data-input-id="'+id+'"]');
@@ -207,7 +209,7 @@ var TemplateField = {
   		sel.data('text-id', id);
       sel.appendTo( inputCon );
     }
-    sel.html('<option value="">请选择</option>');
+    sel.html('<option value=""></option>');
 
 		a.forEach(function(v){
 			var option = $('<option>'+v+'</option>');
@@ -261,9 +263,7 @@ function parseTemplate(str, templateEl){
 
 	$.post( host + '/getCanvas', { file:curFile, shareID:shareID }, function(data){
 		if(data) data = JSON.parse( data );
-		savedCanvasData.push(data[0]);
-		savedCanvasData.push(data[0]);
-
+		savedCanvasData = data;
 
 		$.post( host + '/getSavedSign', { file:curFile, shareID:shareID }, function(data){
 		  if(data && data.map) savedSignData = data;

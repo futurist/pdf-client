@@ -224,7 +224,7 @@ function wsSendClient (clientName, msg) {
 
     client.ws.send( JSON.stringify(msg)  );
     lastClient = client;
-  })
+  });
 
   return lastClient;
 }
@@ -581,7 +581,7 @@ app.post("/generatePDFAtPrinter", function (req, res) {
 });
 
 app.post("/printPDF", function (req, res) {
-	// req data: {server, printer, fileKey}
+	// req data: {server, printer, fileKey, shareID, person }
   var data = req.body;
   data.task = 'printPDF';
   res.send( wsSendPrinter(data, data.server) );
@@ -1012,6 +1012,39 @@ function breakIntoPath(path){
   }
   return ret.slice(1);
 }
+
+app.get("/downloadFile2/:name", function (req, res) {
+
+	var file = FILE_HOST+req.query.key;
+	var realname = req.params.name;
+	var shareID = req.query.shareID||'';
+	var userid = req.query.userid||'';
+	var person = req.query.person||'';
+
+	var filename = path.basename(file);
+  	var mimetype = mime.lookup(file);
+
+  	genPDF(filename, shareID, realname, function  (err) {
+
+  		if(err){
+  			res.send('');
+  			wsSendClient(person, {role:'errMsg', message:err } );
+  			return;
+  		}
+
+  		console.log('gen pdf ok, now download', IMAGE_UPFOLDER+realname, mimetype);
+  		res.download(IMAGE_UPFOLDER+realname);
+
+  		return;
+
+  		res.setHeader('Content-disposition', 'attachment; filename=' + realname);
+		res.setHeader('Content-type', mimetype);
+
+		var filestream = fs.createReadStream( IMAGE_UPFOLDER+realname );
+		filestream.pipe(res);
+  	});
+});
+
 
 app.get("/downloadFile", function (req, res) {
 
@@ -1851,7 +1884,36 @@ function _logErr () {
     if(arguments[i]) process.stderr.write(arguments[i]);
 }
 
-function genPDF ( infile, imagefile, page, outfile ) {
+
+function genPDF ( filename, shareID,  realname, cb ) {
+
+	var tempFile = IMAGE_UPFOLDER + (+new Date()+Math.random()) +'.pdf';
+
+	var wget = 'rm -r '+ IMAGE_UPFOLDER+realname+ '; wget -P ' + IMAGE_UPFOLDER + ' -O '+ tempFile +' -N "' + FILE_HOST+filename +'" ';
+	var child = exec(wget, function(err, stdout, stderr) {
+
+		console.log( err, stdout, stderr );
+		if(err || (stdout+stderr).indexOf('200 OK')<0 ) return cb?cb('无法获取原始文件'):'';
+
+		var tempPDF = IMAGE_UPFOLDER + (+new Date()+Math.random()) +'.pdf';
+		var cmd = 'phantomjs --config=client/config client/render.js "file='+ FILE_HOST+filename +'&shareID='+ shareID +'" '+ tempPDF;
+		console.log(cmd);
+
+		var child = exec(cmd, function(err, stdout, stderr) {
+
+		if(err || stdout.toString().indexOf('render page:')<0 ) return cb?cb('生成绘图数据错误'):'';
+		exec('./mergepdf.py -i '+ tempFile +' -m '+tempPDF+' -o '+ IMAGE_UPFOLDER+realname +' ', function (error, stdout, stderr) {
+			console.log(error,stdout, stderr);
+			if(error){
+				cb('合并PDF文件错误');
+			}
+			if(cb) cb(null);
+		});
+		});
+	});
+}
+
+function genPDF2 ( infile, imagefile, page, outfile ) {
 
   exec('./mergepdf.py -i '+ infile +'.pdf -m '+imagefile+'.pdf -p '+page+' -o '+ outfile +'.pdf ', function (error, stdout, stderr) {
     console.log(error,stdout, stderr);

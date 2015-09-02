@@ -12,9 +12,18 @@ var spawn = proc.spawn;
 var execFile = proc.execFile;
 var ws;
 
+
+var urlParam = sys.args[1];
+var outputName = sys.args[2]||'uploads/image.pdf';
+
+if(!urlParam){
+	console.log('usage: phantomjs --config=config  render.js "file=http://7xkeim.com1.z0.glb.clouddn.com/20150718143204-95.pdf&shareID=23" ');
+	phantom.exit();
+}
+
 if( sys.args.indexOf('ws') == -1 ) {
 
-	setTimeout(init, 500);
+	setTimeout(init, 0);
 
 }else{
 
@@ -75,7 +84,7 @@ function paramToJson(str) {
     }, {});
 }
 
-var DATA_FOLDER = "data/";	// the folder name to save txt and jpg
+var DATA_FOLDER = "./";	// the folder name to save txt and jpg
 var _MSGSIGN = "_PHANTOMDATA";
 var _DBSIGN = "_MONGODATA";
 var RES_TIMEOUT = 10000;
@@ -130,8 +139,8 @@ function openCanvas(url, config) {
 
 
 		//page.render( DATA_FOLDER + filename+".png", {format:'png', quality:'100' });
-		page.render( DATA_FOLDER + filename+".pdf", {format:'pdf', quality:'100' });
-		console.log("render page:",  filename+".pdf");
+		page.render( filename, {format:'pdf', quality:'100' });
+		console.log("render page:",  filename);
 
 		phantom.exit();
 
@@ -182,7 +191,7 @@ function openCanvas(url, config) {
 			}
 
 			if(type=="RenderPage") {
-				renderPage( 'image' );
+				renderPage( outputName );
 			}
 
 		}else{
@@ -254,5 +263,5 @@ function openCanvas(url, config) {
 function init () {
 	console.log("phantomjs start.");
 
-	openCanvas('http://1111hui.com/pdf/client/renderTest.html#file=http://7xkeim.com1.z0.glb.clouddn.com/20150819121508-101.pdf&shareID=71&isSign=1');
+	openCanvas('http://1111hui.com/pdf/client/renderTest.html#'+ urlParam);
 }

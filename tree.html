@@ -108,12 +108,13 @@ function humanFileSize(bytes, si) {
 		var msg = JSON.parse(data.data);
 
 		switch(msg.role){
+
 			case 'shareMsg':
 
 				// Update Message window, when the window is open
 				appendShareMsg(msg);
 
-				if (nwNotify) {
+				if (typeof nwNotify!='undefined') {
 					nwNotify.notify({
 						title:'有消息',
 						text: msg.text.content,
@@ -130,14 +131,20 @@ function humanFileSize(bytes, si) {
 				}
 
 				break;
+
 			case 'upfile':
 				reloadTree1(msg);
 				break;
+
 			case 'share':
 				if(typeof msg.isFinish!='undefined') {
 					return reloadTree2();
 				}
 				reloadTree2(msg.files[0].key, msg.shareID, false, msg.openShare, msg.openMessage);
+				break;
+
+			case 'errMsg':
+				alert(msg.message);
 				break;
 		}
 
@@ -480,9 +487,10 @@ function applyPrint () {
 	if(!sel.length)return;
 	sel=sel[0];
 
+	var shareID = getShareID(sel);
 	var info = getFileKeys(sel);
 
-	$.post(host+'/printPDF', { server:server, printer:printer, fileKey:info.key, userid: rootPerson.userid }, function  (data) {
+	$.post(host+'/printPDF', { server:server, printer:printer, fileKey:info.key, shareID:shareID, person: rootPerson.userid }, function  (data) {
 		console.log(data);
 		hidePrintCon();
 	});
@@ -1731,6 +1739,7 @@ function shareNode(){
 	//console.log(json);return;
 	$.post(host+'/shareFile', {data: JSON.stringify(json) }, function(data){
 		$( "#mydialog" ).trigger( "dialog-close" );
+		alert( isSign? '流程已转交给相关人员，后续更新会消息通知' : '共享成功，已通知此共享相关人员');
 		//reloadTree2(files[0].key, data.shareID, true);
 	});
 }
