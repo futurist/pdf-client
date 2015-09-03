@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>移动办公系统</title>
+        <style type="text/css">
+        *{
+        	margin: 0;
+        	padding: 0;
+        }
+        html, body{
+            height: 100%;
+        }
+        body{
+        	background-color:#eee;
+        	color:#333;
+        	font:12px/1 Arial;
+        }
+        .info{
+            width:100%;
+            height: 100%;
+            display: table;
+        }
+        .loadInfo{
+        	display: table-cell;
+		    width: 100%;
+		    vertical-align: middle;
+		    text-align: center;
+        }
+        .qrcode{
+        	display: none;
+        }
+        .qrcode img{
+        	margin-top:30px;
+        }
+        </style>
+    </head>
+
+<body style="-webkit-app-region: drag">
+<div class="info">
+	<div class="loadInfo">
+		<div class="loading">加载中...</div>
+		<div class="qrcode">
+			<p>检测到未登录或系统环境发生变化，请使用微信扫码登录。</p>
+			<img src="">
+		</div>
+	</div>
+</div>
+<iframe id="main" style="display:none; position:fixed; top:0; left:0; width:100%;height:100%;border:none;outline:none" src=""></iframe>
+<script type="text/javascript" src="js/zepto.js"></script>
+<script type="text/javascript" src="js/fingerprint2.min.js"></script>
+<script type="text/javascript" src="js/reconnecting-websocket.js"></script>
+<script type="text/javascript" src="js/ws.js"></script>
+<script type="text/javascript" src="js/nwMain.js"></script>
+<script type="text/javascript">
+
+var mainURL = "http://1111hui.com:88/tree.html";
+var host = "http://1111hui.com:88";
+
+// init login data
+
+ws.addEventListener('open', function(){
+	console.log('ws opened init function');
+	getFinger();
+});
+
+
+function getFinger () {
+	new Fingerprint2().get(function(result){
+		//result += +new Date();
+		var msgid = wsend( {finger:result}, this, function(data){
+			console.log('ws:', data);
+			loginSuccess(data);
+		});
+
+        function  getMessage () {
+
+             $.ajax({
+                type:'POST',
+                url:host+'/getFinger',
+                timeout:10*1000,
+                data: {finger:result, msgid:msgid}, 
+                success: function(data){
+                    if(!data) return getMessage();
+                    if(!data.userid){
+                        $('.loading').hide();
+                        $('.qrcode img').attr('src', data.qrcode );
+                        $('.qrcode').show();
+                    } else {
+                        loginSuccess(data);
+                    }
+
+                }, 
+                error:function  (xhr, type) {
+                    console.log(type);
+                    if(type=='timeout') getMessage();
+                }
+            });
+        }
+
+        getMessage();
+
+	});
+}
+
+
+
+function loginSuccess (data) {
+    console.log(data);
+	$('.info').hide();
+	//$('#main').show().attr('src', mainURL );
+	window.location = mainURL;
+}
+
+
+// loginSuccess()
+
+
+
+
+        </script>
+
+    </body>
+</html>
+

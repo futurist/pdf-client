@@ -22,11 +22,15 @@ var url = require('url');
 var urllib = require("urllib");
 var express = require("express");
 var bodyParser = require("body-parser");
+var cookieParser = require("cookie-parser");
 var multer = require("multer");
+var session = require('express-session')
 
 var Datauri = require('datauri');
 var QREncoder = require('qr').Encoder;
 var mime = require('mime');
+var handlebars = require('express-handlebars');
+var flash = require('connect-flash');
 
 
 var redis = require("redis"),
@@ -271,7 +275,11 @@ function sendWsMsg(msgid, resData) {
 
   //the sendback should be JSON stringify, else throw TypeError: Invalid non-string/buffer chunk
   var ret = { msgid:msgid, result: resData };
-  ws.send( JSON.stringify(ret)  );
+  try{
+	  ws.send( JSON.stringify(ret)  );
+	}catch(e){
+
+	}
 }
 
 /**** Client Side example :
@@ -333,15 +341,49 @@ var allowCrossDomain = function(req, res, next) {
 }
 app.use(allowCrossDomain);
 
+app.set('views', path.join(__dirname, 'client'));
+app.engine('hbs', handlebars({
+  extname: '.hbs'
+}));
+app.set('view engine', 'hbs');
+
+
+app.use(cookieParser(
+	"theunsecuritykey837",
+	{
+		path:'/',
+		expires:moment().add(1, 'days')
+	}
+));
+app.use(session({
+  secret: 'theunsecuritykey837',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { path: '/', secure: false, maxAge: 600 }
+}));
 
 app.use(bodyParser.urlencoded({limit: '2mb', extended: true })); // for parsing application/x-www-form-urlencoded
 app.use(bodyParser.json({limit: '2mb'}));
+app.use(flash());
+
 
 //app.use(multer()); // for parsing multipart/form-data
 
 var DOWNLOAD_DIR = './downloads/';
 
 
+
+
+app.get("/tree.html", function (req, res) {
+  res.render('tree',{
+    abc:1
+  });
+});
+app.get("/main.html", function (req, res) {
+  res.render('main',{
+    abc:1
+  });
+});
 
 app.post("/pdfCanvasDataLatex", function (req, res) {
   res.send("You sent ok" );
@@ -380,9 +422,12 @@ app.post("/getFinger", function (req, res) {
   var reqData = getWsData(msgid);
   if(!reqData) return res.send('');
   var finger = reqData.finger;
+  var condition = {finger:finger, role:'finger', date:{$gt: new Date(moment().subtract(3, 'minutes')) } };
+  
+  res.cookie('finger', finger);
 
-  col.findOne({finger:finger, role:'finger'}, function(err, item){
-    if(!item || !item.userid){
+  col.findOne( condition , function(err, item){
+    if(!item || !item.userid) {
 
       console.log('not found',msgid, finger);
 
@@ -391,24 +436,61 @@ app.post("/getFinger", function (req, res) {
       dUri = new Datauri();
       encoder.on('end', function(png_data){
           var udata = dUri.format('.png', png_data);
-          res.send( udata.content );
+          res.send( { userid:'', qrcode: udata.content } );
       });
 
       encoder.encode(qrStr, null, {dot_size:5, margin:4} );
 
+    } else {
+    	res.send( item );
     }
 
   } );
 });
 
 
-app.post("/confirmFingerInfo", function (req, res) {
-  	var msgid = req.body.msgid;
-	sendWsMsg( msgid, JSON.stringify(req.body) );
+app.post("/getLoginUserInfo", function (req, res) {
 
-	getUserInfo(req.body.UserId, res);
+	var finger = req.cookies.finger;
+  console.log(finger, 'login');
+  if(!finger) return res.send('');
+
+  col.findOne( { finger:finger, role:'finger' } , function(err, item){
+
+    if(!item || !item.userid) {
+	     return res.send('');
+     }else{
+        res.cookie('userid', item.userid);
+    	 getUserInfo(item.userid, res);
+       //col.updateOne({ msgid:msgid, role:'finger' }, { $set:{msgid:null} } ); 
+     }
+
+  });
+});
+
+app.post("/confirmFingerInfo", function (req, res) {
+  	var data = req.body;
+  	var msgid = data.msgid;
+
+  	// the DATA: data format:
+  	// {"UserId":"yangjiming","DeviceId":"d2d4b44c51f855c4e96a9ab0f169a2e5","finger":"727b08525269ddd8fee24a1eac276a76","msgid":"1441194684860.234"}
+
+
+	col.insertOne(
+		{ finger:data.finger, role:'finger', userid:data.UserId, deviceID: data.DeviceId, date:new Date(), msgid:msgid },
+		{w:1},
+		function(err, result) {
+
+			sendWsMsg( msgid, JSON.stringify(data) );
+			getUserInfo(data.UserId, res);
+
+		}
+	);
+
 
 });
+
+
 
 app.post("/putFingerInfo", function (req, res) {
   var code = req.body.code;
@@ -986,6 +1068,7 @@ app.post("/getfile", function (req, res) {
   var data = req.body;
   var person = data.person;
 
+
   var timeout = false;
   var connInter = setTimeout(function(){
     timeout = true;
@@ -1486,6 +1569,9 @@ app.post("/finishSign", function (req, res) {
     var overAllPath = util.format('%s#path=%s&shareID=%d', TREE_URL, encodeURIComponent(fileKey), shareID ) ;
 
     if(curFlowPos >= colShare.selectRange.length){
+
+    	col.findOneAndUpdate({role:'share', shareID:shareID }, { $set: { 'isFinish':true }  });
+
         res.send( util.format( '流程%d %s (%s-%s)已结束，系统将通知相关人员知悉',
                     colShare.shareID,
                     msg,
@@ -2238,3 +2324,14 @@ app.post("/getPrintList", function (req, res) {
 });
 
 
+
+
+
+
+
+
+
+
+
+
+app.use( express.static(path.join(__dirname, 'client'), { index:false, }) );

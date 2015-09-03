@@ -1,0 +1,2899 @@
+<!DOCTYPE html>
+<HTML>
+<HEAD>
+<TITLE>PDFClient</TITLE>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta name="apple-touch-fullscreen" content="yes"/>
+<meta name="format-detection" content="telephone=no"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, maximum-scale=1, minimum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+    <meta name="google" content="notranslate">
+    <meta http-equiv="cache-control" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+
+<script type="text/javascript" src="http://res.wx.qq.com/open/js/jweixin-1.0.0.js"></script>
+<script type="text/javascript" src="/js/cookies.js"></script>
+
+	<link rel="stylesheet" href="./css/zTreeStyle/zTreeStyle.css" type="text/css">
+	<link rel="stylesheet" href="./js/dialog.css" type="text/css">
+	<!--script type="text/javascript" src="./js/jquery-1.4.4.min.js"></script-->
+	<script type="text/javascript" src="http://1111hui.com/js/jquery.js"></script>
+	<script type="text/javascript" src="./js/jquery.ztree.all-3.5.js"></script>
+	<script type="text/javascript" src="./js/dialog.build.js"></script>
+	<script type="text/javascript" src="./js/draggable.js"></script>
+	<script type="text/javascript" src="./js/moment.js"></script>
+	<!--  <script type="text/javascript" src="./js/jquery.ztree.excheck-3.5.js"></script>
+	  <script type="text/javascript" src="./js/jquery.ztree.exedit-3.5.js"></script>-->
+
+	  <script type="text/javascript" src="js/fingerprint2.min.js"></script>
+	  <script type="text/javascript" src="js/reconnecting-websocket.js"></script>
+	  <script type="text/javascript" src="js/ws.js"></script>
+
+
+	<SCRIPT type="text/javascript">
+
+
+//Check if we are in NW.JS env
+
+if(typeof global !='undefined') {
+
+	var el = document.createElement('script');
+	el.async = false;
+	el.src = 'app://js/js/nwMain.js';
+	el.type = 'text/javascript';
+
+	(document.getElementsByTagName('HEAD')[0]||document.body).appendChild(el);
+
+
+	$(document).on('click','a', function  (e) {
+		var link = e.target.href;
+		if(!link) return e.preventDefault();
+
+		if( link.match(/viewer\.html/) ){
+			e.preventDefault();
+			global._nwMain.showReader(link);
+		}
+	});
+
+
+}
+
+
+FILE_HOST = 'http://7xkeim.com1.z0.glb.clouddn.com/';
+
+function eve (el, type){
+    el= ('get' in el)? el.get(0) : el ;	//(typeof el['jquery']!='undefined')
+    if(typeof type=='undefined') type='click';
+    var click = document.createEvent("MouseEvents");
+    click.initMouseEvent(type, true, true, window,
+                         0, 0, 0, 0, 0, false, false, false, false, 0, null);
+    button = el;
+    button.dispatchEvent(click);
+    button.focus();
+}
+function simulateKeyPress (character) {
+    jQuery.event.trigger({ type : 'keypress', which : character.charCodeAt(0) });
+}
+
+// http://stackoverflow.com/questions/10420352/converting-file-size-in-bytes-to-human-readable
+function humanFileSize(bytes, si) {
+	if(!si) si = true;
+    var thresh = si ? 1000 : 1024;
+    if(Math.abs(bytes) < thresh) {
+        return bytes + ' B';
+    }
+    var units = si
+        ? ['KB','MB','GB','TB','PB','EB','ZB','YB']
+        : ['KiB','MiB','GiB','TiB','PiB','EiB','ZiB','YiB'];
+    var u = -1;
+    do {
+        bytes /= thresh;
+        ++u;
+    } while(Math.abs(bytes) >= thresh && u < units.length - 1);
+    return bytes.toFixed(1)+' '+units[u];
+}
+
+
+
+//******* Websocket part **************
+
+	ws.addEventListener('open', function(){
+		console.log('ws opened init function');
+		ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc' }) );
+	});
+
+	ws.addEventListener('message', function(data){
+		if( !data || !data.data || !data.data.match(/^\s*{/) ) return;
+		var msg = JSON.parse(data.data);
+
+		switch(msg.role){
+
+			case 'shareMsg':
+
+				// Update Message window, when the window is open
+				appendShareMsg(msg);
+
+				if (typeof nwNotify!='undefined') {
+					nwNotify.notify({
+						title:'有消息',
+						text: msg.text.content,
+						onClickFunc: function(event) {
+							//event.closeNotification();
+						},
+					});
+				}
+
+				if( $('.msg_wrap').is(':visible') ) {
+
+				} else {
+
+				}
+
+				break;
+
+			case 'upfile':
+				reloadTree1(msg);
+				break;
+
+			case 'share':
+				if(typeof msg.isFinish!='undefined') {
+					return reloadTree2();
+				}
+				reloadTree2(msg.files[0].key, msg.shareID, false, msg.openShare, msg.openMessage);
+				break;
+
+			case 'errMsg':
+				alert(msg.message);
+				break;
+		}
+
+	});
+
+
+
+//******* Common Function & Variable part **************
+
+function searchToObject(search) {
+  return search.substring(1).split("&").reduce(function(result, value) {
+    var parts = value.split('=');
+    if (parts[0]) result[decodeURIComponent(parts[0])] = decodeURIComponent(parts[1]);
+    return result;
+  }, {})
+}
+
+
+var isAndroid = /(android)/i.test(navigator.userAgent);
+var isWeiXin = navigator.userAgent.match(/MicroMessenger\/([\d.]+)/i);
+var isiOS = /iPhone/i.test(navigator.userAgent) || /iPod/i.test(navigator.userAgent) || /iPad/i.test(navigator.userAgent);
+var isMobile = isAndroid||isWeiXin||isiOS;
+
+
+var DEBUG= 1;
+if(!DEBUG)
+{
+	var wxUserInfo = Cookies.get( 'wxUserInfo' );
+	if( !wxUserInfo ){
+		window.location.replace( 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx59d46493c123d365&redirect_uri=http%3A%2F%2F1111hui.com%2F/pdf/getUserID.php&response_type=code&scope=snsapi_base&state='+ encodeURIComponent( window.location.href.replace('#','{@@@}') ) +'#wechat_redirect');
+	} else {
+		wxUserInfo = JSON.parse(wxUserInfo);
+	}
+}else{
+	var wxUserInfo={};
+	wxUserInfo.UserId = 'yangjiming';
+}
+
+
+
+		var treeObj = null;
+		var treeObj1 = null;
+		var treeObj2 = null;
+		var treeObj3 = null;
+		var treeObjTemplate = null;
+		var treeObjPrint = null;
+
+		var zNodes, zNodes2, zNodes3;
+
+		var curTree = treeObj;
+		var rMenu;
+		var addCount = 1;
+		var log, className = "dark", curDragNodes, autoExpandNode;
+		var setting = {
+
+			view: {
+				showLine: true,
+				selectedMulti: true,
+				dblClickExpand: false,
+				expandSpeed: "",
+				txtSelectedEnable:true,
+				showLine:false,
+				nameIsHTML:true,
+				fontCss: getFont,
+			},
+			data: {
+				keep:{
+					parent:true,
+					leaf:true
+				},
+				key: {
+					title:"title"
+				},
+				simpleData: {
+					enable: false
+				}
+			},
+			edit: {
+				drag: {
+					autoExpandTrigger: true,
+					prev: dropPrev,
+					inner: dropInner,
+					next: dropNext
+				},
+				enable: true,
+				showRemoveBtn: false,
+				showRenameBtn: false
+			},
+			callback: {
+				beforeClick: beforeClick,
+				onClick: onClick,
+				beforeDblClick: beforeDblClick,
+				onDblClick: onDblClick,
+				onRightClick: OnRightClick,
+
+				beforeDrag: beforeDrag,
+				beforeDrop: beforeDrop,
+				beforeDragOpen: beforeDragOpen,
+				onDrag: onDrag,
+				onDrop: onDrop,
+				onExpand: onExpand,
+				beforeRename: beforeRename,
+				onRename:onRename,
+			}
+		};
+
+		var zNodes00 =[
+			{ id:0, pId:-1, name:"根 Root", open:true, click:false},
+			{ id:1, pId:0, name:"普通的目录", t:"我很普通，随便点我吧", open:true},
+			{ id:11, pId:1, name:"叶子节点 - 1", t:"我很普通，随便点我吧"},
+			{ id:12, pId:1, name:"叶子节点 - 2", t:"我很普通，随便点我吧"},
+			{ id:13, pId:1, name:"叶子节点 - 3", t:"我很普通，随便点我吧"},
+			{ id:2, pId:0, name:"NB的目录", t:"点我可以，但是不能点我的子节点，有本事点一个你试试看？", open:false},
+			{ id:21, pId:2, name:"叶子节点2 - 1", t:"你哪个单位的？敢随便点我？小心点儿.."},
+			{ id:22, pId:2, name:"叶子节点2 - 2", t:"我有老爸罩着呢，点击我的小心点儿.."},
+			{ id:23, pId:2, name:"叶子节点2 - 3", t:"好歹我也是个领导，别普通群众就来点击我.."},
+			{ id:3, pId:0, name:"郁闷的目录", t:"别点我，我好害怕...我的子节点随便点吧...", open:true },
+			{ id:31, pId:3, name:"叶子节点3 - 1", t:"唉，随便点我吧"},
+			{ id:32, pId:3, name:"叶子节点3 - 2", t:"唉，随便点我吧"},
+			{ id:33, pId:3, name:"叶子节点3 - 3", t:"唉，随便点我吧"}
+		];
+
+
+
+
+//FOR QT, but no use, we changed to NW.js
+// setTimeout(function  () {
+// 	//document.title = JSON.stringify(zNodes00);
+// $('h1').click(function  (i,e) {
+// 	document.title = "";
+// 	document.title = JSON.stringify({action:"openPDF", url:"http://1111hui.com/pdf/web/viewer.html" });
+// });
+// }, 1000);
+
+
+var isQT = false;
+var host = "http://1111hui.com:88";
+var rootPerson = {userid: 'yangjiming', name:"杨吉明", depart:"行政", isAdmin:true };
+var root=[];
+var fileData=null;
+var fileKeys=null;
+var addCount = 1;
+var DragParentNode = null;
+var sendRoot = null;
+var receiveRoot = null;
+var urlQuery = searchToObject( window.location.hash );
+
+
+function getFont(treeId, node) {
+	return node.font ? node.font : {};
+}
+
+function pathToObj (v) {
+	var path = v.path;
+	var file = v.key;
+	var title = v.title;
+	var str = path.split('/');
+	var p = root;
+	//if(!file) str.splice(str.length-2, 2);
+	loop1:
+	for(var i=0; i<str.length; i++){
+		var name = str[i];
+		if(!name) continue;
+		for(var j=0; j<p.length; j++){
+			if( p[j].name == name ){
+				if( !p[j].children ) p[j].children = [];
+				p = p[j].children;
+				continue loop1;
+			}
+		}
+		if(i==str.length-2 && !file ){
+			//it's folder Leaf node
+			var folder = $.extend( { person:rootPerson.userid, name:name, oldName:name, oldPath:v.path, isParent:true}, v);
+			p.push(folder);
+
+		}else{
+			p.push( {name:getSubStr(str[i], 50), title: str[i], children:[]} );
+		}
+		p = p[p.length-1].children;
+	}
+	var name = title||file||"";
+	//If we have key it's file LEAF
+	if(file && p) p.push( $.extend( {name:name, oldName:name, oldPath:v.path}, v) );
+
+	//else we are creating empty folder LEAF
+
+}
+
+function all () {
+	console.log( treeObj.getNodesByFilter(function(){return true}) )
+}
+
+
+var formatDate = function(format) {
+	d = new Date();
+    var yyyy = d.getFullYear().toString();
+    format = format.replace(/yyyy/g, yyyy)
+    var mm = (d.getMonth()+1).toString();
+    format = format.replace(/mm/g, (mm[1]?mm:"0"+mm[0]));
+    var dd  = d.getDate().toString();
+    format = format.replace(/dd/g, (dd[1]?dd:"0"+dd[0]));
+    var hh = d.getHours().toString();
+    format = format.replace(/hh/g, (hh[1]?hh:"0"+hh[0]));
+    var ii = d.getMinutes().toString();
+    format = format.replace(/ii/g, (ii[1]?ii:"0"+ii[0]));
+    var ss  = d.getSeconds().toString();
+    format = format.replace(/ss/g, (ss[1]?ss:"0"+ss[0]));
+    return format;
+};
+
+
+		function OnRightClick(event, treeId, treeNode) {
+			console.log(treeNode);
+			if(!treeNode) return;
+			if(treeNode.isSend || treeNode.isReceive || treeNode.isTemplate ) return;
+			if (!treeNode && event.target.tagName.toLowerCase() != "button" && $(event.target).parents("a").length == 0) {
+				treeObj.cancelSelectedNode();
+				showRMenu("root", event.clientX, event.clientY);
+			} else if (treeNode && !treeNode.noR) {
+				treeObj.selectNode(treeNode);
+				showRMenu("node", event.clientX, event.clientY);
+			}
+		}
+
+		function showRMenu(type, x, y) {
+			$("#rMenu ul").show();
+			if (type=="root") {
+				$("#m_del").hide();
+				$("#m_check").hide();
+				$("#m_unCheck").hide();
+			} else {
+				$("#m_del").show();
+				$("#m_check").show();
+				$("#m_unCheck").show();
+			}
+			rMenu.css({"top":y+"px", "left":x+"px", "visibility":"visible"});
+
+			$("body").bind("mousedown", onBodyMouseDown);
+		}
+		function hideRMenu() {
+			if (rMenu) rMenu.css({"visibility": "hidden"});
+			$("body").unbind("mousedown", onBodyMouseDown);
+		}
+		function onBodyMouseDown(event){
+			if (!(event.target.id == "rMenu" || $(event.target).parents("#rMenu").length>0)) {
+				rMenu.css({"visibility" : "hidden"});
+			}
+		}
+
+function applyTemplate(){
+
+
+	var sel = treeObjTemplate.getSelectedNodes();
+	if(!sel.length) return;
+	sel=sel[0];
+
+	var info = getFileKeys(sel);
+
+	var path = getPath(getSelectFiles().shift());
+	if(!path) return;
+
+	$('.bg_mask').show();
+
+	$.post(host+'/applyTemplate', { info:info, userid: rootPerson.userid, path:path }, function  (data) {
+		$('.bg_mask').hide();
+		hideTemplateCon();
+		reloadTree1(data);
+	});
+}
+
+function hideTemplateCon() {
+	var idx = $('.currTab').data('idx');
+	treeObj = eval('treeObj'+(idx+1) );
+	$('.templateFile_wrap').hide();
+	showContentWrap();
+	updateMenu( treeObj.getSelectedNodes() );
+}
+function addTemplateCon() {
+	treeObj = treeObjTemplate;
+	$('.templateFile_wrap').show();
+	hideContentWrap();
+	$('.templateFile_wrap .msgTitle').html('请选择模板');
+	updateMenu( treeObj.getSelectedNodes() );
+
+};
+
+function addPictureCon() {
+	if(isWeiXin) wxUploadImage();
+	else pcUploadImage();
+	return;
+
+	treeObj = treeObjTemplate;
+	$('.templateFile_wrap').show();
+	hideContentWrap();
+	$('.templateFile_wrap .msgTitle').html('请选择模板');
+	updateMenu( treeObj.getSelectedNodes() );
+};
+
+
+
+function initTemplateFileTree (data) {
+	root= [];
+	data.forEach(function(v){
+		pathToObj( v );
+		root[root.length-1].isTemplate = v.isTemplate;
+	});
+
+	var rootNode = treeObjTemplate.getNodes()[0];
+	treeObjTemplate.addNodes( rootNode , root );
+	treeObjTemplate.expandNode( rootNode, true );
+	treeObjTemplate.selectNode( rootNode );
+	addAttrToNode( treeObjTemplate, {isTemplate:true} );
+}
+
+function initPrintTree (data) {
+
+	data.isPrint = true;
+
+	$.fn.zTree.init( $("#printTree"), $.extend(setting, {data:{key:{title:'name'}} } ) , data);
+	treeObjPrint = $.fn.zTree.getZTreeObj("printTree");
+
+	var rootNode = treeObjPrint.getNodes()[0];
+	//treeObjPrint.addNodes( rootNode , root );
+
+	treeObjPrint.expandNode( rootNode, true );
+	treeObjPrint.selectNode( rootNode );
+	addAttrToNode( rootNode, {isPrint:true} );
+
+}
+
+function applyPrint () {
+
+	var p = treeObjPrint.getSelectedNodes()[0];
+	var server = p.server;
+	var printer = p.name;
+
+	var idx = $('.currTab').data('idx');
+	var tree = eval('treeObj'+(idx+1) );
+	var sel = tree.getSelectedNodes();
+	if(!sel.length)return;
+	sel=sel[0];
+
+	var shareID = getShareID(sel);
+	var info = getFileKeys(sel);
+
+	$.post(host+'/printPDF', { server:server, printer:printer, fileKey:info.key, shareID:shareID, person: rootPerson.userid }, function  (data) {
+		console.log(data);
+		hidePrintCon();
+	});
+
+}
+
+function getSelectFiles () {
+	var idx = $('.currTab').data('idx');
+	var tree = eval('treeObj'+(idx+1) );
+	var sel = tree.getSelectedNodes();
+	return sel;
+}
+
+
+
+function openPrintCon (){
+
+	treeObj = treeObjPrint;
+	hideContentWrap();
+	$('.print_wrap').show();
+	$('.print_wrap .msgTitle').html('请选择打印机');
+	updateMenu( treeObj.getSelectedNodes() );
+}
+
+function hidePrintCon() {
+	var idx = $('.currTab').data('idx');
+	treeObj = eval('treeObj'+(idx+1) );
+	$('.print_wrap').hide();
+	showContentWrap();
+	updateMenu( treeObj.getSelectedNodes() );
+}
+
+
+		function addTreeNode () {
+			hideRMenu();
+			var node;
+			var name = "新建文件夹 " + (addCount++);
+			name = formatDate('yyyy-mm-dd hh:ii:ss');
+			var newNode = { name:name, title:name, role:'upfile', hash:+new Date()+Math.random()+'', person:rootPerson.userid, isNew:true, isParent:true};
+			var targetNode = treeObj.getSelectedNodes()[0];
+			var pNode = targetNode;
+			if(!pNode.isParent) pNode = pNode.getParentNode();
+			if (pNode) {
+				newNode.checked = pNode.checked;
+				treeObj.expandNode(pNode,true);
+				node = treeObj.addNodes(pNode, newNode);
+				// If targetNode is a file, move it into new folder
+				if(!targetNode.isParent) {
+					if(node.length) node=node[0];
+					node = treeObj.moveNode(targetNode, node, 'prev');
+					treeObj.moveNode(node, targetNode, 'inner');
+					treeObj.editName(node);
+					$('input.rename', $('#'+node.tId) ).get(0).select();
+					return;
+				}
+			} else {
+				pNode = treeObj.getNodes()[0];
+				treeObj.expandNode(pNode,true);
+				node = treeObj.addNodes(pNode, newNode);
+			}
+			if(!node) return;
+
+			var id, nextOrder, nextObj;
+			var startOrder;
+			var targetNode = getPrevNextLeaf( node[0], 'next' );
+
+				startOrder = targetNode.order || getMaxMinOrder( getAllLeafs( targetNode ), 'max' ) ;
+				nextObj = getPrevNextLeaf( node[0], 'prev' );
+				if(!nextObj) nextOrder = startOrder+1 ;
+				else nextOrder = nextObj.order || getAllLeafs( nextObj ).shift().order ;
+
+				//console.log(node[0], targetNode,nextObj, nextOrder, startOrder);
+			node[0].order = (nextOrder+startOrder)/2;
+
+			treeObj.editName(node[0]);
+			$('input.rename', $('#'+node[0].tId) ).get(0).select();
+		}
+
+		function beforeRename(treeId, treeNode, newName, isCancel)
+		{
+			var valid = true;
+
+			if(newName==""){
+				alert( "请指定一个名称");
+				return false;
+			}
+
+			if(!isCancel && ( treeNode.name == newName ) ) {
+				treeObj.cancelEditName(newName);
+				return false;
+			}
+			$.each(treeNode.getParentNode().children, function  (i,v) {
+				if(v!=treeNode && v.name == newName && v.isParent==treeNode.isParent ) {
+					valid = false;
+					return false;
+				}
+			});
+			if(!valid) alert( "文件名与现有文件重名");
+			return valid;
+		}
+
+		function onRename(event, treeId, treeNode, isCancel)
+		{
+			treeNode.title = treeNode.name;
+			if(!isCancel || treeNode.isNew) serverUpdateNode('rename', treeNode);
+			treeNode.isNew = false;
+		}
+
+		function removeTreeNode() {
+			if( !confirm('确定要删除吗？此操作不可恢复！') ) return;
+			hideRMenu();
+			var nodes = treeObj.getSelectedNodes();
+			console.log(nodes[0]);
+			if (nodes && nodes.length>0) {
+				if (nodes[0].children && nodes[0].children.length > 0) {
+					var msg = "要删除的节点是目录，如果删除将连同内部的文件一起删掉。\n\n请确认！";
+					if (confirm(msg)==true){
+						$.post(host+'/removeFolder', { path: getPath(nodes[0]), deleteAll: true}, function  () {} );
+						treeObj.removeNode(nodes[0]);
+					}
+				} else {
+					$.post(host+'/removeFile', { hash:nodes[0].hash }, function  () {} );
+					treeObj.removeNode(nodes[0]);
+				}
+			}
+			updateMenu();
+		}
+		function renameTreeNode() {
+			var nodes = treeObj.getSelectedNodes();
+			if (nodes && nodes.length>0) {
+				treeObj.editName(nodes[0]);
+			}
+			hideRMenu();
+		}
+		function resetTree() {
+			hideRMenu();
+			$.fn.zTree.init($("#fileTree"), setting, zNodes);
+		}
+
+
+
+		function dropPrev(treeId, nodes, targetNode) {
+
+			var pNode = targetNode.getParentNode();
+			if(!pNode) return false;
+			if(targetNode.isSend || targetNode.isReceive) return false;
+
+			if ( pNode && !pNode.isParent ) {
+				return false;
+			} else {
+				if(checkLeaf(nodes) && pNode.level==0 && !(nodes.length==1 && nodes[0].level==1 ) ) return false;
+
+				for (var i=0,l=curDragNodes.length; i<l; i++) {
+					var curPNode = curDragNodes[i].getParentNode();
+					if (curPNode && curPNode !== targetNode.getParentNode() && curPNode.childOuter === false) {
+						return false;
+					}
+				}
+			}
+			return true;
+		}
+		function dropInner(treeId, nodes, targetNode) {
+			if(!targetNode) return false;
+			if(targetNode.isSend || targetNode.isReceive) return false;
+
+			if (targetNode && !targetNode.isParent) {
+				return false;
+			} else {
+
+				if(checkLeaf(nodes) && targetNode.level==0) return false;
+
+
+				for (var i=0,l=curDragNodes.length; i<l; i++) {
+					if (!targetNode && curDragNodes[i].dropRoot === false) {
+						return false;
+					} else if (curDragNodes[i].parentTId && curDragNodes[i].getParentNode() !== targetNode && curDragNodes[i].getParentNode().childOuter === false) {
+						return false;
+					}
+				}
+			}
+			return true;
+		}
+		function dropNext(treeId, nodes, targetNode) {
+			if(targetNode.isSend || targetNode.isReceive) return false;
+
+			var pNode = targetNode.getParentNode();
+			if(!pNode) return false;
+			if (pNode && !pNode.isParent) {
+				return false;
+			} else {
+				if(checkLeaf(nodes) && pNode.level==0  && !(nodes.length==1 && nodes[0].level==1 ) ) return false;
+
+				for (var i=0,l=curDragNodes.length; i<l; i++) {
+					var curPNode = curDragNodes[i].getParentNode();
+					if (curPNode && curPNode !== targetNode.getParentNode() && curPNode.childOuter === false) {
+						return false;
+					}
+				}
+			}
+			return true;
+		}
+
+
+
+		function beforeDrag(treeId, treeNodes) {
+			var isRoot = false;
+			$.each(treeNodes, function  (i,v) {
+				if(v.level==0) isRoot=true;
+				if(v.isSend || v.isReceive) isRoot=true;
+			});
+			if(isRoot) return false;
+
+			className = (className === "dark" ? "":"dark");
+			showLog("[ "+getTime()+" beforeDrag ]&nbsp;&nbsp;&nbsp;&nbsp; drag: " + treeNodes.length + " nodes." );
+			for (var i=0,l=treeNodes.length; i<l; i++) {
+				if (treeNodes[i].drag === false) {
+					curDragNodes = null;
+					return false;
+				} else if (treeNodes[i].parentTId && treeNodes[i].getParentNode().childDrag === false) {
+					curDragNodes = null;
+					return false;
+				}
+			}
+			curDragNodes = treeNodes;
+			return true;
+		}
+
+		function beforeDragOpen(treeId, treeNode) {
+			autoExpandNode = treeNode;
+			return true;
+		}
+
+
+
+		function getMaxMinOrder (nodes, isMax) {
+			nodes = nodes.filter(function  (v) {
+				return v.order || v.order==0;
+			});
+			var orderA = nodes.map(function  (v) {
+				return v.order;
+			});
+			return isMax == 'max' ? Math.max.apply( Math, orderA ) : Math.min.apply( Math, orderA );
+		}
+		function getPrevNextLeaf (targetNode, isPrev) {
+			var prev= isPrev=='prev' ? targetNode.getPreNode() : targetNode.getNextNode();
+			if(prev && prev!=targetNode ) return prev;
+			else {
+				var p = targetNode.getParentNode();
+				if(p && p.level) return getPrevNextLeaf( p, isPrev );
+				else{
+					return null;
+				}
+			}
+		}
+
+
+
+		function beforeDrop(treeId, treeNodes, targetNode, moveType, isCopy) {
+
+			var id, nextOrder, nextObj;
+			var startOrder;
+
+			if(moveType=='next'){
+				startOrder = targetNode.order || getMaxMinOrder( getAllLeafs( targetNode ), 'min' ) ;
+				nextObj = getPrevNextLeaf( targetNode, 'next' );
+				if(!nextObj) nextOrder = startOrder-1 ;
+				else nextOrder = nextObj.order ||  getAllLeafs( nextObj ).shift().order ;
+			}
+			if(moveType=='prev'){
+				startOrder = targetNode.order || getMaxMinOrder( getAllLeafs( targetNode ), 'max' ) ;
+				nextObj = getPrevNextLeaf( targetNode, 'prev' );
+				if(!nextObj) nextOrder = startOrder+1 ;
+				else nextOrder = nextObj.order || getAllLeafs( nextObj ).shift().order ;
+			}
+
+			if(moveType=='inner'){
+				startOrder = targetNode.order || getMaxMinOrder( getAllLeafs( targetNode ), 'max' ) ;
+				nextObj = getPrevNextLeaf( targetNode, 'prev' );
+				if(!nextObj) nextOrder = startOrder+1 ;
+				else nextOrder = nextObj.order || getAllLeafs( nextObj ).shift().order ;
+			}
+
+			var targetNodes = getAllLeafs(treeNodes);
+
+			var stepOrder = (nextOrder - startOrder)/ (targetNodes.length+1);
+			//console.log(id, getMaxMinOrder( getAllLeafs( targetNode ), 'max'), moveType, startOrder,  getAllLeafs(treeObj.getNodeByTId(id)).pop(), stepOrder, nextOrder);
+
+			targetNodes.forEach(function  (v,i) {
+				v.order = startOrder+(i+1)*stepOrder;
+			});
+
+			DragParentNode = (treeNodes[0].getParentNode() );
+			className = (className === "dark" ? "":"dark");
+			showLog("[ "+getTime()+" beforeDrop ]&nbsp;&nbsp;&nbsp;&nbsp; moveType:" + moveType);
+			showLog("target: " + (targetNode ? targetNode.name : "root") + "  -- is "+ (isCopy==null? "cancel" : isCopy ? "copy" : "move"));
+			return true;
+		}
+
+		function onDrag(event, treeId, treeNodes) {
+			className = (className === "dark" ? "":"dark");
+			showLog("[ "+getTime()+" onDrag ]&nbsp;&nbsp;&nbsp;&nbsp; drag: " + treeNodes.length + " nodes." );
+		}
+		function onDrop(event, treeId, treeNodes, targetNode, moveType, isCopy) {
+			console.log( treeNodes, targetNode, moveType, isCopy );
+			if(isCopy===false) serverUpdateNode('move', treeNodes );
+
+			className = (className === "dark" ? "":"dark");
+
+			showLog("[ "+getTime()+" onDrop ]&nbsp;&nbsp;&nbsp;&nbsp; moveType:" + moveType);
+			showLog("target: " + (targetNode ? targetNode.name : "root") + "  -- is "+ (isCopy==null? "cancel" : isCopy ? "copy" : "move"))
+		}
+		function onExpand(event, treeId, treeNode) {
+			if (treeNode === autoExpandNode) {
+				className = (className === "dark" ? "":"dark");
+				showLog("[ "+getTime()+" onExpand ]&nbsp;&nbsp;&nbsp;&nbsp;" + treeNode.name);
+			}
+		}
+
+
+		function beforeDblClick (treeId, treeNode) {
+			if( treeNode && treeNode.key && treeNode.key.match(/\.pdf$/) ){
+				return true;
+			}
+			return false;
+		}
+		function onDblClick (event, treeId, treeNode) {
+			var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
+			shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
+
+			sendClientMsg(treeNode.key + shareStr, treeNode.title);
+		}
+
+
+		function beforeClick (treeId, treeNode, clickFlag) {
+			if(treeNode.isCur) return false;
+			var nodes = treeObj.getSelectedNodes();
+			className = (className === "dark" ? "":"dark");
+			if(curSrcNode && treeNode.open) return true;
+
+			if (treeNode.isParent && treeNode.level>0 && treeNode.click!==false) {
+				treeObj.expandNode(treeNode);
+			}
+			showLog("[ "+getTime()+" beforeClick ]&nbsp;&nbsp;" + treeNode.name );
+			return (treeNode.click != false);
+		}
+		function onClick (event, treeId, treeNode, clickFlag) {
+			showLog("[ "+getTime()+" onClick ]&nbsp;&nbsp;clickFlag = " + clickFlag + " (" + (clickFlag===1 ? "普通选中": (clickFlag===0 ? "<b>取消选中</b>" : "<b>追加选中</b>")) + ")");
+
+			if(curSrcNode) return;
+
+			updateMenu(treeNode, true);
+
+		}
+		function showLog(str) {
+			if (!log) log = $("#log");
+			log.append("<li class='"+className+"'>"+str+"</li>");
+			if(log.children("li").length > 8) {
+				log.get(0).removeChild(log.children("li")[0]);
+			}
+		}
+		function getTime() {
+			var now= new Date(),
+			h=now.getHours(),
+			m=now.getMinutes(),
+			s=now.getSeconds();
+			return (h+":"+m+":"+s);
+		}
+
+
+		function sendClientMsg (url, text) {
+
+			var viewerURL = 'http://1111hui.com/pdf/webpdf/viewer.html#file='+ FILE_HOST +url;
+
+			if(isQT){
+
+				document.title = "";
+				//document.title = JSON.stringify({action:"openPDF", url:'http://1111hui.com/pdf/dragShape/path.html', text:text });
+				document.title = JSON.stringify({action:"openPDF", url:viewerURL, text:text });
+			} else{
+
+				if(typeof global!='undefined'){
+					global._nwMain.showReader(viewerURL);
+				}else
+					window.location = viewerURL;
+			}
+		}
+
+
+
+function getFilesData () {
+
+	/*****
+	* File Data format should be:
+	[
+	{path:'/', file:"pdf1", title:"asdf"},
+	{path:'/abc/a/e/', file:"pdf1"},
+	{path:'/abc/a/b/', file:"pdf2"},
+	{path:'/a/b/c/', file:"pdf3"},
+	{path:'/a/b/c/', file:"pdf4"},
+	{path:'/a/b/c/', file:"pdf5"},
+	]
+	*
+	***/
+
+	$.post(host+'/getfile', {person:rootPerson.userid}, function  (data) {
+		if(!data){
+			setTimeout(getFilesData, 1000);
+			return;
+		}
+		data = JSON.parse(data);
+
+		init(data);
+
+		if(!urlQuery.shareID){
+			locateNode( treeObj.getNodes()[0], urlQuery.path, null, true );
+		}
+
+		reloadTree2(null, null, true);
+
+		$.post(host+'/getTemplateFiles', { depart:rootPerson.depart }, function  (data) {
+			if(!data) return;
+			initTemplateFileTree(data);
+		});
+
+		$.post(host+'/getPrintList', { company:'lianrun' }, function  (data) {
+			if(!data) return;
+			initPrintTree(data);
+		});
+
+
+	});
+
+
+}
+
+
+
+function locateNode (rootNode, path, shareID, switchTo){
+	if( !rootNode || !path ) return;
+	var targetNode;
+	var treeObj = rootNode.isSend ? treeObj2 : ( rootNode.isReceive? treeObj3 : treeObj1 );
+	treeObj.expandNode( rootNode, true );
+
+	if( path.match(/^\s*\//) ) {
+		//path = '/'+rootNode.name+path;
+		targetNode = treeObj.getNodesByFilter(function(node){
+			var p = getPath(node);
+			p += (node.key||node.hash||'');
+			return p==path;
+		}, true, rootNode);
+	}else{
+		targetNode = treeObj.getNodesByFilter(function(node){
+			return  (node.key==path || node.hash==path) && (!shareID? 1 : shareID==getShareID(node) ) ;
+		}, true, rootNode);
+	}
+
+	if( targetNode ) {
+		if(switchTo){
+			if(targetNode.isSend) showTab(1);
+			else if(targetNode.isReceive) showTab(2);
+			else showTab(0);
+		}
+		treeObj.selectNode(targetNode);
+		updateMenu(targetNode);
+		if(targetNode.isParent) treeObj.expandNode(targetNode, true);
+		setTimeout(function(){
+			//$('#'+targetNode.tId).get(0).scrollIntoView();
+		}, 1000);
+
+	}
+}
+
+function getSubStr (str, len) {
+	len = len || 10;
+	return str.length<=len? str : str.substr(0, len)+'...';
+}
+
+function initShareFrom (data) {
+	root= [];
+
+	for(var i=0; i<data.length; i++){
+		var shareID = data[i].shareID;
+		var files = data[i].files;
+		var isSign = data[i].isSign;
+		var isFinish = data[i].isFinish;
+		var msg = data[i].msg||'';
+		var fromPerson = data[i].fromPerson.map(function(v){return v.name});
+		var fromPersonStr =  '('+fromPerson.join(',')+')';
+		var toPerson = data[i].toPerson.map(function(v){return v.name});
+		var toPersonStr = toPerson.length>2? '('+toPerson.slice(0,2).join(',')+'...)' :  '('+toPerson.join(',')+')' ;
+		var flowName = '('+data[i].flowName+'-'+fromPerson.join(',')+ ')';
+		files.forEach(function(v){
+			v.path = v.path.replace(/[[shareName]]/,  isSign? '流程-'+shareID+flowName+ (msg) : '共享-'+shareID+toPersonStr+ (msg)     );
+			v.isSign = isSign;
+			v.shareID = shareID;
+			pathToObj( v );
+			root[root.length-1].shareID = shareID;
+			root[root.length-1].isSign = isSign;
+			root[root.length-1].isFinish = isFinish;
+			if(isFinish) root[root.length-1].font = {color:'blue'};
+		});
+	}
+
+    zNodes2[0].children = root;
+
+	$.fn.zTree.init($("#fileTree2"), setting, zNodes2);
+	treeObj2 = $.fn.zTree.getZTreeObj("fileTree2");
+	sendRoot = treeObj2.getNodes()[0];
+	// if(!sendRoot){
+	// 	sendRoot = treeObj2.addNodes( null,  {userid:rootPerson.userid, name:'发件柜', title:'发件柜', isSend:true, isParent:true, children: root} );
+	// 	if(sendRoot) sendRoot = sendRoot[0];
+	// } else {
+	// 	treeObj2.addNodes( sendRoot, root );
+	// }
+	addAttrToNode( sendRoot, {isSend:true} );
+}
+
+function initShareTo (data) {
+	root= [];
+
+	for(var i=0; i<data.length; i++){
+		var shareID = data[i].shareID;
+		var files = data[i].files;
+		var isSign = data[i].isSign;
+		var isFinish = data[i].isFinish;
+		var msg = data[i].msg||'';
+		var fromPerson = data[i].fromPerson.map(function(v){return v.name});
+		var fromPersonStr =  '('+fromPerson.join(',')+')';
+		var toPerson = data[i].toPerson.map(function(v){return v.name});
+		var toPersonStr = toPerson.length>2? '('+toPerson.slice(0,2).join(',')+'...)' :  '('+toPerson.join(',')+')' ;
+		var flowName = '('+data[i].flowName+'-'+fromPerson.join(',')+ ')';
+
+		files.forEach(function(v){
+			v.path = v.path.replace(/[[shareName]]/,  isSign? '流程-'+shareID+flowName+ (msg) : '共享-'+shareID+toPersonStr+ (msg)     );
+			v.isSign = isSign;
+			v.shareID = shareID;
+			pathToObj( v );
+			root[root.length-1].shareID = shareID;
+			root[root.length-1].isSign = isSign;
+			root[root.length-1].isFinish = isFinish;
+			if(isFinish) root[root.length-1].font = {color:'blue'};
+
+		});
+	}
+
+
+		    zNodes3[0].children = root;
+
+			$.fn.zTree.init($("#fileTree3"), setting, zNodes3);
+			treeObj3 = $.fn.zTree.getZTreeObj("fileTree3");
+			receiveRoot = treeObj3.getNodes()[0];
+
+	// if(!receiveRoot){
+	// 	receiveRoot = treeObj3.addNodes( null,  {userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: root} );
+	// 	if(receiveRoot) receiveRoot = receiveRoot[0];
+	// } else {
+	// 	treeObj3.addNodes( receiveRoot, root );
+	// }
+
+	addAttrToNode( receiveRoot, {isReceive:true} );
+}
+
+
+function addAttrToNode (node, obj) {
+	$.extend(node, obj);
+	if( node.isParent && node.children ){
+		node.children.forEach(function  (v) {
+			addAttrToNode(v, obj);
+		});
+	}
+}
+
+function getNodeByHash(tree, hash, switchTo){
+	if(!tree) tree = treeObj;
+	return tree.getNodesByFilter(function (node) {
+		return node.hash==hash;
+	});
+}
+
+function reloadTree1(fileObj, switchTo){
+	$.post(host+'/getfile', {person:rootPerson.userid}, function  (data) {
+		data = JSON.parse(data);
+		root = [];
+		data.forEach(function(v) {
+			pathToObj( v );
+			fileKeys = Object.keys(v);
+		});
+		zNodes[0].children = root;
+
+		treeObj1.destroy();
+		$.fn.zTree.init($("#fileTree"), setting, zNodes);
+		treeObj1 = $.fn.zTree.getZTreeObj("fileTree");
+
+		if(fileObj){
+			locateNode( treeObj1.getNodes()[0],  fileObj.returnPath || fileObj.key || fileObj.hash, null, switchTo );
+		}
+
+		if(switchTo){
+			showTab(0);
+		}
+	});
+
+}
+
+function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
+	shareID = shareID || urlQuery.shareID;
+	openShare = openShare || urlQuery.openShare;
+	openMessage = openMessage || urlQuery.openMessage;
+
+	if(shareID && (openShare || openMessage ) ) {
+		//hideContentWrap();
+	}
+	$.post(host+'/getShareFrom', {person:rootPerson.userid}, function  (data) {
+		if(!data) window.location.reload();
+
+		initShareFrom(JSON.parse(data));
+		treeObj2.expandNode(sendRoot, true);
+		if(shareID){
+			locateNode(sendRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, switchTo );
+		}
+		$.post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
+			if(!data) window.location.reload();
+			initShareTo(JSON.parse(data));
+			treeObj3.expandNode(receiveRoot, true);
+			if(shareID) {
+				locateNode(receiveRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, switchTo );
+			}
+			if(openShare){
+				shareFile();
+			}
+			if(openMessage){
+				viewDetail();
+			}
+		});
+	});
+}
+
+
+
+		function init(data){
+
+			fileData = data;
+			root = [];
+			data.forEach(function(v){
+				pathToObj( v );
+				fileKeys = Object.keys(v);
+			});
+			zNodes = [{userid:rootPerson.userid, name:'['+rootPerson.name+']的文件柜',  title: rootPerson.depart+ "-"+rootPerson.name+'的文件柜', isParent:true, children: root}];
+		    var zNodesTemplate = {userid:rootPerson.userid, name:'模板文件柜', title:'模板文件柜', isTemplate:true, isParent:true, children: []} ;
+		    var zNodesPrint = {userid:rootPerson.userid, name:'打印机列表', title:'打印机列表', isPrint:true, isParent:true, children: []} ;
+
+			fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "order", "imageWidth", "imageHeight", 'isTemplate', 'drawData', 'inputData', 'server'];
+			//fileKeys = fileKeys.concat( ['path', 'hash'].filter(function (item) { return fileKeys.indexOf(item) < 0 }) );
+			//fileKeys.splice( fileKeys.indexOf('_id'), 1 );
+
+			$.fn.zTree.init($("#fileTree"), setting, zNodes);
+			treeObj1 = $.fn.zTree.getZTreeObj("fileTree");
+
+			zNodes2 =  [{userid:rootPerson.userid, name:'发件柜', title:'发件柜', isSend:true, isParent:true, children: []}] ;
+		    zNodes3 = [{userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: []}] ;
+
+			$.fn.zTree.init($("#fileTree2"), setting, zNodes2);
+			treeObj2 = $.fn.zTree.getZTreeObj("fileTree2");
+
+			$.fn.zTree.init($("#fileTree3"), setting, zNodes3);
+			treeObj3 = $.fn.zTree.getZTreeObj("fileTree3");
+
+			$.fn.zTree.init($("#fileTreeTemplate"), setting, zNodesTemplate);
+			treeObjTemplate = $.fn.zTree.getZTreeObj("fileTreeTemplate");
+
+
+			treeObj = treeObj1;
+
+
+			var sel = treeObj.getNodes()[0].children[0];
+
+			treeObj.selectNode(sel);
+
+			rMenu = $("#rMenu");
+
+			updateMenu(sel);
+
+			curTree = treeObj;
+
+			showTab(0);
+
+		}
+
+		function getPath (node, includeSelf) {
+			if(!node) return node;
+			var pstr = [];
+			var pNode = node;
+			if(includeSelf || (node && node.isParent) ) pstr.push(pNode.name);
+			while (pNode && pNode.level !==0) {
+				pNode = pNode.getParentNode();
+				pstr.push(pNode.name);
+			}
+			var path = '/'+(pstr.reverse().join('/'))+'/';
+			var rootName = pNode.name;
+			return path.replace('/'+rootName, '');
+		}
+
+
+		function checkLeaf (nodes) {
+			var isLeaf = true;
+			if( !$.isArray(nodes) ) nodes=[nodes];
+			$.each(nodes, function  (i,v) {
+				if(v.isParent) isLeaf = false;
+			});
+			return isLeaf;
+		}
+
+		function getAllLeafs ( theNodes ) {
+			if( !$.isArray(theNodes) ) theNodes=[theNodes];
+
+			function filter (node) {
+				if(!node.isParent || ( node.children && node.children.length==0) ) return true;
+			}
+
+			var nodes = [];
+			$.each(theNodes, function  (i,v) {
+				if(!v || nodes.indexOf(v)>-1 ) return true;
+				if(v.isParent) {
+					if( !v.children || v.children.length==0 ) nodes.push(v);
+					else nodes = nodes.concat( curTree.getNodesByFilter(filter, false, v) );
+				} else {
+					nodes.push(v);
+				}
+			});
+			return (nodes);
+		}
+
+		function getAllFiles ( theNodes ) {
+			return getAllLeafs(theNodes).filter(function  (v) {
+				return !v.isParent;
+			});
+		}
+
+
+function breakIntoPath(path){
+  var part = path.split('/');
+  var ret = [], dd = [];
+  for(var i=0; i<part.length-1;i++){
+    dd.push(part[i]);
+    ret.push( dd.join('/') + '/' );
+  }
+  return ret.slice(1);
+}
+
+
+function getFileKeys(node){
+	var obj = fileKeys.reduce(function(o, key, idx) {
+	  o[key] = node[key];
+	  return o;
+	}, {});
+	return obj;
+}
+
+		function serverUpdateNode (type, treeNodes ) {
+			var changedNodes = getAllLeafs(treeNodes);
+
+			// merge parentNode if DragParentNode become an empty folder
+			// if(DragParentNode && DragParentNode.isParent && DragParentNode.children && DragParentNode.children.length==0 ){
+			// 	$.merge(changedNodes, [DragParentNode] );
+			// };
+
+			var postArr = [];
+			var partPath = [];
+			$.each(changedNodes, function  (i,v) {
+				v.path = getPath(v);
+				if(!v.hash) v.hash = +new Date()+Math.random();
+				var obj = fileKeys.reduce(function(o, key, idx) {
+				  o[key] = v[key];
+				  return o;
+				}, {});
+				postArr.push(obj);
+				$.merge( partPath, breakIntoPath(v.path) );
+			});
+			$.post( host+'/updatefile', {type:type, data:postArr} );
+
+			//clean up all empty folder with part of the filename
+			partPath = $.unique(partPath);
+			var delelteNodes = treeObj.getNodesByFilter(function (node) {
+				if( changedNodes.indexOf(node)>-1 ) return false;
+				if(node.path && partPath.indexOf(node.path)>-1 && !node.key
+					&& (!node.children || (node.children&&node.children.length==0) ) ){
+					return true;
+				}
+			});
+			delelteNodes.forEach(function  (node) {
+				console.log('removeNode', node);
+					treeObj.removeNode(node);
+			});
+
+
+		}
+
+
+
+		var curSrcNode, curType;
+
+		function fontCss(treeNode) {
+			var aObj = $("#" + treeNode.tId + "_a");
+			aObj.removeClass("copy").removeClass("cut");
+			if (treeNode === curSrcNode) {
+				if (curType == "copy") {
+					aObj.addClass(curType);
+				} else {
+					aObj.addClass(curType);
+				}
+			}
+		}
+		function setCurSrcNode(treeNode) {
+			var zTree = treeObj;
+			if (curSrcNode) {
+				delete curSrcNode.isCur;
+				var tmpNode = curSrcNode;
+				curSrcNode = null;
+				fontCss(tmpNode);
+			}
+			curSrcNode = treeNode;
+			if (!treeNode){
+				$( '#'+sendRoot.tId ).show();
+				$( '#'+receiveRoot.tId ).show();
+				return;
+			}
+			curSrcNode.isCur = true;
+			zTree.cancelSelectedNode();
+			fontCss(curSrcNode);
+			$('.botmenu>div').hide();
+			$('.moveMenu').show();
+
+			$( '#'+sendRoot.tId ).hide();
+			$( '#'+receiveRoot.tId ).hide();
+
+		}
+		function copyNode(e) {
+			var zTree = treeObj,
+			nodes = zTree.getSelectedNodes();
+			if (nodes.length == 0) {
+				alert("请先选择一个节点");
+				return;
+			}
+			curType = "copy";
+			setCurSrcNode(nodes[0]);
+		}
+		function cutNode(e) {
+			var zTree = treeObj,
+			nodes = zTree.getSelectedNodes();
+			if (nodes.length == 0) {
+				alert("请先选择一个节点");
+				return;
+			}
+			curType = "cut";
+			setCurSrcNode(nodes[0]);
+		}
+		function pasteNode(e) {
+
+			if (!curSrcNode) {
+				alert("请先选择一个节点进行 复制 / 剪切");
+				return;
+			}
+			var zTree = treeObj,
+			nodes = zTree.getSelectedNodes(),
+			targetNode = nodes.length>0? nodes[0]:null;
+			if(targetNode)
+			if (curSrcNode === targetNode) {
+				alert("不能移动，源节点 与 目标节点相同");
+			} else if (curType === "cut" && ((!!targetNode && curSrcNode.parentTId === targetNode.tId) || (!targetNode && !curSrcNode.parentTId))) {
+				alert("不能移动，源节点 已经存在于 目标节点中");
+			} else if (curType === "copy") {
+				targetNode = zTree.copyNode(targetNode, curSrcNode, "inner");
+			} else if (curType === "cut") {
+
+				if(targetNode.isSend || targetNode.isReceive){
+					return false;
+				}
+				beforeDrop(null, [curSrcNode], targetNode, 'inner' );
+				targetNode = zTree.moveNode(targetNode, curSrcNode, "inner");
+				serverUpdateNode('move',curSrcNode);
+				if (!targetNode) {
+					alert("剪切失败，源节点是目标节点的目录");
+				}
+			}
+			targetNode = curSrcNode;
+			setCurSrcNode();
+			delete targetNode.isCur;
+			zTree.selectNode(targetNode);
+			updateMenu(targetNode);
+
+		}
+
+		function moveTreeNodeCancel(){
+			var targetNode =  curSrcNode;
+			delete curSrcNode.isCur;
+			setCurSrcNode();
+			treeObj.selectNode( targetNode );
+			updateMenu(targetNode);
+		}
+
+		function updateMenu (targetNode, changeURL) {
+			if( $.isArray(targetNode) ) targetNode = targetNode[0];
+			if( typeof targetNode=='string' ) {
+				$('.botmenu>div').hide().parent().show();
+				$(targetNode).show();
+				return;
+			}
+
+
+			if(targetNode){
+
+				if( !$('#'+targetNode.tId).is(':visible') ) return;
+
+				$('.botmenu>div').hide().parent().show();
+				if(targetNode.isSend) {
+					$('.sendMenu').show();
+
+					if(!targetNode.isParent){
+						$('.fView').show();
+					} else {
+						$('.fView').hide();
+					}
+				} else if(targetNode.isReceive) {
+					$('.receiveMenu').show();
+					$('.receiveMenu>a').hide();
+					$('.receiveMenu .fCommon').show();
+
+					if(targetNode.isParent){
+						$('.fFolder').show();
+						!targetNode.isFinish ? $('.fFinish').hide() : $('.fNotFinish').hide();
+					} else {
+						$('.fFile').show();
+					}
+
+				} else if(targetNode.isPrint) {
+					$('.printMenu').show();
+					if(!targetNode.isParent){
+						$('.fConfirmPrint').show();
+					} else {
+						$('.fConfirmPrint').hide();
+					}
+				} else if( $('.templateFile_wrap').is(':visible') && targetNode.isTemplate) {
+					$('.templateMenu').show();
+					targetNode.isParent ? $('.fConfirmTemplate').hide() : $('.fConfirmTemplate').show();
+				} else {
+					if(targetNode.isParent && targetNode.level==0){
+						$('.rootMenu1').show();
+					} else if(targetNode.isParent) {
+						$('.dirMenu').show();
+					} else {
+
+						if( targetNode.key.match(/\.pdf$/) ){
+							$('.fileMenu').show();
+						} else {
+							$('.unknownMenu').show();
+							targetNode.key.match(regex_can_be_convert)|| targetNode.key.match(regex_image)
+								? $('.fConvert').show()
+								: $('.fConvert').hide();
+						}
+
+
+						$('.fAdmin').hide();
+
+						if(rootPerson.isAdmin)
+						if(targetNode.isTemplate){
+							$('.fRemoveTemplate').show();
+						}else{
+							$('.fSetTemplate').show();
+						}
+					}
+				}
+				if(targetNode && $('.content_wrap').is(':visible') ) {
+
+					$('.fView').attr( 'href', getFileUrl(targetNode) );
+
+					var srcFile = FILE_HOST+(targetNode.key);
+					if(isWeiXin){
+						$('.fDownload').removeAttr('download').attr( 'href', 'http://1111hui.com/pdf/getSrcFile.php?url='+ encodeURIComponent(srcFile)  );
+					}else {
+						$('.fDownload').attr( 'href', srcFile );
+					}
+
+					$('.fDownload').html( '下载(' + humanFileSize(targetNode.fsize) +')' );
+
+					var shareStr = targetNode.level==0?'':
+					 ( targetNode.isSend||targetNode.isReceive||targetNode.isSign ? '&shareID='+ getShareID(targetNode) : '' );
+
+					if(changeURL) window.location = '#path='+ ( getPath(targetNode)+(targetNode.key||'') ) + shareStr;
+					// window.location.replace(window.location);
+				}
+
+			} else {
+				$('.botmenu').hide();
+			}
+		}
+
+function getFileUrl(targetNode){
+	var treeNode = targetNode;
+	var shareStr = treeNode.level==0?'':
+		( treeNode.isSend||treeNode.isReceive||treeNode.isSign ? '&shareID='+ getShareID(treeNode) : '' );
+	shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
+	shareStr += treeNode.isTemplate ? '&isTemplate=1' : '';
+
+	return !treeNode.isParent ? 'http://1111hui.com/pdf/webpdf/viewer.html#file='+(FILE_HOST+treeNode.key)+shareStr : '';
+
+}
+
+
+function setFileTemplate (isSet) {
+	var sel = treeObj.getSelectedNodes();
+	if(!sel.length) return;
+	var hashA = sel.map(function(v){return v.hash});
+
+	$.post( host+'/setFileTemplate', {hashA: hashA, isSet: isSet}, function(err){
+		if(err) return alert('有错误发生');
+		sel.forEach(function(v){
+			v.isTemplate = isSet;
+		});
+		updateMenu(sel);
+		alert(isSet? '设置模板成功': '取消模板成功');
+	} );
+}
+
+
+	</SCRIPT>
+
+
+
+
+<script type="text/javascript">
+
+
+window.flowData = null;
+window.curFlow = null;
+
+var companyTree = null;
+var companyNode = null;
+var companySetting = {
+	data: {
+		simpleData: {
+			enable: true,
+			idKey: "id",
+			pIdKey: "pId",
+			rootPId: 0
+		}
+	},
+	view: {
+		showLine: true,
+		dblClickExpand: false,
+		expandSpeed: "",
+		txtSelectedEnable:true,
+		showLine:false,
+		nameIsHTML:true
+	},
+
+	check: {
+		enable:true,
+		chkboxType:{ "Y": "s", "N": "s" }
+	},
+
+	callback: {
+		beforeClick: beforeClick2,
+		onClick: onClick2,
+
+	}
+}
+
+function showTab(idx) {
+
+	if( !$('.content_wrap').is(':visible') ) return;
+
+	curSrcNode = null;
+
+	var prevIdx = $('.currTab').data('idx');
+	if(typeof idx=='undefined') idx = prevIdx;
+
+	$('.ztreeFile').hide().eq(idx).show();
+	$('.header ul li').removeClass('currTab').eq(idx).addClass('currTab');
+	treeObj = eval('treeObj'+(idx+1) );
+
+	var sel = treeObj.getSelectedNodes();
+	updateMenu( sel );
+
+	if(typeof prevIdx=='undefined') return;
+
+}
+
+function beforeClick2(treeId, treeNode, clickFlag) {
+	className = (className === "dark" ? "":"dark");
+	if (treeNode.isParent && treeNode.click!==false) {
+		companyTree.expandNode(treeNode);
+	}
+	return (treeNode.click != false);
+}
+
+
+function onClick2(event, treeId, treeNode, clickFlag) {
+
+	if( !treeNode.isParent ) companyTree.checkNode(treeNode, null, true);
+
+}
+
+function hideShare () {
+	var sel = treeObj.getSelectedNodes()[0];
+	$('.company_wrap').hide();
+	showContentWrap();
+	$('.header').show();
+	//$('.treeCompanyCon').css({left: $('.company_wrap').width() });
+	updateMenu(sel);
+	curTree = treeObj;
+}
+
+
+
+var optionsDrag = {
+  limit: function (x,y,x0,y0) {
+  	return {x:x, y:y};
+  },
+  setCursor: 'move',
+  setPosition:false,
+  useGPU:false,
+  calcXY: function(me){
+  	console.log(me);
+    return {
+      left: parseInt( getComputedStyle(me.element).left ),
+      top: parseInt( getComputedStyle(me.element).top )
+    }
+  },
+  onDrag: function (element, x, y, e) {
+    $(element).css('left', x);
+    $(element).css('top', y);
+    $('.signPadHandler').css('left', x+$(element).width());
+    $('.signPadHandler').css('top', y+$(element).height());
+  }
+};
+
+function shareNodePre(e){
+
+	if( !companyTree.getCheckedNodes().length ){
+		alert("请先选择分享目标");
+		return;
+	}
+
+	$('#isSign').prop('checked', false);
+	$('.flowCon, .flowPerson').hide();
+
+	curTree = companyTree;
+	var nodes = companyTree.getCheckedNodes();
+	var stuffs =  getAllFiles(nodes);
+
+	stuffs = stuffs.map( function(v){
+		return {name: v.name, userid: v.userid, depart: v.getParentNode().name }
+	} );
+
+
+	$('#shareMsg').val('');
+	$( "#mydialog" ).trigger( "dialog-open" );
+	return false;
+
+}
+
+function beginFlow () {
+	$('#isSign').prop('checked', true);
+	$('.flowCon, .flowPerson').show();
+
+	$('#shareMsg').val('');
+	$( "#mydialog" ).trigger( "dialog-open" );
+}
+
+function shareNode(){
+
+
+	var msg = $('#shareMsg').val();
+	var isSign = $('#isSign').is(':checked');
+	var flowName = isSign? $('.flowSelect').val() : '';
+	if(isSign&&!flowName) {
+		alert('请选择流程');
+		return;
+	}
+
+	curTree = treeObj;
+	var sel = treeObj.getSelectedNodes()[0];
+	var shareID = getShareID(sel);
+
+	var files = getAllFiles(sel);
+	if(sel.isParent) files.forEach(function(v){ v.path = v.path.replace( getPath(sel), '/[[shareName]]/') });
+	else sel.path = '/[[shareName]]/';
+
+
+	var fileArr = [];
+	$.each(files, function  (i,v) {
+		var obj = fileKeys.reduce(function(o, key, idx) {
+		  o[key] = v[key];
+		  return o;
+		}, {});
+		fileArr.push(obj);
+	});
+
+
+	if(!isSign){
+
+		curTree = companyTree;
+		var nodes = companyTree.getCheckedNodes();
+		var stuffs =  getAllFiles(nodes);
+
+		stuffs = stuffs.map( function(v){
+			return {name: v.name, userid: v.userid, depart: v.getParentNode().name }
+		} );
+
+		// get Selected Folder & Files, exclude all redundant file
+		var fullCheckedFolder = companyTree.getNodesByFilter(function(node){ return node.check_Child_State==2 && node.checked }  );
+		fullCheckedFolder.forEach(function  (v) {
+			getAllFiles(v).forEach(function  (n) {
+				var idx = nodes.indexOf(n);
+				if(idx>-1) nodes.splice(idx,1);
+			});
+		});
+
+		var selectRange=[];
+		var stuffKeys = ['userid', 'name'];
+		nodes.forEach(function(v){
+			var obj = {};
+			if(v.isParent){
+				obj.name = v.name;
+				obj.depart = null;
+			} else {
+				obj.userid=v.userid;
+				obj.name=v.name;
+				obj.depart = v.getParentNode().name;
+			}
+			selectRange.push(obj);
+		});
+
+
+		hideShare();
+
+	}
+
+	if(!isSign){
+		var json = {fromPerson: [ rootPerson ], toPerson: stuffs, selectRange:selectRange, files:fileArr, oldShareID:shareID, msg:msg };
+	} else {
+		var json = {fromPerson: [ rootPerson ], toPerson: window.curFlow.flowPerson.slice(0,1), flowName: $('.flowSelect').val(),
+		selectRange: window.curFlow.flowPerson,
+		files:fileArr, msg:msg, isSign:isSign };
+	}
+	//console.log(json);return;
+	$.post(host+'/shareFile', {data: JSON.stringify(json) }, function(data){
+		$( "#mydialog" ).trigger( "dialog-close" );
+		alert( isSign? '流程已转交给相关人员，后续更新会消息通知' : '共享成功，已通知此共享相关人员');
+		//reloadTree2(files[0].key, data.shareID, true);
+	});
+}
+
+
+function hideContentWrap () {
+	var top = $(window).scrollTop();
+	var left = $(window).scrollLeft();
+	$('.content_wrap').data({left:left, top:top}).hide();
+}
+function showContentWrap () {
+	var pos = $('.content_wrap').show().data();
+	setTimeout(function  () {
+		$(window).scrollTop(~~pos.top);
+		$(window).scrollLeft(~~pos.left);
+	},0);
+}
+
+
+function shareFile(){
+	var sel = treeObj.getSelectedNodes();
+	if(!sel.length) return;
+	sel2 = sel[0];
+	var title = sel.length>1?  sel2.name+'..' : sel2.name;
+	$('.company_wrap').show();
+	hideContentWrap();
+	$('.header').hide();
+	$('.msgTitle').html( "分享 "+  title +' 给:' );
+	$('.treeCompanyCon').css({}, 300, 'linear');
+	updateMenu('.shareMenu');
+	curTree = companyTree;
+}
+
+
+function viewDetail () {
+	var sel = treeObj.getSelectedNodes();
+	if(!sel.length) return;
+	sel = sel[0];
+
+	hideContentWrap();
+	$('.header').hide();
+	$('.ztreeFile').hide();
+	$('.msg_wrap').show();
+
+	var title = getPath(sel);
+	title = title.split('/').slice(0,2).join('/')+'/';
+
+	$('.msgTitle').html( title );
+	$('.msgTree').css({bottom: $('.msgText').height()+10 }).css( {}, 300, 'linear' );
+
+	updateMenu('.msgMenu');
+	updateMenu();
+
+	var condition = {  };
+
+	//in shareID root folder
+	if(sel.isParent && sel.level==1 && sel.shareID) {
+		condition.shareID = sel.shareID;
+	}
+
+	//sub folder that don't have shareID
+	if(sel.isParent && sel.level>1) {
+		var p = sel;
+		while( p && !p.shareID){
+			p = p.getParentNode();
+		}
+		condition.shareID = p.shareID;
+
+		p = getAllFiles(sel);
+		var hashA = p.map(function  (v) {
+			return v.hash;
+		});
+		condition.hash = hashA;
+
+	}
+	if(sel.isParent && sel.level==0 && sel.userid && sel.isSend ) {
+		condition.fromPerson = sel.userid;
+	}
+	if(sel.isParent && sel.level==0 && sel.userid && sel.isReceive ) {
+		condition.toPerson = sel.userid;
+	}
+	if(!sel.isParent){
+		var p = sel.getParentNode();
+		while( p && !p.shareID){
+			p = p.getParentNode();
+		}
+		condition.shareID = p.shareID;
+		condition.hash = [sel.hash];
+	}
+
+	$('.msgTree ul').empty();
+	$.post(host+'/getShareMsg', condition , function(data){
+		if(!data)return;
+		data = JSON.parse(data);
+		var lastData = data[data.length-1];
+		if(lastData.touserName) $('.msgTitle').html( '群成员:<b>'+ $.unique(lastData.touserName.split('|')).join(',') + '</b> 文件:'+ title );
+		data.forEach(function  (v) {
+
+			appendShareMsg(v);
+		});
+	});
+}
+
+function appendShareMsg(v){
+	if( !$('.msg_wrap').is(':visible') ) return;
+	var sel = treeObj.getSelectedNodes();
+	if(!sel.length) return;
+	sel = sel[0];
+	if(!(sel.isSend||sel.isReceive)) return;
+
+	var title = getPath(sel);
+	title = title.split('/').slice(0,2).join('/')+'/';
+
+	var titleReg = title.replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+	var content = v.text.content.replace(new RegExp(titleReg,'ig'), '');
+
+	var $div = $('<div></div>');
+	$div.html(content);
+	$div.find('a').each(function  () {
+		if( $(this).html()=='' ) $(this).remove();
+	});
+	content = $div.html().replace(/对\s+/, '');
+
+	var li = $('<li>'+ content +'</li>');
+	$('.msgTree ul').append(li);
+	$('.msgTree').scrollTop( Infinity )
+}
+
+function closeViewDetail () {
+	var sel = treeObj.getSelectedNodes()[0];
+	$('.msg_wrap').hide();
+	showContentWrap();
+	$('.header').show();
+	showTab();
+
+	updateMenu(sel);
+}
+
+function addShareFiles () {
+	var sel = treeObj.getSelectedNodes()[0];
+	$( '#'+sendRoot.tId ).hide();
+	$( '#'+receiveRoot.tId ).hide();
+
+}
+
+function getShareID(p){
+	while( p && !p.shareID){
+		p = p.getParentNode();
+	}
+	return p && p.shareID;
+}
+
+function sendShareMsg () {
+	var sel = treeObj.getSelectedNodes();
+	if(!sel.length) return;
+	sel = sel[0];
+
+	var p = sel;
+	while( p && !p.shareID){
+		p = p.getParentNode();
+	}
+
+	var hash;
+	if( sel.isParent && sel.level>1 ) {
+		hash = getAllFiles(sel).map(function(v){return v.hash});
+	}
+	if( !sel.isParent ) {
+		hash = sel.hash;
+	}
+
+	var fileName, path = getPath(sel);
+	if(!sel.isParent) {
+		fileName = sel.name;
+		path += sel.hash;
+	}
+
+	var data = { person: rootPerson.userid, shareID:p.shareID, text:$('.inputMsg').val(), hash:hash, fileKey:sel.key, path:path.split('/'), fileName: fileName };
+
+	$.post(host+'/sendShareMsg', data , function(ret){
+		if(!ret){
+			return alert('消息发送错误，请复试');
+		}
+		$('.msg_wrap .inputMsg').val('');
+		//appendShareMsg(ret);
+	});
+
+}
+
+function downloadFile () {
+	var sel = getSelectFiles().shift();
+	if(!sel) return;
+	$.get( host+'/downloadFile', {key:getFileKeys(sel).key}, function  (path) {
+		$('.downloadIFrame').attr('src', path);
+	} );
+
+}
+
+
+window.wxReady = false;
+
+function initWX() {
+	$.post(host+'/getJSConfig', { url:window.location.href.split('#')[0] }, function(data){
+		if(!data){
+			alert('获取微信接口错误');
+			wx.closeWindow();
+			return;
+		}
+		data = JSON.parse(data);
+		wx.config(data);
+		wx.ready(function(){
+			window.wxReady = true;
+			//wxConfigMenu();
+			return;
+		});
+		wx.error(function(res){
+			alert('身份验证失败');
+			wx.closeWindow();
+		});
+
+	});
+}
+
+function wxConfigMenu(){
+wx.hideAllNonBaseMenuItem();
+wx.hideMenuItems({
+    menuList: ["menuItem:exposeArticle", "menuItem:setFont",  "menuItem:dayMode", "menuItem:nightMode", "menuItem:share:timeline", "menuItem:share:appMessage", "menuItem:share:qq", "menuItem:share:QZone", "menuItem:share:weiboApp", "menuItem:share:facebook", "menuItem:share:QZone", "menuItem:openWithQQBrowser", "menuItem:openWithSafari", ]
+});
+
+wx.showMenuItems({
+	menuList: [ "menuItem:refresh", "menuItem:favorite" ]
+});
+
+}
+
+function pcUploadImage(){
+
+}
+
+
+function wxUploadImage(){
+	if(!window.wxReady) return;
+	var sourceType = window.confirm('压缩图片吗？(上传较快)') ? 'compressed' : 'original';
+
+	//选择微信照片
+	wx.chooseImage({
+	    count: 1, // 默认9
+	    sizeType: [sourceType], // 可以指定是原图还是压缩图，默认二者都有 ['original', 'compressed']
+	    sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
+	    success: function (res) {
+	        var localIds = res.localIds; // 返回选定照片的本地ID列表，localId可以作为img标签的src属性显示图片
+	        localIds.forEach(function(v){
+
+	        	//开始上传图片
+	        	wx.uploadImage({
+	        	    localId: v, // 需要上传的图片的本地ID，由chooseImage接口获得
+	        	    isShowProgressTips: 1, // 默认为1，显示进度提示
+	        	    success: function (res) {
+	        	        var serverId = res.serverId; // 返回图片的服务器端ID
+	        	        $.get(host+'/uploadWXImage', {mediaID:serverId, person:rootPerson.userid}, function(data){
+
+	        	        	if(!data) return alert('上传图片错误');
+	        	        	//appendTree1(data);
+
+	        	        });
+	        	    }
+	        	});
+	        });
+
+	    },
+	    fail:function(res){
+
+	    },
+	    cancel:function(res){
+
+	    }
+	});
+}
+
+
+function markFinish (isFinish) {
+	var sel = getSelectFiles().shift();
+	var shareID = getShareID(sel);
+	$.post(host+'/markFinish', { personName:rootPerson.name, path:getPath(sel), shareID:shareID, isFinish: isFinish }, function  (data) {
+		//console.log(data);
+	});
+}
+
+function appendTree1(node) {
+	node.name = node.name||node.title;
+	var rootNode = treeObj1.getNodes()[0];
+	treeObj1.addNodes( rootNode , node );
+	treeObj1.expandNode( rootNode, true );
+	var sel =rootNode.children[0];
+	treeObj1.selectNode( sel );
+	updateMenu(sel);
+}
+
+function initOAth() {
+	$.get('https://qyapi.weixin.qq.com/cgi-bin/user/getuserinfo?access_token=ACCESS_TOKEN&code=CODE');
+}
+if(isWeiXin) initWX();
+
+$(function  () {
+
+	$.post(host+ (isWeiXin? '/getUserInfo' : '/getLoginUserInfo') , { userid: isWeiXin? wxUserInfo.UserId:'' }, function  (userinfo) {
+
+		if(!userinfo) {
+			alert('非法用户');
+			return;
+		}
+
+		rootPerson = userinfo;
+
+		getFilesData();
+
+		$.post(host+'/getCompanyTree', { company:'lianrun' }, function  (data) {
+			companyNode = JSON.parse( data );
+			console.log(data);
+			companyTree = $.fn.zTree.init($("#companyTree"), companySetting, companyNode);
+		});
+
+		$.post(host+'/getFlowList', { }, function  (data) {
+			if(!data)return;
+			window.flowData = data;
+			var sel = $('.flowSelect');
+			data.forEach(function  (v) {
+				var option = $('<option value="'+v.name+'">'+v.name+'</option>');
+				sel.append(option);
+			});
+			sel.change(function  (e) {
+				var id=this.selectedIndex-1;
+				if(id<0){
+					$('.flowPerson').empty();
+					return;
+				}
+				window.curFlow = window.flowData[id];
+				var persons = window.curFlow.flowPerson;
+				var list = persons.map(function  (v) {
+					return '<a href="http://www.baidu.com/">['+v.depart+ ']' +v.name+'</a>';
+				});
+
+				$('.flowPerson').empty().append( list.join('->') );
+			});
+		});
+
+
+	});
+
+
+	$('#isSign').change(function  () {
+		if( $(this).prop('checked') ){
+			$('.flowCon, .flowPerson').show();
+		} else {
+			$('.flowCon, .flowPerson').hide();
+		}
+	});
+
+
+
+	$('.dialog-confirm').bind('click', function  (e) {
+		e.preventDefault();
+		shareNode();
+	});
+
+
+	$('.header ul li').click(function(){
+		var idx = $(this).data('idx');
+		showTab(idx);
+	});
+
+
+
+});
+
+
+
+
+
+
+</script>
+
+
+
+<style type="text/css">
+
+*:focus, *:active {
+    border:none;
+    outline: none;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+
+
+
+.noselect {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+	div#rMenu {position:absolute; z-index: 9999; visibility:hidden; top:0; background-color: #555;text-align: left;padding: 2px;}
+	div#rMenu ul li{
+		margin: 1px 0;
+		padding: 0 5px;
+		cursor: pointer;
+		list-style: none outside none;
+		background-color: #DFDFDF;
+	}
+	.ztree li{
+		padding: 10px 0;
+	}
+
+	body,p,ul,li{margin: 0;padding: 0; list-style: none;}
+	body{
+		padding-bottom: 100px;
+	}
+	.botmenu{
+		position: fixed;
+		bottom: 0;
+		left:0;
+	    width: 100%;
+		height: 44px;
+		border-top:1px solid #ccc;
+		font:18px/1 "黑体";
+		display: none;
+		  background: white;
+		z-index: 9;
+	}
+
+	.botmenu div{
+		display: table;
+		table-layout:fixed;
+		height: 100%;
+		width: 100%;
+	}
+	.botmenu a{
+		display: table-cell;
+		vertical-align: middle;
+		text-align: center;
+		width: 25%;
+		height: 100%;
+		border-right:1px solid #ccc;
+	}
+	.botmenu a:link, .botmenu a:visited{
+		color: #666;
+		text-decoration: none;
+	}
+
+
+	.popupWin {
+	  position: absolute;
+	  z-index: 9;
+	  top: 0;
+	  left: 0;
+	  right:0px;
+	  margin-top: 0;
+	  margin-bottom: 45px;
+	  overflow: hidden;
+	  display: none;
+      background-color: #fff;
+
+	}
+	.popcon {
+	  position: static;
+	  background-color: white;
+	  left: 0;
+    	top: 43px;
+	  margin-top: 43px;
+	  height: 100%;
+	  width: 100%;
+	  border-left: 1px solid #ccc;
+	}
+
+	.msg_wrap{
+	  position: fixed;
+	  top: 0px;
+	  left: 0;
+	  width: 100%;
+	  height: 100%;
+	  display: none;
+      background-color: #fff;
+	}
+
+	.msgTree {
+	    position: absolute;
+	    background-color: white;
+	    left: 10px;
+	    right: 10px;
+	    top: 43px;
+	    bottom:150px;
+	    overflow: auto;
+	}
+
+	.msgTree ul li{
+		margin:10px 0;
+	}
+	.msgTitle{
+		position: fixed;
+		top:0;
+		z-index: 9;
+		left:0;
+		width: 100%;
+		height: 42px;
+		border-bottom: 1px solid #ccc;
+		background: #eee;
+	  text-align: center;
+	  line-height: 41px;
+	    overflow: hidden;
+	}
+
+	#shareMsg{
+		border:1px solid #666;
+		border-radius: 4px;
+		width: 95%;
+		height: 80px;
+		font:18px/1 Arial;
+		color: #999;
+	}
+	#shareMsg:focus{
+		border:1px solid #666;
+		border-radius: 4px;
+	}
+
+	.dialog{
+		display: none;
+	}
+
+	.dialog p{
+		  margin-bottom: 15px;
+	}
+	.dialog-close {
+	  margin-right: 10px;
+	  display: inline-block;
+	  padding: 15px;
+	  padding-bottom: 5px;
+	}
+
+	.fAddShare{
+		display: none;
+	}
+	.msgText{
+		position: fixed;
+		bottom: 8px;
+		  left: 10px;
+		  right:10px;
+	}
+	.inputMsg{
+    	border: 1px solid #ccc;
+		border-radius: 4px;
+		 height: 88px;
+		 width: 365px;
+		     font: 28px/1 Arail;
+	}
+	.inputBtn{
+	    width: 80px;
+	    height: 44px;
+        vertical-align: top;
+            background-color: rgb(70,183,103);
+	    border: none;
+	    border-radius: 4px;
+	        color: white;
+	    font: 18px/1 "黑体";
+	}
+	.inputBtn.closeBtn{
+		background: none;
+		color: #333;
+		    border: 1px solid #aaa;
+	}
+
+	.flowCon, .flowPerson{
+		display: none;
+	}
+
+	.ztree li a:hover{
+		text-decoration: none;
+	}
+
+	.header{
+		position: fixed;
+		top:0;
+		left: 0;
+		right: 0;
+		z-index: 2;
+	}
+	.header ul{
+		width: 100%;
+	}
+	.header ul li{
+		display: table-cell;
+		position: relative;
+		width: 2%;
+		line-height: 41px;
+		border-right:1px solid #ccc;
+		border-bottom: 1px solid #ccc;
+		background: #fff;
+		text-align:center;
+		cursor: pointer;
+	}
+	.header ul li.currTab{
+		background: #eee;
+	}
+
+	.content_wrap{
+		margin-top:42px;
+	}
+
+	#fileTree2, #fileTree3{
+		display: none;
+	}
+
+
+
+
+
+	#dropzone {
+		display: none;
+	    background: palegreen;
+	    width: 150px;
+	    height: 50px;
+	    line-height: 50px;
+	    text-align: center;
+	    font-weight: bold;
+	}
+	#dropzone.in {
+		border:5px dotted green;
+	    font-size: larger;
+	}
+	#dropzone.hover {
+	    background: lawngreen;
+	}
+	#dropzone.fade {
+	    -webkit-transition: all 0.3s ease-out;
+	    -moz-transition: all 0.3s ease-out;
+	    -ms-transition: all 0.3s ease-out;
+	    -o-transition: all 0.3s ease-out;
+	    transition: all 0.3s ease-out;
+	    opacity: 1;
+	}
+
+	.fPicture{
+		position: relative;
+	}
+	#fileupload1{
+		position: absolute;
+		z-index: 9999;
+		top: 0;
+		left: 0;
+		height: 84px;
+		width: 100%;
+		opacity: 0;
+		cursor: pointer;
+	}
+
+	.bg_mask{
+		position: fixed;
+		top:0;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		z-index: 99999;
+		background-color: rgba(0,0,0,0.3);
+		display: none;
+	}
+
+.selTab li span{
+	position: absolute;
+	right:0;
+	top:0;
+	bottom: 0;
+	width: 44px;
+	font:22px/41px Arial;
+}
+.selTab li div.menuPopup{
+	position: absolute;
+    right: 0;
+    top: 41px;
+    background-color: white;
+    border: 1px solid #ccc;
+    overflow: hidden;
+}
+.selTab li div.menuPopup.hidden{
+    display: none;
+}
+.selTab li div.menuPopup a{
+	display: block;
+    border-bottom: 1px solid #eee;
+    padding: 0px 40px;
+    position: relative;
+}
+
+
+
+
+</style>
+
+</HEAD>
+
+<BODY>
+
+
+
+<div id="dropzone" class="fade well">Drop files here</div>
+
+<script src="js/vendor/jquery.ui.widget.js"></script>
+<script src="js/jquery.iframe-transport.js"></script>
+<script src="js/jquery.fileupload.js"></script>
+<script>
+
+var regex_image= /(gif|jpe?g|png|bmp)$/i;
+var regex_can_be_convert = /(docx?|xlsx?|pptx?|txt)$/i;
+var UploadNonImage = false;
+var CONVERT_TIMEOUT = 2*60*1000 ; 	//5 mins
+
+function convertPDF () {
+	var sel = getSelectFiles().shift();
+	if(!sel || sel.isParent) return;
+
+	$('.fConvert').hide();
+
+	if( sel.key.match( regex_image ) ){
+		$.post(host+'/uploadPCImage', {person:rootPerson.userid, data: getFileKeys(sel) }, function(ret){
+			//console.log(ret);
+			if(!ret) alert('转换文件发生错误');
+		}  );
+	}
+
+	if( sel.key.match( regex_can_be_convert ) ){
+		$.ajax({
+		  type: 'POST',
+		  url: host+'/generatePDFAtPrinter',
+		  data: getFileKeys(sel),
+		  // type of data we are expecting in return:
+		  dataType: 'json',
+		  timeout: CONVERT_TIMEOUT,
+		  success: function(ret){
+		    if(!ret) return alert('转换超时');
+			console.log(ret);
+			alert(ret.errMsg!='ok' ? ret.errMsg : '转换成功,已自动加入文件柜并高亮' );
+		  },
+		  error: function(xhr, type){
+		    alert('连接超时');
+		  }
+		});
+	}
+}
+
+$(function () {
+    $('#fileupload1').fileupload({
+        dataType: 'json',
+        add: function (e, data) {
+			var isImage = false;
+			var isPDF = false;
+        	var filename = data.files[0].name;
+        	var baseName = filename.split('.');
+        	var ext = baseName.pop();
+        	baseName = baseName.join('.');
+        	if( ext.match(regex_image) ){
+        		isImage = true;
+        	}
+
+        	if( ext.match(/(pdf)$/i) ){
+        		isPDF = true;
+        	}
+
+        	if( ! (isImage || isPDF || ext.match(regex_can_be_convert) ) ) {
+        		//return alert('文件格式不支持，请选择图片、OFFICE文档、TXT文本文件');
+        	}
+
+        	//if(isImage ||UploadNonImage ) {
+        	if( UploadNonImage ) {
+        		UploadNonImage = false;
+        		// if it's  images, upload to our server to generate right PDF.
+	        	if (data.autoUpload || (data.autoUpload !== false &&
+	    	            $(this).fileupload('option', 'autoUpload') ) ) {
+	    	        data.process().done(function () {
+	    	            data.submit();
+	    	        });
+	    	    }
+	    	} else {
+
+        		// if it's not images, then we upload using Cloud
+	    		$.post(host+'/getUpToken', function(token){
+	    			if(!token) return alert('上传错误');
+
+
+	    			// $(this).fileupload('option', 'url', 'http://up.qiniu.com');
+	    			// data.formData = {key: moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'.'+ext, token:token };
+	    			var key =moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'.'+ext;
+	    			UploadNonImage = true;
+	    			$('#fileupload1').fileupload('add', {files: data.files, formData:{key:key, token:token, 'x:path': data.files[0].relativePath||'' }, url: 'http://up.qiniu.com'} );
+	    			// This will trigger ADD event again, with UploadNonImage = true
+
+	    		});
+
+	    	}
+    	    $('.bg_mask').show();
+
+        },
+
+        done: function (e, data) {
+        	//console.log(e,data);
+
+        	$('.bg_mask').hide();
+
+        	if( data.result.file ) {
+	            $.each(data.result.file, function (index, file) {
+	            	if(file.error) return alert(file.error);
+	            	$.post(host+'/uploadPCImage', {person:rootPerson.userid, filename:file.name}, function(ret){
+	            		//console.log(ret);
+	            	}  );
+	            });
+	        }
+
+	        if( data.result.key ) {
+	        	var result = data.result;
+				result.person = rootPerson.userid;
+				result.client = '';
+				result.title = result.fname;
+
+				var sel = getSelectFiles().shift();
+				var oldPath = sel? getPath(sel) : '/';
+
+				result.path = oldPath.replace(/[^/]+$/,'') + result.srcPath ;
+
+				result.returnPath = oldPath;
+
+        		$.post(host+'/upfile', result, function(ret){  });
+
+	        	if( data.result.key.match(/(pdf)$/i) ) {
+
+	        	}
+	        	return;
+
+	        	$.post(host+'/generatePDFAtPrinter', data.result, function(ret){
+	        		//console.log(ret);
+	        	}  );
+
+	        }
+        }
+    });
+
+
+
+
+});
+
+
+$(document).bind('dragover', function (e) {
+    var dropZone = $('#dropzone'),
+        timeout = window.dropZoneTimeout;
+    if (!timeout) {
+        dropZone.addClass('in');
+    } else {
+        clearTimeout(timeout);
+    }
+    var found = false,
+        node = e.target;
+    do {
+        if (node === dropZone[0]) {
+            found = true;
+            break;
+        }
+        node = node.parentNode;
+    } while (node != null);
+    if (found) {
+        dropZone.addClass('hover');
+    } else {
+        dropZone.removeClass('hover');
+    }
+    window.dropZoneTimeout = setTimeout(function () {
+        window.dropZoneTimeout = null;
+        dropZone.removeClass('in hover');
+    }, 100);
+});
+
+$(document).bind('drop dragover', function (e) {
+    e.preventDefault();
+});
+
+
+
+
+
+
+window.addEventListener('keydown', handleShortKey);
+
+function handleShortKey (evt) {
+
+      var handled = false;
+      var cmd = (evt.ctrlKey ? 1 : 0) |
+            (evt.altKey ? 2 : 0) |
+            (evt.shiftKey ? 4 : 0) |
+            (evt.metaKey ? 8 : 0);
+
+		//console.log(evt.keyCode)
+
+      if (cmd === 0) { // no control key pressed at all.
+        //console.log(evt, evt.keyCode);
+        switch (evt.keyCode) {
+          case 46:  //Delete key
+          	removeTreeNode();
+          	break;
+          case 116:  //F5 key
+          	window.location.reload();
+            handled = true;
+            break;
+        }
+      }
+
+    if (cmd === 1 || cmd === 8) {
+      switch (evt.keyCode) {
+        case 82:  //Ctrl+R
+          window.location.reload();
+          break;
+      }
+    }
+
+    if (cmd === 5 || cmd === 12) {
+      switch (evt.keyCode) {
+        case 90:
+
+          break;
+      }
+    }
+
+
+
+    if(handled){
+      evt.preventDefault();
+      return;
+    }
+
+}
+
+
+
+
+$(function initPopupMenu () {
+
+	$('.addFileBtn').click(function  () {
+		$(this).next('div').toggleClass('hidden');
+
+		//$('#fileupload1').width( $('#fileupload1').parent().get(0).offsetWidth );
+		var menuHeight = $('.addImageBtn').get(0).offsetHeight;
+
+		isWeiXin
+		? $('#fileupload1').css({top: menuHeight+'px', height:menuHeight+'px' })
+		: $('#fileupload1').css({top: 0+'px', height:menuHeight*2+'px' })
+
+	});
+
+
+
+	$(document).click(function hideMenu (e) {
+
+		if( $(e.target).hasClass('popBtn') ) return;
+		$('.menuPopup').addClass('hidden');
+
+	});
+
+
+
+});
+
+
+
+</script>
+
+
+<div class="bg_mask"></div>
+
+<iframe class="downloadIFrame" style="display:none"></iframe>
+
+<div class="dialog" id="mydialog">
+    <div class="shareMsg">
+    	<label style="display:none;"><input id="isSign" type="checkbox" /> 发起流程</label>
+    	<span class="flowCon">
+	    	<label>选择流程：</label>
+	    	<select class="flowSelect">
+	    		<option value="">请选择</option>
+	    	</select>
+    	</span>
+    </div>
+    <div class="flowPerson">
+
+    </div>
+    <p>稍句话：(可留空)</p>
+    <div class="shareMsg"><textarea id="shareMsg"></textarea></div>
+    <span>确认分享？</span>
+    <a href="#mydialog-btn" class="dialog-close" onclick='$("#mydialog").trigger("dialog-close")'>取消</a>
+    <a href="#mydialog-btn" class="dialog-confirm">确定</a>
+
+</div>
+
+<div id="rMenu">
+	<ul>
+		<li id="m_add" onclick="addTreeNode();">新建</li>
+		<li id="m_del" onclick="removeTreeNode();">删除</li>
+		<li id="m_check" onclick="renameTreeNode();">重命名</li>
+	</ul>
+</div>
+
+
+<div class="header">
+	<ul class="tab selTab">
+		<li data-idx=0 class="noselect">我的文件<span class="popBtn addFileBtn">+</span>
+			<div class="menuPopup hidden addFilePopup">
+				<a class="addImageBtn" onclick="addPictureCon()">图片
+				</a>
+				<a onclick="">文件</a>
+				<input id="fileupload1" type="file" name="file" data-url="./phpupload/" multiple>
+				<a class="fRename" onclick="addTreeNode()">文件夹</a>
+				<a class="fShare" onclick="addTemplateCon()">模板</a>
+			</div>
+		</li>
+		<li data-idx=1 class="tab noselect">发件柜<span class="filterFileBtn">+</span></li>
+		<li data-idx=2 class="tab noselect">收件柜<span class="filterFileBtn">+</span></li>
+	</ul>
+</div>
+
+<div class="content_wrap">
+	<div class="tree1">
+		<ul id="fileTree" class="ztree ztreeFile"></ul>
+	</div>
+
+	<div class="tree2">
+		<ul id="fileTree2" class="ztree ztreeFile"></ul>
+	</div>
+
+	<div class="tree3">
+		<ul id="fileTree3" class="ztree ztreeFile"></ul>
+	</div>
+
+</div>
+
+
+<div class="popupWin templateFile_wrap">
+	<div class="msgTitle"></div>
+	<div class="popcon TemplateFileCon">
+		<ul id="fileTreeTemplate" class="ztree ztreeCompany"></ul>
+	</div>
+</div>
+
+
+<div class="popupWin company_wrap">
+	<div class="msgTitle"></div>
+	<div class="popcon treeCompanyCon">
+		<ul id="companyTree" class="ztree ztreeCompany"></ul>
+	</div>
+</div>
+
+
+<div class="popupWin print_wrap">
+	<div class="msgTitle"></div>
+	<div class="popcon PrintCon">
+		<ul id="printTree" class="ztree ztreePrint"></ul>
+	</div>
+</div>
+
+
+<div class="msg_wrap">
+	<div class="msgTitle"></div>
+	<div class="msgTree">
+		<ul></ul>
+	</div>
+	<div class="msgText">
+		<textarea class="inputMsg"></textarea>
+		<input class="inputBtn" type="button" value="发送" onclick="sendShareMsg()" />
+		<input class="inputBtn closeBtn" type="button" value="关闭"  onclick="closeViewDetail()" />
+	</div>
+</div>
+
+
+<nav class="botmenu">
+	<div class="fileMenu">
+		<a class="fView" href="javascript:;" onclick="">查看</a>
+		<a class="fRename" href="javascript:;" onclick="renameTreeNode()">改名</a>
+		<a class="fRemove" href="javascript:;" onclick="removeTreeNode()">删除</a>
+		<a class="fRemove" href="javascript:;" onclick="cutNode()">移动</a>
+		<a class="fShare" href="javascript:;" onclick="shareFile()">分享</a>
+		<a class="fShare" href="javascript:;" onclick="beginFlow()">流程</a>
+		<a class="fAdmin fSetTemplate" href="javascript:;" onclick="setFileTemplate(true)">设为模板</a>
+		<a class="fAdmin fRemoveTemplate" href="javascript:;" onclick="setFileTemplate(false)">取消模板</a>
+		<a class="fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>
+	</div>
+
+	<div class="unknownMenu">
+		<a class="fDownload" href="#" download onclick="">下载</a>
+		<a class="fConvert" href="javascript:;" onclick="convertPDF()">转为PDF</a>
+	</div>
+
+	<div class="dirMenu">
+		<a class="fRename" href="javascript:;" onclick="addTreeNode()">新建</a>
+		<a class="fRename" href="javascript:;" onclick="renameTreeNode()">改名</a>
+		<a class="fRemove" href="javascript:;" onclick="removeTreeNode()">删除</a>
+		<a class="fRemove" href="javascript:;" onclick="cutNode()">移动</a>
+		<a class="fShare" href="javascript:;" onclick="shareFile()">分享</a>
+	</div>
+
+	<div class="rootMenu1">
+
+	</div>
+
+	<div class="moveMenu">
+		<a class="fRename" href="javascript:;">选择目标目录：</a>
+		<a class="fRemove" href="javascript:;" onclick="moveTreeNodeCancel()">取消</a>
+		<a class="fPaste" href="javascript:;" onclick="pasteNode()">确定</a>
+	</div>
+
+	<div class="shareMenu">
+		<a class="fRename" href="javascript:;">分享给：</a>
+		<a class="fRemove" href="javascript:;" onclick="hideShare()">取消</a>
+		<a class="fPaste" href="javascript:;" onclick="return shareNodePre()">确定</a>
+	</div>
+
+	<div class="sendMenu">
+		<a class="fView" href="javascript:;" onclick="">查看文件</a>
+		<a class="fRemove" href="javascript:;" onclick="viewDetail()">消息记录</a>
+		<a class="fShare" href="javascript:;" onclick="shareFile()">分享</a>
+		<a class="fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>
+	</div>
+
+	<div class="receiveMenu">
+		<a class="fFile fView" href="javascript:;" onclick="">查看文件</a>
+		<a class="fFile fShare" href="javascript:;" onclick="shareFile()">分享</a>
+		<a class="fCommon fMessage" href="javascript:;" onclick="viewDetail()">消息记录</a>
+		<a class="fFile fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>
+		<a class="fFolder fFinish" href="javascript:;" onclick="markFinish(false)">未完成</a>
+		<a class="fFolder fNotFinish" href="javascript:;" onclick="markFinish(true)">完成</a>
+	</div>
+
+	<div class="templateMenu">
+		<a class="fBackTemplate" href="javascript:;" onclick="hideTemplateCon()">返回</a>
+		<a class="fConfirmTemplate" href="javascript:;" onclick="applyTemplate()">确定选择</a>
+	</div>
+
+	<div class="printMenu">
+		<a class="fBackPrint" href="javascript:;" onclick="hidePrintCon()">返回</a>
+		<a class="fConfirmPrint" href="javascript:;" onclick="applyPrint()">确定选择</a>
+	</div>
+
+	<div class="msgMenu">
+		<a class="fMsgMenu" href="javascript:;" onclick="closeViewDetail()">关闭</a>
+	</div>
+
+
+
+</nav>
+
+
+
+<!-- <script src="http://192.168.1.135:8080/target/target-script-min.js#anonymous"></script> -->
+
+</BODY>
+</HTML>
