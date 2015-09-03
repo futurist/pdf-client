@@ -420,7 +420,7 @@ app.post("/getFinger", function (req, res) {
   if(!reqData) return res.send('');
   var finger = reqData.finger;
   var condition = {finger:finger, role:'finger', date:{$gt: new Date(moment().subtract(1, 'days')) } };
-  
+
   res.cookie('finger', finger);
 
   col.findOne( condition , function(err, item){
@@ -459,7 +459,7 @@ app.post("/getLoginUserInfo", function (req, res) {
      }else{
         res.cookie('userid', item.userid);
     	 getUserInfo(item.userid, res);
-       //col.updateOne({ msgid:msgid, role:'finger' }, { $set:{msgid:null} } ); 
+       //col.updateOne({ msgid:msgid, role:'finger' }, { $set:{msgid:null} } );
      }
 
   });
@@ -1330,10 +1330,13 @@ app.post("/getSavedSign", function (req, res) {
   }catch(e){
     return res.send("");
   }
-  if(!shareID){
+  if( 0 && !shareID){
     return res.send("");
-  } else{
-    col.find({role:'sign', shareID:shareID, file:file, signData:{$ne:null} }, {sort:{signData:1}}).toArray(function(err, docs){
+  } else {
+    // col.find({role:'sign', shareID:shareID, file:file, signData:{$ne:null} }, {sort:{signData:1}}).toArray(function(err, docs){
+    // col.find({role:'sign', shareID:shareID, file:file }, { }).toArray(function(err, docs){
+
+    function getSignData(err, docs){
       if(err){ return res.send(""); }
       var ids = docs.map(function  (v) {
         return new ObjectID( v.signData );
@@ -1342,14 +1345,47 @@ app.post("/getSavedSign", function (req, res) {
       col.find({_id:{$in:ids}}, {sort:{_id:1}}).toArray(function (err, items) {
         docs.forEach(function  (v,i) {
           var t = items.filter(function(x){
-            return x._id.toHexString() == v.signData.toHexString()
+            return x&&x._id&& v && v.signData && x._id.toHexString() == v.signData.toHexString()
           });
-          v.sign = t[0];
+          v.sign = t.shift();
         });
         res.send(docs);
       });
+    }
 
-    } );
+    // For role:'sign', if it's no shareID, then it's template, else it's RealSignData
+
+    if(shareID){
+
+        col.find({role:'sign', shareID:shareID, file:file, signData:{$ne:null} }, {sort:{signData:1}}).toArray(function(err, docs){
+            getSignData(err, docs);
+          } );
+
+    } else {
+
+      col.findOne({ role:'upfile', key:filename } , {} , function(err, result) {
+
+        if(err || !result ) return res.send('');
+
+        var signIDS = result.signIDS;
+        if(!signIDS ) return res.send('');
+
+        col.find({role:'sign',  _id:{ $in:  signIDS.map( function(v){ return new ObjectID(v) } )  } }, { }).toArray(function(err, docs){
+
+          getSignData(err, docs);
+
+        } );
+
+      });
+
+
+    }
+
+
+
+
+
+
   }
 
 });
@@ -1511,6 +1547,32 @@ app.post("/getShareMsg", function (req, res) {
 
 });
 
+// Save sign info into upfile, signIDS array, with no ShareID
+app.post("/drawSign", function (req, res) {
+
+  var data =  req.body.data;
+  var signPerson = data.signPerson;
+  var file = data.file.split('/').pop() ;
+  var page = data.page;
+  var pos = data.pos;
+  var isMobile = data.isMobile;
+
+  data.isMobile = safeEval(data.isMobile);
+  data.page = safeEval(data.page);
+  data.scale = safeEval(data.scale);
+  data.role = 'sign';
+  data.date = new Date();
+
+  col.insertOne(data, {w:1}, function(err,result){
+    var id = result.insertedId;
+
+    col.update( { role:'upfile', person:signPerson, key:file }, { $addToSet: { signIDS: id } } );
+
+    res.send(id);
+  });
+
+});
+
 app.post("/beginSign", function (req, res) {
   var data =  req.body.data;
   var signPerson = data.signPerson;
@@ -1536,10 +1598,26 @@ app.post("/beginSign", function (req, res) {
 
 app.post("/deleteSign", function (req, res) {
   var id =  req.body.id;
+  var person =  req.body.person;
+  var file =  req.body.file;
+
+  var key = file.split('/').pop();
+
   if(!id.length){
     return res.send('');
   }
   col.deleteOne({_id:new ObjectID(id) });
+  col.update({ role:'upfile', key:key, person:person }, { $pull: { signIDS: new ObjectID(id) } }  );
+  res.send('OK');
+});
+
+app.post("/deleteSignOnly", function (req, res) {
+  var id =  req.body.id;
+  if(!id.length){
+    return res.send('');
+  }
+
+  col.update( {_id:new ObjectID(id) }, { $unset: { 'signData':'' }  } );
   res.send('OK');
 });
 

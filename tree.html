@@ -89,7 +89,7 @@ function updateIcon () {
 		iconInter = setInterval(function  () {
 			nwMain.tray.icon = i++%2 ? 'res/tray-new.png' : 'res/unread.png';
 		}, 500);
-		
+
 	} else {
 		clearInterval(iconInter);
 		iconInter = -1;
@@ -183,7 +183,7 @@ function humanFileSize(bytes, si) {
 
 
 				if (typeof nwNotify!='undefined') {
-					
+
 					var msgObj =  {
 							title:'有消息',
 							text: msg.text.content,
@@ -852,6 +852,8 @@ function hidePrintCon() {
 		function onDblClick (event, treeId, treeNode) {
 			var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
 			shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
+
+			shareStr += treeNode.isTemplate ? '&isTemplate=1' : '';
 
 			sendClientMsg(treeNode.key + shareStr, treeNode.title);
 		}
@@ -2798,8 +2800,8 @@ $(function initPopupMenu () {
 				<a class="fShare" onclick="addTemplateCon()">模板</a>
 			</div>
 		</li>
-		<li data-idx=1 class="tab noselect">发件柜<span class="filterFileBtn">+</span></li>
-		<li data-idx=2 class="tab noselect">收件柜<span class="filterFileBtn">+</span></li>
+		<li data-idx=1 class="tab noselect">发件柜</li>
+		<li data-idx=2 class="tab noselect">收件柜</li>
 	</ul>
 </div>
 
