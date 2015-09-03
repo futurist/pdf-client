@@ -41,7 +41,7 @@ qiniu.conf.SECRET_KEY = 'xvZ15BIIgJbKiBySTV3SHrAdPDeGQyGu_qJNbsfB';
 QiniuBucket = 'bucket01';
 
 FILE_HOST = 'http://7xkeim.com1.z0.glb.clouddn.com/';
-TREE_URL = "http://1111hui.com/pdf/client/tree.html";
+TREE_URL = "http://1111hui.com:88/tree.html";
 VIEWER_URL = "http://1111hui.com/pdf/webpdf/viewer.html";
 IMAGE_UPFOLDER = 'uploads/' ;
 
@@ -261,7 +261,9 @@ function wsSendPrinter (msg, printerName, res) {
 
 function wsBroadcast(data) {
   wss.clients.forEach(function each(client) {
-    client.send( JSON.stringify(data)  );
+    try{
+      client.send( JSON.stringify(data)  );
+    }catch(e) { console.log('err send ws', data) }
   });
 };
 
@@ -374,11 +376,6 @@ var DOWNLOAD_DIR = './downloads/';
 
 
 
-app.get("/tree.html", function (req, res) {
-  res.render('tree',{
-    abc:1
-  });
-});
 app.get("/main.html", function (req, res) {
   res.render('main',{
     abc:1
@@ -422,7 +419,7 @@ app.post("/getFinger", function (req, res) {
   var reqData = getWsData(msgid);
   if(!reqData) return res.send('');
   var finger = reqData.finger;
-  var condition = {finger:finger, role:'finger', date:{$gt: new Date(moment().subtract(3, 'minutes')) } };
+  var condition = {finger:finger, role:'finger', date:{$gt: new Date(moment().subtract(1, 'days')) } };
   
   res.cookie('finger', finger);
 
@@ -2125,7 +2122,7 @@ wechat(config, wechat
 //   MsgType: 'event',
 //   AgentID: '1',
 //   Event: 'view',
-//   EventKey: 'http://1111hui.com/pdf/client/tree.html' }
+//   EventKey: 'http://hostname/tree.html' }
 
 //****when enter Agent, will receive message:
 // { ToUserName: 'wx59d46493c123d365',

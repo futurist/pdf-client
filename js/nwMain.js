@@ -59,7 +59,7 @@ var nwMain = (function(gui) {
 		showWin(true);
 
 		// init system _Tray
-		_tray = new gui.Tray({ title: 'Tray', icon: 'img/icon.png' });
+		_tray = new gui.Tray({ title: 'Tray', icon: 'res/tray.png' });
 		// Give it a menu
 		var menu = new gui.Menu();
 
@@ -84,13 +84,12 @@ var nwMain = (function(gui) {
 
 		nwNotify.setConfig({
 		    //appIcon: nwNotify.getAppPath() + 'images/icon.png',
-		    displayTime: 0,
+		    displayTime: 90000000,
 
 			width: 300,
 			height: 65,
 			padding: 10,
 			borderRadius: 5,
-
 			defaultStyleContainer: {
 				backgroundColor: '#f0f0f0',
 				overflow: 'hidden',
@@ -141,8 +140,20 @@ var nwMain = (function(gui) {
 
 
 		});
+
+		if(!gui.Screen.screens) gui.Screen.Init();
+		var screens = gui.Screen.screens;
+		// Use first screen only
+		var cur_screen = screens[0];
+		lowerRightCorner = {};
+		lowerRightCorner.x = cur_screen.bounds.x + cur_screen.work_area.x + cur_screen.work_area.width;
+		lowerRightCorner.y = cur_screen.bounds.y + cur_screen.work_area.y + cur_screen.work_area.height;
+
+		nwNotify.setConfig( {lowerRightCorner: lowerRightCorner } );
+
 		// If you want to use your own notification.html you use this method. Use it like this: 
-		nwNotify.setTemplatePath(nwNotify.getAppPath() + 'notification.html');
+		//nwNotify.setTemplatePath(nwNotify.getAppPath() + 'notification.html');
+		nwNotify.setTemplatePath( host + '/notification.html');
 
 
 	}

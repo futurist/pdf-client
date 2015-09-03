@@ -41,7 +41,7 @@
 	<div class="loadInfo">
 		<div class="loading">加载中...</div>
 		<div class="qrcode">
-			<p>检测到未登录或系统环境发生变化，请使用微信扫码登录。</p>
+			<p>请使用微信扫码登录。</p>
 			<img src="">
 		</div>
 	</div>
@@ -61,7 +61,7 @@ var host = "http://1111hui.com:88";
 
 ws.addEventListener('open', function(){
 	console.log('ws opened init function');
-	getFinger();
+	if(typeof global!='undefined') getFinger();
 });
 
 
