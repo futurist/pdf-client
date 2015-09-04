@@ -87,13 +87,13 @@ function updateIcon () {
 		if(iconInter!==-1) return;
 		var i =0;
 		iconInter = setInterval(function  () {
-			nwMain.tray.icon = i++%2 ? 'res/tray-new.png' : 'res/unread.png';
+			global._nwMain.tray.icon = i++%2 ? 'res/tray-new.png' : 'res/tray-empty.png';
 		}, 500);
 
 	} else {
 		clearInterval(iconInter);
 		iconInter = -1;
-		nwMain.tray.icon =  'res/tray.png';
+		global._nwMain.tray.icon =  'res/tray.png';
 	}
 
 }
@@ -110,6 +110,7 @@ if(typeof global !='undefined') {
 	el.onload =function  () {
 		global.msgQueue = global.msgQueue || {};
 		updateIcon();
+		
 	}
 
 	$(document).on('click','a', function  (e) {
@@ -441,10 +442,11 @@ function applyTemplate(){
 
 	$('.bg_mask').show();
 
-	$.post(host+'/applyTemplate', { info:info, userid: rootPerson.userid, path:path }, function  (data) {
+	$.post(host+'/applyTemplate', { info: JSON.stringify(info), userid: rootPerson.userid, path:path }, function  (data) {
 		$('.bg_mask').hide();
 		hideTemplateCon();
 		reloadTree1(data);
+
 	});
 }
 
@@ -1017,15 +1019,21 @@ function initShareFrom (data) {
 		var toPerson = data[i].toPerson.map(function(v){return v.name});
 		var toPersonStr = toPerson.length>2? '('+toPerson.slice(0,2).join(',')+'...)' :  '('+toPerson.join(',')+')' ;
 		var flowName = '('+data[i].flowName+'-'+fromPerson.join(',')+ ')';
-		files.forEach(function(v){
-			v.path = v.path.replace(/{{shareName}}/,  isSign? '流程-'+shareID+flowName+ (msg) : '共享-'+shareID+toPersonStr+ (msg)     );
-			v.isSign = isSign;
-			v.shareID = shareID;
-			pathToObj( v );
-			root[root.length-1].shareID = shareID;
-			root[root.length-1].isSign = isSign;
-			root[root.length-1].isFinish = isFinish;
-			if(isFinish) root[root.length-1].font = {color:'blue'};
+		files.every(function(v){
+			try{
+				v.path = v.path.replace(/{{shareName}}/,  isSign? '流程-'+shareID+flowName+ (msg) : '共享-'+shareID+toPersonStr+ (msg)     );
+				v.isSign = isSign;
+				v.shareID = shareID;
+				pathToObj( v );
+				root[root.length-1].shareID = shareID;
+				root[root.length-1].isSign = isSign;
+				root[root.length-1].isFinish = isFinish;
+				if(isFinish) root[root.length-1].font = {color:'blue'};
+			} catch(e){
+				alert('发件柜初始化错误');
+				return false;
+			}
+			return true;
 		});
 	}
 
@@ -1058,16 +1066,21 @@ function initShareTo (data) {
 		var toPersonStr = toPerson.length>2? '('+toPerson.slice(0,2).join(',')+'...)' :  '('+toPerson.join(',')+')' ;
 		var flowName = '('+data[i].flowName+'-'+fromPerson.join(',')+ ')';
 
-		files.forEach(function(v){
-			v.path = v.path.replace(/{{shareName}}/,  isSign? '流程-'+shareID+flowName+ (msg) : '共享-'+shareID+toPersonStr+ (msg)     );
-			v.isSign = isSign;
-			v.shareID = shareID;
-			pathToObj( v );
-			root[root.length-1].shareID = shareID;
-			root[root.length-1].isSign = isSign;
-			root[root.length-1].isFinish = isFinish;
-			if(isFinish) root[root.length-1].font = {color:'blue'};
-
+		files.every(function(v){
+			try{
+				v.path = v.path.replace(/{{shareName}}/,  isSign? '流程-'+shareID+flowName+ (msg) : '共享-'+shareID+toPersonStr+ (msg)     );
+				v.isSign = isSign;
+				v.shareID = shareID;
+				pathToObj( v );
+				root[root.length-1].shareID = shareID;
+				root[root.length-1].isSign = isSign;
+				root[root.length-1].isFinish = isFinish;
+				if(isFinish) root[root.length-1].font = {color:'blue'};
+			} catch(e){
+				alert('发件柜初始化错误');
+				return false;
+			}
+			return true;
 		});
 	}
 
@@ -1105,13 +1118,12 @@ function getNodeByHash(tree, hash, switchTo){
 	});
 }
 
-function reloadTree1(fileObj, switchTo){
+function reloadTree1 (fileObj, switchTo){
 	$.post(host+'/getfile', {person:rootPerson.userid}, function  (data) {
 		data = JSON.parse(data);
 		root = [];
 		data.forEach(function(v) {
 			pathToObj( v );
-			fileKeys = Object.keys(v);
 		});
 		zNodes[0].children = root;
 
@@ -1177,7 +1189,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 		    var zNodesTemplate = {userid:rootPerson.userid, name:'模板文件柜', title:'模板文件柜', isTemplate:true, isParent:true, children: []} ;
 		    var zNodesPrint = {userid:rootPerson.userid, name:'打印机列表', title:'打印机列表', isPrint:true, isParent:true, children: []} ;
 
-			fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "order", "imageWidth", "imageHeight", 'isTemplate', 'drawData', 'inputData', 'server'];
+			fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "order", "imageWidth", "imageHeight", 'isTemplate', 'drawData', 'inputData', 'server', 'signIDS'];
 			//fileKeys = fileKeys.concat( ['path', 'hash'].filter(function (item) { return fileKeys.indexOf(item) < 0 }) );
 			//fileKeys.splice( fileKeys.indexOf('_id'), 1 );
 
@@ -1278,7 +1290,13 @@ function breakIntoPath(path){
 
 function getFileKeys(node){
 	var obj = fileKeys.reduce(function(o, key, idx) {
-	  o[key] = node[key];
+		//console.log(key, $.type( node[key]), node[key])
+		if( $.type( node[key] ).match(/array|object/i) ) {
+			// deep copy: o[key] = JSON.parse( JSON.stringify(node[key]) );
+			o[key] = node[key];
+		} else {
+		  	o[key] = node[key];
+		}
 	  return o;
 	}, {});
 	return obj;
@@ -1719,6 +1737,7 @@ function shareNode(){
 	if(sel.isParent) files.forEach(function(v){ v.path = v.path.replace( getPath(sel), '/{{shareName}}/') });
 	else sel.path = '/{{shareName}}/';
 
+	//files.sort( function(a,b){ return a.key>b.key } );
 
 	var fileArr = [];
 	$.each(files, function  (i,v) {
@@ -1726,7 +1745,13 @@ function shareNode(){
 		  o[key] = v[key];
 		  return o;
 		}, {});
-		fileArr.push(obj);
+		fileArr.push( obj  );
+	});
+
+	var filePathS = {};
+	var fileIDS = files.map(function(v){
+		filePathS[ v.key.replace(/\./g, '\uff0e' ) ] = v.path;
+		return v.key;
 	});
 
 
@@ -1770,12 +1795,13 @@ function shareNode(){
 	}
 
 	if(!isSign){
-		var json = {fromPerson: [ rootPerson ], toPerson: stuffs, selectRange:selectRange, files:fileArr, oldShareID:shareID, msg:msg };
+		var json = {fromPerson: [ rootPerson ], toPerson: stuffs, selectRange:selectRange, fileIDS: fileIDS, filePathS: filePathS, oldShareID:shareID, msg:msg };
 	} else {
 		var json = {fromPerson: [ rootPerson ], toPerson: window.curFlow.flowPerson.slice(0,1), flowName: $('.flowSelect').val(),
 		selectRange: window.curFlow.flowPerson,
-		files:fileArr, msg:msg, isSign:isSign };
+		fileIDS: fileIDS, filePathS: filePathS, msg:msg, isSign:isSign };
 	}
+	
 	//console.log(json);return;
 	$.post(host+'/shareFile', {data: JSON.stringify(json) }, function(data){
 		$( "#mydialog" ).trigger( "dialog-close" );

@@ -992,15 +992,20 @@ app.post("/markFinish", function (req, res) {
 app.post("/applyTemplate", function (req, res) {
 
 	var data = req.body;
-  var info = data.info;
 	var path = data.path;
   	var userid = data.userid;
+  var info = data.info;
+  	try{
+	  	info = JSON.parse(info);
+	} catch(e){ console.log('error parse drawData',path,userid); return res.send('') }
+
   	var key = info.key;
   	var newKey = moment().format('YYYYMMDDHHmmss') + '-'+ key.split('-').pop();
 
+
   	var client = new qiniu.rs.Client();
 	client.copy(QiniuBucket, key, QiniuBucket, newKey, function(err, ret) {
-	  if (err) return res.send('error');
+	  if (err) return res.send('');
 
 
     col.findOne( { person: userid, status:{$ne:-1} } , {limit:1, sort:{order:-1}  }, function(err, item) {
@@ -1019,6 +1024,7 @@ app.post("/applyTemplate", function (req, res) {
 			fsize:info.fsize,
 			type:info.type,
 			drawData:info.drawData,
+			signIDS:info.signIDS,
 			hash: +new Date()+Math.random()+'',
 			order:maxOrder
 		};
@@ -1155,6 +1161,7 @@ app.post("/updatefile", function (req, res) {
     newV.order = parseFloat(newV.order);
     newV.role = 'upfile';
     console.log('updatefile:', v.hash,  newV.order);
+    delete newV._id;
     col.update({hash: v.hash}, newV, {upsert:true, w:1}, function  (err, result) {
       if(err) {
       	console.log(err);
@@ -1338,14 +1345,16 @@ app.post("/getSavedSign", function (req, res) {
 
     function getSignData(err, docs){
       if(err){ return res.send(""); }
-      var ids = docs.map(function  (v) {
+      var ids = docs.filter(function(v){ return v.signData } ).map(function  (v) {
         return new ObjectID( v.signData );
       });
 
       col.find({_id:{$in:ids}}, {sort:{_id:1}}).toArray(function (err, items) {
+      	if(!items) return res.send('');
         docs.forEach(function  (v,i) {
           var t = items.filter(function(x){
-            return x&&x._id&& v && v.signData && x._id.toHexString() == v.signData.toHexString()
+          	if(!v.signData) return false;
+            return x&&x._id&& v && v.signData && (x._id.toHexString() == v.signData.toString() )
           });
           v.sign = t.shift();
         });
@@ -1357,8 +1366,13 @@ app.post("/getSavedSign", function (req, res) {
 
     if(shareID){
 
-        col.find({role:'sign', shareID:shareID, file:file, signData:{$ne:null} }, {sort:{signData:1}}).toArray(function(err, docs){
-            getSignData(err, docs);
+        col.findOne( {role:'share', shareID:shareID, 'files.key':filename },  {fields: {'files.$':1} },  function(err, docs){
+        	//return console.log(err, docs);
+        	if(err) return res.send('');
+	      if(docs.files) docs = docs.files.shift();
+        	if(!docs) return res.send('');
+
+            getSignData(err, docs.signIDS);
           } );
 
     } else {
@@ -1370,11 +1384,7 @@ app.post("/getSavedSign", function (req, res) {
         var signIDS = result.signIDS;
         if(!signIDS ) return res.send('');
 
-        col.find({role:'sign',  _id:{ $in:  signIDS.map( function(v){ return new ObjectID(v) } )  } }, { }).toArray(function(err, docs){
-
-          getSignData(err, docs);
-
-        } );
+        getSignData(err, signIDS );
 
       });
 
@@ -1434,6 +1444,7 @@ app.post("/getFlowList", function (req, res) {
 
 app.post("/getShareData", function (req, res) {
   var shareID = safeEval(req.body.shareID);
+  if(!shareID) res.send('');
   col.findOne( { 'shareID': shareID, role:'share' } , {limit:500} , function(err, item){
       if(err) {
         return res.send('');
@@ -1562,13 +1573,13 @@ app.post("/drawSign", function (req, res) {
   data.scale = safeEval(data.scale);
   data.role = 'sign';
   data.date = new Date();
+  data._id = +new Date()+Math.random().toString().slice(2,5);
+  delete data.file;
+  delete data.signPerson;
 
-  col.insertOne(data, {w:1}, function(err,result){
-    var id = result.insertedId;
-
-    col.update( { role:'upfile', person:signPerson, key:file }, { $addToSet: { signIDS: id } } );
-
-    res.send(id);
+  col.updateOne( { role:'upfile', key:file }, { $addToSet: { signIDS: data } },  {w:1}, function(err,result){
+    if(err) return res.send('');
+    res.send(result);
   });
 
 });
@@ -1606,19 +1617,40 @@ app.post("/deleteSign", function (req, res) {
   if(!id.length){
     return res.send('');
   }
-  col.deleteOne({_id:new ObjectID(id) });
-  col.update({ role:'upfile', key:key, person:person }, { $pull: { signIDS: new ObjectID(id) } }  );
+
+  // http://stackoverflow.com/questions/19435123/using-pull-in-mongodb-to-remove-a-deeply-embedded-object
+  col.updateOne({ role:'upfile', key:key, person:person }, { $pull: { 'signIDS': {_id: id } } }  );
   res.send('OK');
 });
 
 app.post("/deleteSignOnly", function (req, res) {
   var id =  req.body.id;
-  if(!id.length){
+  var person =  req.body.person;
+  var file =  req.body.file;
+  var shareID =  safeEval( req.body.shareID);
+  var signIDX =  safeEval( req.body.idx);
+  if(!file || !id.length){
     return res.send('');
   }
 
-  col.update( {_id:new ObjectID(id) }, { $unset: { 'signData':'' }  } );
-  res.send('OK');
+  var fileKey = file.split('/').pop();
+
+  	if(shareID){
+  		var unsetObj = {};
+  		unsetObj[ 'files.$.signIDS.'+ signIDX +'.signData' ] = '';
+  		unsetObj[ 'files.$.signIDS.'+ signIDX +'.signPerson' ] = '';
+
+		col.findOneAndUpdate( {role:'share', shareID:shareID, 'files.key':fileKey, 'files.signIDS._id': id }, 
+			{ $unset:unsetObj }, { projection:{ key:1, 'signIDS':1} }, function(err, result) {
+          res.send( result );
+        });
+  	} else {
+  		col.findOneAndUpdate( {role:'upfile', 'key':fileKey, 'signIDS._id': id }, 
+			{ $unset:{'signIDS.$.signData': '', 'signIDS.$.signPerson': '' } }, { projection:{ key:1, 'signIDS':1} }, function(err, result) {
+          res.send( result.value );
+        });
+  	}
+
 });
 
 
@@ -1751,22 +1783,51 @@ app.post("/finishSign", function (req, res) {
 app.post("/saveSign", function (req, res) {
   var data =  req.body.data;
   var signID =  req.body.signID;
+  var signIDX =  safeEval(req.body.signIDX);
+  var fileKey =  req.body.fileKey;
+  var shareID =  safeEval(req.body.shareID);
   var hisID =  req.body.hisID;
   var width =  safeEval(req.body.width);
   var height =  safeEval(req.body.height);
-  var person;
+  var person =  req.body.signPerson;
 
-
-    col.findOne({role:'sign', _id:new ObjectID(signID)}, function(err, item){
-      if(err || !item){
-        return res.send("");
-      }
-      person = item.signPerson;
 
       function insertHis(id){
-        col.update({ _id:new ObjectID(signID) }, {$set:{signData: new ObjectID(id) } }, {w:1}, function(err, result){
-          res.send( item );
-        });
+      	if(shareID){
+      		
+      		var key1 = 'files.$.signIDS.'+ signIDX +'.signData';
+      		var key2 = 'files.$.signIDS.'+ signIDX +'.signPerson';
+      		var setObj = {};
+      		setObj[key1] =  new ObjectID(id);
+      		setObj[key2] =  person;
+
+
+      		// http://stackoverflow.com/questions/18986505/mongodb-array-element-projection-with-findoneandupdate-doesnt-work
+			col.findOneAndUpdate( {role:'share', shareID:shareID, 'files.key':fileKey }, 
+				{ $set: setObj }, { projection:{ key:1, 'files': {$elemMatch: {key: fileKey} } } } , function(err, result) {
+
+					if(err) return res.send('');
+					try{var ret=result.value.files.shift().signIDS[ signIDX ]; }
+					catch(e){
+						return res.send('');
+					}
+	          	res.send( ret );
+	        });
+      	} else {
+      		col.findOneAndUpdate( {role:'upfile', 'key':fileKey, 'signIDS._id': signID }, 
+				{ $set:{'signIDS.$.signData': new ObjectID(id), 'signIDS.$.signPerson': person } }, { projection:{ key:1, 'signIDS':1} }, function(err, result) {
+	          
+			if(err) return res.send('');
+
+				try{var ret=result.value.signIDS[signIDX]; }
+				catch(e){
+					return res.send('');
+				}
+
+	          res.send( ret );
+	        });
+      	}
+
       }
 
       if(hisID){
@@ -1782,7 +1843,6 @@ app.post("/saveSign", function (req, res) {
         });
       }
 
-    });
 
 
 });
@@ -1790,13 +1850,9 @@ app.post("/saveSign", function (req, res) {
 
 app.post("/getSignHistory", function (req, res) {
   var signID =  req.body.signID;
-  var person;
+  var person =  req.body.person;
 
-  col.findOne({role:'sign', _id:new ObjectID(signID)}, function(err, item){
-    if(err || !item){
-      return res.send("");
-    }
-    person = item.signPerson;
+
     col.find({role:'signBase', person:person}, {limit:5, sort:{date:-1} }).toArray(function(err, docs){
       if(err || !docs.length){
         return res.send("");
@@ -1804,7 +1860,7 @@ app.post("/getSignHistory", function (req, res) {
       //col.deleteMany({role:'signBase', person:person, date:{$lt: docs[docs.length-1].date } });
       res.send( docs );
     });
-  });
+
 });
 
 
@@ -1889,15 +1945,25 @@ app.post("/shareFile", function (req, res) {
   var data = req.body.data;
   try{
   data = JSON.parse(data);
+  //data.files = JSON.parse(data.files);
   }catch(e){ return res.send(''); }
   data.date = new Date();
 
+  // return console.log( data );
+
+  col.find( {role:'upfile', key:{ $in: data.fileIDS } }, { sort:{ key:1 } } ).toArray(function  (err, files) {
+  	files.forEach(function(v, i){
+  		v.path = data.filePathS[ v.key.replace(/\./g, '\uff0e') ];
+  	});
+  	data.files = files;
+
   col.findOneAndUpdate({role:'config'}, {$inc:{ shareID:1 } }, function  (err, result) {
-    console.log(err, result);
 
     var shareID = result.value.shareID+1;
     data.shareID = shareID;
     data.role = 'share';
+
+
     col.insert(data, {w:1}, function(err, r){
       //res.send( {err:err, insertedCount: r.insertedCount } );
       if(!err){
@@ -1951,7 +2017,9 @@ app.post("/shareFile", function (req, res) {
       }
     });
 
-  } );
+	  } );
+
+	});
 
 
 });

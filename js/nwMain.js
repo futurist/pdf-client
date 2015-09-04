@@ -78,8 +78,10 @@ var nwMain = (function(gui) {
 		_tray.menu = menu;
 
 		_tray.on('click', function(e){
+			window.updateIcon();
 			showWin();
 		});
+
 
 
 		nwNotify.setConfig({
