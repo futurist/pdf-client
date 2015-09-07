@@ -67,12 +67,23 @@ var nwMain = (function(gui) {
 		menuItem1.on('click',function(e){
 			showWin(1);
 		});
-		menu.append(menuItem1);
 
 		var menuItem2 = new gui.MenuItem({ label: '退出' });
 		menuItem2.on('click',function(e){
 			gui.App.quit();
 		});
+
+		var menuItem3 = new gui.MenuItem({ label: '退出并注销' });
+		menuItem3.on('click',function(e){
+			// Cookies.expire('userid');
+			// Cookies.expire('finger');
+			$.post( host+'/exitApp', function(){
+				//gui.App.quit();
+			});
+		});
+
+		menu.append(menuItem1);
+		menu.append(menuItem3);
 		menu.append(menuItem2);
 
 		_tray.menu = menu;
@@ -173,7 +184,7 @@ var nwMain = (function(gui) {
 	}
 
 	function _showReader(url){
-		var pop = gui.Window.open(url, {position:'center', toolbar:true,frame:true,width:Math.max(screen.width*.8, 790), height:Math.max(screen.height*.8, 790)});
+		var pop = gui.Window.open(url, {position:'center', toolbar:false, frame:true,width:Math.max(screen.width*.8, 790), height:Math.max(screen.height*.8, 790)});
 		pop.setShowInTaskbar(true);
 		pop.setAlwaysOnTop(false);
 		pop.setResizable(true);

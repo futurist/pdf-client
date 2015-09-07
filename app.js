@@ -223,7 +223,7 @@ function wsSendClient (clientName, msg) {
   var lastClient;
   ['',':mobile',':pc'].forEach(function sendToClient (v) {
     var client = WSCLIENT[clientName+v];
-    if(!client) return true;
+    if(!client || !client.ws) return true;
     msg.clientName = clientName;
 
     client.ws.send( JSON.stringify(msg)  );
@@ -419,7 +419,7 @@ app.post("/getFinger", function (req, res) {
   var reqData = getWsData(msgid);
   if(!reqData) return res.send('');
   var finger = reqData.finger;
-  var condition = {finger:finger, role:'finger', date:{$gt: new Date(moment().subtract(1, 'days')) } };
+  var condition = {finger:finger, role:'finger', date:{$gt: new Date(moment().subtract(0, 'days')) } };
 
   res.cookie('finger', finger);
 
@@ -446,10 +446,18 @@ app.post("/getFinger", function (req, res) {
 });
 
 
+app.post("/exitApp", function (req, res) {
+	console.log('logout', req.cookies.finger);
+	req.cookies.finger = null;
+	res.clearCookie('finger');
+	res.clearCookie('userid');
+	res.send('ok');
+});
+
 app.post("/getLoginUserInfo", function (req, res) {
 
 	var finger = req.cookies.finger;
-  console.log(finger, 'login');
+  console.log('login', finger);
   if(!finger) return res.send('');
 
   col.findOne( { finger:finger, role:'finger' } , function(err, item){
@@ -663,7 +671,9 @@ app.post("/printPDF", function (req, res) {
 	// req data: {server, printer, fileKey, shareID, person }
   var data = req.body;
   data.task = 'printPDF';
-  res.send( wsSendPrinter(data, data.server) );
+  data.msgid = +new Date()+Math.random();
+  wsSendPrinter(data, data.server, res);
+
 });
 
 
@@ -672,6 +682,8 @@ app.post("/uploadPCImage", function (req, res) {
   var filename = req.body.filename;
   var person = req.body.person;
 
+  var MAX_WIDTH = 2000;
+  var MAX_HEIGHT = 2000;
   // we convert from QINIU cloud
   if(data){
 
@@ -686,13 +698,33 @@ app.post("/uploadPCImage", function (req, res) {
       console.log( err, stdout, stderr );
       if(err) return res.send('');
 
-      exec( util.format( 'convert "%s" -density 72 "%s"', IMAGE_UPFOLDER+ filename, destPath), function(err, stdout, stderr) {
-      	console.log(err,stdout,stderr);
+      exec( util.format('identify "%s"', IMAGE_UPFOLDER+ filename ), function(err, stdout, stderr) { 
+      	console.log(err, stdout, stderr);
       	if(err) return res.send('');
 
-        imageToPDF(person, destPath, res, data);
+      	var fileds = stdout.toString().split(/\s+/);
+      	var dim = fileds[2].split('x').map( function(v){ return parseInt(v, 10) } );
+      	console.log('dimension', filename, dim );
+
+      	var scale = '';
+      	var r = dim[0]/dim[1];
+      	if( r>=1 && dim[0]>MAX_WIDTH ) scale = ' -resize '+ MAX_WIDTH;
+      	if( r<1 && dim[1]>MAX_HEIGHT ) scale = ' -resize '+ MAX_HEIGHT/dim[1]*100 + '%';
+
+      	var cmd =  util.format( 'convert "%s" -quality 85 -density 72 %s "%s"', IMAGE_UPFOLDER+ filename, scale, destPath);
+      	console.log(cmd);
+
+	     exec(cmd, function(err, stdout, stderr) {
+	      	console.log(err,stdout,stderr);
+	      	if(err) return res.send('');
+
+	        imageToPDF(person, destPath, res, data);
+
+	      });
 
       });
+
+
 
     });
 
@@ -989,12 +1021,73 @@ app.post("/markFinish", function (req, res) {
 
 
 
+app.post("/signInWeiXin", function (req, res) {
+	var data = req.body;
+	var url = data.url;
+	var shareID = safeEval(data.shareID);
+	var fileKey = data.fileKey;
+	var personName = data.person;
+
+	console.log( data );
+
+    col.findOne({role:'share', shareID:shareID, 'files.key':fileKey },
+                        { fields:{ msg:1, fromPerson:1, toPerson:1, flowName:1, isSign:1  } },
+                        function(err, result){
+                        	console.log(err, result);
+      		if(err || !result) return res.send('');
+
+            var colShare = result;
+            var flowName = colShare.flowName;
+            var msg = colShare.msg;
+            var isSign = colShare.isSign;
+            var content =
+            colShare.isSign?
+            util.format('<a href="%s">流程%d %s (%s-%s)需要您签署，点此签署</a>',
+                    url,  // if we need segmented path:   pathName.join('-'),
+                    shareID,
+                    msg,
+                    colShare.flowName,
+                    colShare.fromPerson[0].name
+                  ) :
+            util.format('<a href="%s">共享%d %s (%s)需要您签署，点此签署</a>',
+                    url,  // if we need segmented path:   pathName.join('-'),
+                    shareID,
+                    msg,
+                    colShare.fromPerson[0].name
+                  )
+
+
+             var wxmsg = {
+               "touser": personName,
+               "touserName": personName,
+               "msgtype": "text",
+               "text": {
+                 "content":content
+               },
+               "safe":"0",
+                date : new Date(),
+                role : 'shareMsg',
+                shareID:shareID,
+                WXOnly: true
+              };
+
+              console.log(wxmsg);
+
+              sendWXMessage(wxmsg);
+
+              res.send(wxmsg);
+
+    } );
+
+});
+
 app.post("/applyTemplate", function (req, res) {
 
 	var data = req.body;
 	var path = data.path;
   	var userid = data.userid;
   var info = data.info;
+
   	try{
 	  	info = JSON.parse(info);
 	} catch(e){ console.log('error parse drawData',path,userid); return res.send('') }
@@ -1112,7 +1205,7 @@ app.get("/downloadFile2/:name", function (req, res) {
 
   	genPDF(filename, shareID, realname, function  (err) {
 
-  		if(err){
+  		if(err) {
   			res.send('');
   			wsSendClient(person, {role:'errMsg', message:err } );
   			return;
@@ -1444,7 +1537,7 @@ app.post("/getFlowList", function (req, res) {
 
 app.post("/getShareData", function (req, res) {
   var shareID = safeEval(req.body.shareID);
-  if(!shareID) res.send('');
+  if(!shareID) return res.send('');
   col.findOne( { 'shareID': shareID, role:'share' } , {limit:500} , function(err, item){
       if(err) {
         return res.send('');
@@ -1678,6 +1771,7 @@ app.post("/finishSign", function (req, res) {
     if(curFlowPos >= colShare.selectRange.length){
 
     	col.findOneAndUpdate({role:'share', shareID:shareID }, { $set: { 'isFinish':true }  });
+		wsBroadcast( {role:'share', isFinish:isFinish, data:colShare } );
 
         res.send( util.format( '流程%d %s (%s-%s)已结束，系统将通知相关人员知悉',
                     colShare.shareID,
@@ -2031,11 +2125,13 @@ function sendWXMessage (msg) {
     col.insert(msg);
     msg.tryCount = 1;
 
-    // send client message vai ws
-    var touser = _.uniq( msg.touser.split('|') );
-    touser.forEach(function sendToUserWS (v) {
-      wsSendClient(v, msg);
-    });
+    if(!msg.WXOnly){
+	    // send client message vai ws
+	    var touser = _.uniq( msg.touser.split('|') );
+	    touser.forEach(function sendToUserWS (v) {
+	      wsSendClient(v, msg);
+	    });
+    }
 
   }
 

@@ -51,7 +51,8 @@ var isiOS = /iPhone/i.test(navigator.userAgent) || /iPod/i.test(navigator.userAg
 var isMobile = isAndroid||isWeiXin||isiOS;
 
 
-var DEBUG= 1;
+var DEBUG= 0;
+if(isWeiXin)
 if(!DEBUG)
 {
 	var wxUserInfo = Cookies.get( 'wxUserInfo' );
@@ -60,7 +61,7 @@ if(!DEBUG)
 	} else {
 		wxUserInfo = JSON.parse(wxUserInfo);
 	}
-}else{
+}else {
 	var wxUserInfo={};
 	wxUserInfo.UserId = 'yangjiming';
 }
@@ -81,7 +82,9 @@ var urlQuery = searchToObject( window.location.hash );
 
 
 //Check if we are in NW.JS env
+var isNWJS = typeof global !='undefined';
 var iconInter=-1;
+var nwMainWin = null;
 function updateIcon () {
 	if( Object.keys(global.msgQueue).length ) {
 		if(iconInter!==-1) return;
@@ -98,11 +101,29 @@ function updateIcon () {
 
 }
 
-if(typeof global !='undefined') {
+function toggleDevTools (){
+	if(!nwMainWin) return;
+	if( !nwMainWin.isDevToolsOpen() ){
+		nwMainWin.showDevTools();
+	} else {
+		nwMainWin.closeDevTools();
+	}
+}
+
+function showMainWindow (){
+	if(!nwMainWin) return;
+	nwMainWin.show();
+	nwMainWin.focus();
+}
+
+
+
+
+if(isNWJS) {
 
 	var el = document.createElement('script');
 	el.async = false;
-	el.src = './js/nwMain.js';
+	el.src = './js/nwMain.js?'+Math.random();
 	el.type = 'text/javascript';
 
 	(document.getElementsByTagName('HEAD')[0]||document.body).appendChild(el);
@@ -110,7 +131,7 @@ if(typeof global !='undefined') {
 	el.onload =function  () {
 		global.msgQueue = global.msgQueue || {};
 		updateIcon();
-		
+		nwMainWin = global._nwMain.mainWin;
 	}
 
 	$(document).on('click','a', function  (e) {
@@ -510,7 +531,7 @@ function initPrintTree (data) {
 
 }
 
-function applyPrint () {
+function applyPrint ( onlyDownload ) {
 
 	var p = treeObjPrint.getSelectedNodes()[0];
 	var server = p.server;
@@ -524,11 +545,34 @@ function applyPrint () {
 
 	var shareID = getShareID(sel);
 	var info = getFileKeys(sel);
+	var fileKey = info.key;
 
-	$.post(host+'/printPDF', { server:server, printer:printer, fileKey:info.key, shareID:shareID, person: rootPerson.userid }, function  (data) {
-		console.log(data);
-		hidePrintCon();
-	});
+    var downloadUrl = host+'/downloadFile2/'+ fileKey +'?key='+ fileKey +'&shareID='+shareID+'&person='+rootPerson.userid;
+
+	$('.bg_mask').show();
+
+		$.ajax({
+		  type: 'POST',
+		  url: host+'/printPDF',
+		  data: { server:server, printer:printer, onlyDownload:onlyDownload, fileKey:fileKey, shareID:shareID, person: rootPerson.userid },
+		  // type of data we are expecting in return:
+		  dataType: 'json',
+		  timeout: CONVERT_TIMEOUT,
+		  success: function(data){
+		  	showMainWindow();
+		    $('.bg_mask').hide();
+			if(!data || data.errMsg) alert('打印失败：打印服务故障');
+			else alert('打印任务安排成功，已进入打印队列');
+			console.log(data);
+			hidePrintCon();
+		  },
+		  error: function(xhr, type){
+		  	showMainWindow();
+		    $('.bg_mask').hide();
+		    alert('打印超时');
+	
+		  }
+		});
 
 }
 
@@ -852,6 +896,7 @@ function hidePrintCon() {
 			return false;
 		}
 		function onDblClick (event, treeId, treeNode) {
+			if( ! $('.content_wrap').is(':visible') ) return;
 			var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
 			shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
 
@@ -2468,8 +2513,11 @@ $(function  () {
 		left: 0;
 		right: 0;
 		z-index: 99999;
-		background-color: rgba(0,0,0,0.3);
+		background-color: rgba(0,0,0,0.05);
 		display: none;
+		background-image: url(loading.gif);
+		background-repeat: no-repeat;
+		background-position: 50% 50%;
 	}
 
 .selTab li span{
@@ -2528,13 +2576,18 @@ function convertPDF () {
 	$('.fConvert').hide();
 
 	if( sel.key.match( regex_image ) ){
+		$('.bg_mask').show();
 		$.post(host+'/uploadPCImage', {person:rootPerson.userid, data: getFileKeys(sel) }, function(ret){
 			//console.log(ret);
+			showMainWindow();
+			$('.bg_mask').hide();
 			if(!ret) alert('转换文件发生错误');
 		}  );
 	}
 
 	if( sel.key.match( regex_can_be_convert ) ){
+
+		$('.bg_mask').show();
 		$.ajax({
 		  type: 'POST',
 		  url: host+'/generatePDFAtPrinter',
@@ -2543,11 +2596,15 @@ function convertPDF () {
 		  dataType: 'json',
 		  timeout: CONVERT_TIMEOUT,
 		  success: function(ret){
+		  	showMainWindow();
+		  	$('.bg_mask').hide();
 		    if(!ret) return alert('转换超时');
 			console.log(ret);
 			alert(ret.errMsg!='ok' ? ret.errMsg : '转换成功,已自动加入文件柜并高亮' );
 		  },
 		  error: function(xhr, type){
+		  	showMainWindow();
+		  	$('.bg_mask').hide();
 		    alert('连接超时');
 		  }
 		});
@@ -2588,6 +2645,22 @@ $(function () {
 	    	    }
 	    	} else {
 
+    			var relativePath =  data.files[0].relativePath||'';
+				
+				var sel = getSelectFiles().shift();
+				var files = getAllFiles(sel);
+
+				var fileExists = false;
+				files.forEach(function(v,i){
+    				if( getPath(v)+v.name == getPath(sel) + relativePath + data.files[0].name ){
+    					fileExists = true;
+    				}						
+				});
+    			
+    			if(fileExists) {
+    				console.log( 'exist file, skip', getPath(sel) + relativePath + data.files[0].name );
+    				return;
+    			}
         		// if it's not images, then we upload using Cloud
 	    		$.post(host+'/getUpToken', function(token){
 	    			if(!token) return alert('上传错误');
@@ -2597,7 +2670,8 @@ $(function () {
 	    			// data.formData = {key: moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'.'+ext, token:token };
 	    			var key =moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'.'+ext;
 	    			UploadNonImage = true;
-	    			$('#fileupload1').fileupload('add', {files: data.files, formData:{key:key, token:token, 'x:path': data.files[0].relativePath||'' }, url: 'http://up.qiniu.com'} );
+
+	    			$('#fileupload1').fileupload('add', {files: data.files, formData:{key:key, token:token, 'x:path':relativePath }, url: 'http://up.qiniu.com'} );
 	    			// This will trigger ADD event again, with UploadNonImage = true
 
 	    		});
@@ -2714,6 +2788,9 @@ function handleShortKey (evt) {
           	window.location.reload();
             handled = true;
             break;
+          case 123: //F12 Key
+          	toggleDevTools();
+          	break;
         }
       }
 
