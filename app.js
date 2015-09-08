@@ -41,7 +41,7 @@ qiniu.conf.SECRET_KEY = 'xvZ15BIIgJbKiBySTV3SHrAdPDeGQyGu_qJNbsfB';
 QiniuBucket = 'bucket01';
 
 FILE_HOST = 'http://7xkeim.com1.z0.glb.clouddn.com/';
-TREE_URL = "http://1111hui.com:88/tree.html";
+TREE_URL = "http://1111hui.com/pdf/client/tree.html";
 VIEWER_URL = "http://1111hui.com/pdf/webpdf/viewer.html";
 IMAGE_UPFOLDER = 'uploads/' ;
 
@@ -419,7 +419,7 @@ app.post("/getFinger", function (req, res) {
   var reqData = getWsData(msgid);
   if(!reqData) return res.send('');
   var finger = reqData.finger;
-  var condition = {finger:finger, role:'finger', date:{$gt: new Date(moment().subtract(0, 'days')) } };
+  var condition = {finger:finger, role:'finger', status:{$ne:-1}, date:{$gt: new Date(moment().subtract(1, 'days')) } };
 
   res.cookie('finger', finger);
 
@@ -447,8 +447,11 @@ app.post("/getFinger", function (req, res) {
 
 
 app.post("/exitApp", function (req, res) {
+  if(!req.cookies.finger) return;
 	console.log('logout', req.cookies.finger);
-	req.cookies.finger = null;
+  col.updateMany( { finger:req.cookies.finger, role:'finger' }, { $set:{status:-1} } );
+  req.cookies.finger = null;
+	req.cookies.userid = null;
 	res.clearCookie('finger');
 	res.clearCookie('userid');
 	res.send('ok');
@@ -460,7 +463,7 @@ app.post("/getLoginUserInfo", function (req, res) {
   console.log('login', finger);
   if(!finger) return res.send('');
 
-  col.findOne( { finger:finger, role:'finger' } , function(err, item){
+  col.findOne( { finger:finger, role:'finger', status:{$ne:-1} }, { sort:{date:-1} } , function(err, item){
 
     if(!item || !item.userid) {
 	     return res.send('');
@@ -586,7 +589,7 @@ app.post("/getJSTicket", function (req, res) {
 });
 
 
-function imageToPDF(person, fileName, res, oldData ){
+function imageToPDF (person, fileName, res, oldData ){
 	var ext = path.extname(fileName);
 	var baseName = path.basename(fileName, ext);
   var cmd = ' rm -f '+IMAGE_UPFOLDER+'/*.pdf; cd '+IMAGE_UPFOLDER+'; /bin/cp -rf ../make.tex '+ baseName +'.tex; xelatex "\\def\\IMG{'+ baseName +'} \\input{'+ baseName +'.tex}"';
@@ -609,6 +612,8 @@ function imageToPDF(person, fileName, res, oldData ){
         ret.title = oldData.title+'.pdf';
         ret.path = oldData.path;
         ret.srcFile = oldData.key;
+        if(oldData.shareID) ret.shareID = oldData.shareID;
+        if(oldData.order) ret.order = oldData.order;
 
 
       } else {
@@ -624,6 +629,7 @@ function imageToPDF(person, fileName, res, oldData ){
       console.log(ret);
 
       upfileFunc(ret, function(ret2){
+        ret2.role = 'addToShare';
         res.send(ret2);
         wsBroadcast(ret2);
 
@@ -687,6 +693,7 @@ app.post("/uploadPCImage", function (req, res) {
   // we convert from QINIU cloud
   if(data){
 
+    if(data.shareID) data.shareID = safeEval( data.shareID );
     filename = data.key;
      var ext = filename.split(/\./).pop();
 
@@ -698,7 +705,7 @@ app.post("/uploadPCImage", function (req, res) {
       console.log( err, stdout, stderr );
       if(err) return res.send('');
 
-      exec( util.format('identify "%s"', IMAGE_UPFOLDER+ filename ), function(err, stdout, stderr) { 
+      exec( util.format('identify "%s"', IMAGE_UPFOLDER+ filename ), function(err, stdout, stderr) {
       	console.log(err, stdout, stderr);
       	if(err) return res.send('');
 
@@ -831,22 +838,37 @@ function upfileFunc (data, callback) {
   var fname = data.fname;
   var maxOrder = 0;
 
+  if( data.shareID ) {
 
-  col.find( { person: person, role:'upfile', status:{$ne:-1} } , {limit:2000} ).sort({order:-1}).limit(1).nextObject(function(err, item) {
-    if(err) {
-      return res.send('error');
-    }
-    maxOrder = item? item.order+1 : 1;
-    console.log( 'maxOrder:', maxOrder );
+      var newData = _.extend( data, { person: person, date: new Date(), path:savePath } );
+      col.update({ role:'share', shareID:data.shareID }, { $addToSet:{ files: newData } } , {upsert:true, w: 1}, function(err, result) {
+          if(err) callback('');
+          console.log('up shared file: ', { role:'share', shareID:data.shareID, 'files.key': data.key }, data.shareID, data.key, err);
+          callback( newData );
+       });    
 
-    var newData = _.extend( data, { person: person, role:'upfile', date: new Date(), path:savePath, order:maxOrder } );
 
-    col.update({ hash:data.hash }, newData , {upsert:true, w: 1}, function(err, result) {
-        console.log('upfile: ', newData.hash, newData.key, result.result.nModified);
-        callback( newData );
-     });
+  } else {
 
-  });
+    col.find( { person: person, role:'upfile', status:{$ne:-1} } , {limit:2000} ).sort({order:-1}).limit(1).nextObject(function(err, item) {
+      if(err) {
+        return res.send('error');
+      }
+      maxOrder = item? item.order+1 : 1;
+      console.log( 'maxOrder:', maxOrder );
+
+      var newData = _.extend( data, { person: person, role:'upfile', date: new Date(), path:savePath, order:maxOrder } );
+
+      col.update({ hash:data.hash }, newData , {upsert:true, w: 1}, function(err, result) {
+          console.log('upfile: ', newData.hash, newData.key, result.result.nModified);
+          callback( newData );
+       });
+
+    });
+
+  }
+
+
 }
 
 app.post("/upfile", function (req, res) {
@@ -1437,7 +1459,7 @@ app.post("/getSavedSign", function (req, res) {
     // col.find({role:'sign', shareID:shareID, file:file }, { }).toArray(function(err, docs){
 
     function getSignData(err, docs){
-      if(err){ return res.send(""); }
+      if(err||!docs) { return res.send(""); }
       var ids = docs.filter(function(v){ return v.signData } ).map(function  (v) {
         return new ObjectID( v.signData );
       });
@@ -1461,7 +1483,7 @@ app.post("/getSavedSign", function (req, res) {
 
         col.findOne( {role:'share', shareID:shareID, 'files.key':filename },  {fields: {'files.$':1} },  function(err, docs){
         	//return console.log(err, docs);
-        	if(err) return res.send('');
+        	if(err ||!docs) return res.send('');
 	      if(docs.files) docs = docs.files.shift();
         	if(!docs) return res.send('');
 
@@ -1525,7 +1547,7 @@ app.post("/getCanvas", function (req, res) {
 app.post("/getFlowList", function (req, res) {
 
   col.find( { role:'flow' } , {sort:{name:1}, limit:500}).toArray( function(err, docs){
-      if(err) {
+      if(err || !docs) {
         return res.send('');
       }
       res.send( docs );
@@ -1539,7 +1561,7 @@ app.post("/getShareData", function (req, res) {
   var shareID = safeEval(req.body.shareID);
   if(!shareID) return res.send('');
   col.findOne( { 'shareID': shareID, role:'share' } , {limit:500} , function(err, item){
-      if(err) {
+      if(err || !item) {
         return res.send('');
       }
       res.send( item );
@@ -1556,7 +1578,7 @@ app.post("/getShareFrom", function (req, res) {
   }, 15000);
   col.find( { 'fromPerson.userid': person, role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
-      if(err) {
+      if(err || !docs) {
         return res.send('error');
       }
       var count = docs.length;
@@ -1573,7 +1595,7 @@ app.post("/getShareTo", function (req, res) {
   }, 15000);
   col.find( { 'toPerson.userid': person, role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
-      if(err) {
+      if(err || !docs) {
         return res.send('error');
       }
       var count = docs.length;
@@ -1605,7 +1627,7 @@ app.post("/getShareMsg", function (req, res) {
       //if(hashA.length>1) condition.hash = {$in:hashA};
 
       col.find( condition , {'text.content':1,touser:1, touserName:1} , {limit:500} ).sort({shareID:1, date:1}).toArray(function(err, docs){
-          if(err) {
+          if(err || !docs) {
             return res.send('error');
           }
           var count = docs.length;
@@ -1615,7 +1637,7 @@ app.post("/getShareMsg", function (req, res) {
 
   if(fromPerson){
     col.find( { 'fromPerson.userid': fromPerson, role:'share' }, {shareID:1, _id:0} , {limit:500} ).sort({shareID:1}).toArray(function(err, docs){
-        if(err) {
+        if(err || !docs) {
           return res.send('error');
         }
         var count = docs.length;
@@ -1629,7 +1651,7 @@ app.post("/getShareMsg", function (req, res) {
 
   if(toPerson){
     col.find( { 'toPerson.userid': toPerson, role:'share' }, {shareID:1, _id:0} , {limit:500} ).sort({shareID:1}).toArray(function(err, docs){
-        if(err) {
+        if(err || !docs) {
           return res.send('error');
         }
         var count = docs.length;
@@ -1671,7 +1693,7 @@ app.post("/drawSign", function (req, res) {
   delete data.signPerson;
 
   col.updateOne( { role:'upfile', key:file }, { $addToSet: { signIDS: data } },  {w:1}, function(err,result){
-    if(err) return res.send('');
+    if(err || !result) return res.send('');
     res.send(result);
   });
 
@@ -1733,12 +1755,12 @@ app.post("/deleteSignOnly", function (req, res) {
   		unsetObj[ 'files.$.signIDS.'+ signIDX +'.signData' ] = '';
   		unsetObj[ 'files.$.signIDS.'+ signIDX +'.signPerson' ] = '';
 
-		col.findOneAndUpdate( {role:'share', shareID:shareID, 'files.key':fileKey, 'files.signIDS._id': id }, 
+		col.findOneAndUpdate( {role:'share', shareID:shareID, 'files.key':fileKey, 'files.signIDS._id': id },
 			{ $unset:unsetObj }, { projection:{ key:1, 'signIDS':1} }, function(err, result) {
           res.send( result );
         });
   	} else {
-  		col.findOneAndUpdate( {role:'upfile', 'key':fileKey, 'signIDS._id': id }, 
+  		col.findOneAndUpdate( {role:'upfile', 'key':fileKey, 'signIDS._id': id },
 			{ $unset:{'signIDS.$.signData': '', 'signIDS.$.signPerson': '' } }, { projection:{ key:1, 'signIDS':1} }, function(err, result) {
           res.send( result.value );
         });
@@ -1888,7 +1910,7 @@ app.post("/saveSign", function (req, res) {
 
       function insertHis(id){
       	if(shareID){
-      		
+
       		var key1 = 'files.$.signIDS.'+ signIDX +'.signData';
       		var key2 = 'files.$.signIDS.'+ signIDX +'.signPerson';
       		var setObj = {};
@@ -1897,7 +1919,7 @@ app.post("/saveSign", function (req, res) {
 
 
       		// http://stackoverflow.com/questions/18986505/mongodb-array-element-projection-with-findoneandupdate-doesnt-work
-			col.findOneAndUpdate( {role:'share', shareID:shareID, 'files.key':fileKey }, 
+			col.findOneAndUpdate( {role:'share', shareID:shareID, 'files.key':fileKey },
 				{ $set: setObj }, { projection:{ key:1, 'files': {$elemMatch: {key: fileKey} } } } , function(err, result) {
 
 					if(err) return res.send('');
@@ -1908,9 +1930,9 @@ app.post("/saveSign", function (req, res) {
 	          	res.send( ret );
 	        });
       	} else {
-      		col.findOneAndUpdate( {role:'upfile', 'key':fileKey, 'signIDS._id': signID }, 
+      		col.findOneAndUpdate( {role:'upfile', 'key':fileKey, 'signIDS._id': signID },
 				{ $set:{'signIDS.$.signData': new ObjectID(id), 'signIDS.$.signPerson': person } }, { projection:{ key:1, 'signIDS':1} }, function(err, result) {
-	          
+
 			if(err) return res.send('');
 
 				try{var ret=result.value.signIDS[signIDX]; }
@@ -1971,7 +1993,7 @@ app.post("/sendShareMsg", function (req, res) {
   var fileHash = path.pop();
 
   col.findOne( { role:'share', shareID:shareID }, {}, function(err, data) {
-      if(err) {
+      if(err||!data) {
         return res.send('');	//error
       }
 
@@ -2064,7 +2086,7 @@ app.post("/shareFile", function (req, res) {
         console.log(data.toPerson.map(function(v){return v.userid}).join('|') );
 
         if(!data.isSign){
-          var treeUrl = VIEWER_URL + '#file=' + FILE_HOST+ data.files[0].key +'&shareID='+ shareID;
+          var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
           var content = util.format('共享ID：%d %s%s分享了 %d 个文档：%s，收件人：%s%s\n%s',
               shareID,
               data.isSign ? "【请求签名】" : "",
@@ -2077,7 +2099,7 @@ app.post("/shareFile", function (req, res) {
               '<a href="'+ treeUrl +'">点此查看</a>'
             );
         } else {
-          var treeUrl = VIEWER_URL + '#file=' + FILE_HOST+ data.files[0].key +'&isSign=1&shareID='+ shareID;
+          var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&isSign=1&shareID='+ shareID;
           var content = util.format('流程ID：%d %s发起了流程：%s，文档：%s，经办人：%s%s\n%s',
               shareID,
               data.fromPerson.map(function(v){return '<a href="'+treeUrl+ '&fromPerson='+ v.userid + '">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
@@ -2532,7 +2554,7 @@ app.get("/updateCompanyTree", function (req, res) {
 app.post("/getCompanyTree", function (req, res) {
   var data = req.body;
   var company = data.company;
-  col.find( { company: company } , {limit:2000} ).toArray(function(err, docs){
+  col.find( { company: company, role:"companyTree" } , {limit:2000} ).toArray(function(err, docs){
       if(err|| !docs || !docs.length) return res.send('');
       var count = docs.length;
       if(count)

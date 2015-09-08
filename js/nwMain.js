@@ -75,10 +75,10 @@ var nwMain = (function(gui) {
 
 		var menuItem3 = new gui.MenuItem({ label: '退出并注销' });
 		menuItem3.on('click',function(e){
-			// Cookies.expire('userid');
-			// Cookies.expire('finger');
+			Cookies.expire('userid');
+			Cookies.expire('finger');
 			$.post( host+'/exitApp', function(){
-				//gui.App.quit();
+				gui.App.quit();
 			});
 		});
 
