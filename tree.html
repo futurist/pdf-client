@@ -246,7 +246,7 @@ function humanFileSize(bytes, si) {
 
 			case 'addToShare':
 
-				reloadTree2();
+				reloadTree2(msg.key, msg.shareID, false, msg.openShare, msg.openMessage);
 				break;
 
 			case 'errMsg':
@@ -348,8 +348,6 @@ function addDiyDom(treeId, treeNode) {
 
 	var shareID = getShareID(treeNode)||'';
 
-    var downloadUrl = host+'/downloadFile2/'+ treeNode.key +'?key='+ treeNode.key +'&shareID='+shareID+'&person='+rootPerson.userid;
-
 	var dateStr = moment(treeNode.date).isBefore( moment([moment().year(),0,1]) ) ?  moment(treeNode.date).format('YYYY-MM-DD HH:mm') : moment(treeNode.date).format('MM-DD HH:mm');
 	var info = $('<a href="#" class="glyphicon glyphicon-download-alt downloadIcon" aria-hidden="true"></a><div class="fileInfo" id="info_'+treeNode.tId +'"><p>'+ humanFileSize(treeNode.fsize) +'</p><span class="date">'+ dateStr +'</span></div>');
 	aObj.append(info).closest('li').addClass('withInfo');
@@ -358,7 +356,13 @@ function addDiyDom(treeId, treeNode) {
 		var downBtn = info.eq(0);
 		var ext = treeNode.key.split('.').pop();
 		var filename = treeNode.name.match( new RegExp('\\.'+ext+'$', 'i') ) ? treeNode.name : treeNode.name+'.'+ext;
-		var srcFile = treeNode.key.match('\.pdf$') ? downloadUrl : FILE_HOST+(treeNode.key);
+
+	    var downloadUrl2 = host+'/downloadFile2/'+ treeNode.key +'?key='+ treeNode.key +'&shareID='+shareID +'&person='+rootPerson.userid+'&rename='+ encodeURIComponent(filename);
+	    var downloadUrl = host+'/downloadFile/'+ encodeURIComponent(filename) +'?key='+ treeNode.key +'&shareID='+shareID +'&person='+rootPerson.userid+'&rename='+ encodeURIComponent(filename);
+	    
+	    downloadUrl = FILE_HOST + treeNode.key;
+
+		var srcFile = treeNode.key.match('\.pdf$') ? downloadUrl2 : downloadUrl ;
 
 		if(isWeiXin) {
 			downBtn.removeAttr('download').attr( 'href', 'http://1111hui.com/pdf/getSrcFile.php?filename='+ filename +'&url='+ encodeURIComponent(srcFile)  );
@@ -366,7 +370,16 @@ function addDiyDom(treeId, treeNode) {
 			downBtn.attr( 'href', srcFile );
 			downBtn.attr( 'download', filename );
 		}
-	},100);
+
+		downBtn.click(function(e){
+			if( $(this).hasClass('downloading') ) return e.preventDefault();
+			var self = this;
+			$(this).addClass('downloading');
+			setTimeout(function() {
+				//$(self).removeClass('downloading');
+			},10000);
+		});
+	},0);
 }
 
 //FOR QT, but no use, we changed to NW.js
@@ -682,9 +695,13 @@ function hidePrintCon() {
 		function beforeRename(treeId, treeNode, newName, isCancel)
 		{
 			var valid = true;
-
+			$('#'+ treeNode.tId ).find('input.rename').width(600);
 			if(newName==""){
 				alert( "请指定一个名称");
+				return false;
+			}
+			if(newName.match(/[\\\/:*?"<>|]/) ) {
+				alert( "名称中不可包含:\\\/:*?\"<>|");
 				return false;
 			}
 
@@ -705,6 +722,15 @@ function hidePrintCon() {
 		function onRename(event, treeId, treeNode, isCancel)
 		{
 			treeNode.title = treeNode.name;
+
+			var ext = treeNode.key.split('.').pop();
+			var filename = treeNode.name.match( new RegExp('\\.'+ext+'$', 'i') ) ? treeNode.name : treeNode.name+'.'+ext;
+			var $dl = $('#'+treeNode.tId).find('.downloadIcon')
+			var url = $dl.attr( 'href' );
+			
+			url = url.split('&rename=').shift()+ '&rename='+ encodeURIComponent( filename );
+			$dl.attr('href', url);
+
 			if(!isCancel || treeNode.isNew) serverUpdateNode('rename', treeNode);
 			treeNode.isNew = false;
 		}
@@ -1615,7 +1641,7 @@ function getFileKeys(node){
 						$('.fDownload').attr( 'download', filename );
 					}
 
-					$('.fDownload').html( '下载(' + humanFileSize(targetNode.fsize) +')' ).show();
+					$('.fDownload').html( '下载(' + humanFileSize(targetNode.fsize) +')' ).hide();
 
 					var shareStr = targetNode.level==0?'':
 					 ( targetNode.isSend||targetNode.isReceive||targetNode.isSign ? '&shareID='+ getShareID(targetNode) : '' );
@@ -2163,7 +2189,9 @@ function wxUploadImage(){
 	        	    isShowProgressTips: 1, // 默认为1，显示进度提示
 	        	    success: function (res) {
 	        	        var serverId = res.serverId; // 返回图片的服务器端ID
-	        	        $.get(host+'/uploadWXImage', {mediaID:serverId, person:rootPerson.userid}, function(data){
+	        	        var path = getPath( treeObj.getSelectedNodes().shift() );
+
+	        	        $.get(host+'/uploadWXImage', {mediaID:serverId, person:rootPerson.userid, path: path }, function(data){
 
 	        	        	if(!data) return alert('上传图片错误');
 	        	        	//appendTree1(data);
@@ -2358,6 +2386,10 @@ $(function  () {
 
 
 
+.ztree li input.rename{
+	width:80%!important;
+}
+
 .ztree li{
 	position: relative;
 }
@@ -2395,6 +2427,10 @@ $(function  () {
 	color:#999;
 }
 
+.ztree .glyphicon-download-alt.downloading {
+	color: #888;
+	visibility: hidden;
+}
 .ztree .glyphicon-download-alt {
     font-size: 18px;
     color: #aaa;
@@ -2832,7 +2868,7 @@ $(function () {
 
 	    			// $(this).fileupload('option', 'url', 'http://up.qiniu.com');
 	    			// data.formData = {key: moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'.'+ext, token:token };
-	    			var key =moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'.'+ext;
+	    			var key =moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'/' + data.files[0].name;
 	    			UploadNonImage = true;
 
 	    			$('#fileupload1').fileupload('add', {files: data.files, formData:{key:key, token:token, 'x:path':relativePath }, url: 'http://up.qiniu.com'} );

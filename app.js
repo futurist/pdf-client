@@ -18,6 +18,7 @@ var assert = require('assert');
 var fs = require('fs');
 var util = require('util');
 var url = require('url');
+var request = require('request');
 
 var urllib = require("urllib");
 var express = require("express");
@@ -95,7 +96,7 @@ function qiniu_getUpToken() {
 }
 
 
-function qiniu_uploadFile(file, callback ){
+function qiniu_uploadFile(file, callback ) {
 
 	var ext = path.extname(file);
 	var saveFile = path.basename(file); //formatDate('yyyymmdd-hhiiss') + Math.random().toString().slice(1,5) + ext;
@@ -589,10 +590,10 @@ app.post("/getJSTicket", function (req, res) {
 });
 
 
-function imageToPDF (person, fileName, res, oldData ){
+function imageToPDF (person, fileName, res, oldData, folder ){
 	var ext = path.extname(fileName);
 	var baseName = path.basename(fileName, ext);
-  var cmd = ' rm -f '+IMAGE_UPFOLDER+'/*.pdf; cd '+IMAGE_UPFOLDER+'; /bin/cp -rf ../make.tex '+ baseName +'.tex; xelatex "\\def\\IMG{'+ baseName +'} \\input{'+ baseName +'.tex}"';
+  var cmd = ' rm -f '+IMAGE_UPFOLDER+'/*.pdf; cd '+IMAGE_UPFOLDER+'; /bin/cp -f ../make.tex '+ baseName +'.tex; xelatex "\\def\\IMG{'+ baseName +'} \\input{'+ baseName +'.tex}"';
   exec(cmd, function(err,stdout,stderr){
     //console.log(stdout);
     console.log('pdf file info: ' + baseName,  err, stderr);
@@ -612,29 +613,50 @@ function imageToPDF (person, fileName, res, oldData ){
         ret.title = oldData.title+'.pdf';
         ret.path = oldData.path;
         ret.srcFile = oldData.key;
-        if(oldData.shareID) ret.shareID = oldData.shareID;
+        if(oldData.shareID){
+        	ret.shareID = oldData.shareID;
+	        ret.role = 'addToShare';
+        } else {
+        	ret.role = 'upfile';
+        }
         if(oldData.order) ret.order = oldData.order;
+	      console.log(ret);
+
+	      upfileFunc(ret, function(ret2){
+	        res.send(ret2);
+	        wsBroadcast(ret2);
+	      });
 
 
       } else {
+    	ret.role = 'upfile';
         ret.person = person;
         ret.client = '';
-        ret.title = '图片上传-'+baseName;
-        ret.path = '/';
+        ret.title = '图片上传-'+baseName+'.pdf';
+        ret.path = folder || '/';
         ret.srcFile = fileName;
-        qiniu_uploadFile(fileName);
+
+        console.log('upload wx image:', fileName);
+	    qiniu_uploadFile(fileName, function(srcRet) {
+
+	    	srcRet.role = 'upfile';
+	        srcRet.person = person;
+	        srcRet.client = '';
+	        srcRet.title = fileName.split('/').pop();
+	        srcRet.path = folder || '/';
+
+		    upfileFunc(srcRet, function(srcRet2){
+		      upfileFunc(ret, function(ret2){
+		        res.send(ret2);
+		        wsBroadcast(ret2);
+		      });
+		    });
+		 });
 
       }
 
-      console.log(ret);
 
-      upfileFunc(ret, function(ret2){
-        ret2.role = 'addToShare';
-        res.send(ret2);
-        wsBroadcast(ret2);
-
-      });
-
+    
     } );
   });
 }
@@ -691,7 +713,7 @@ app.post("/uploadPCImage", function (req, res) {
   var MAX_WIDTH = 2000;
   var MAX_HEIGHT = 2000;
   // we convert from QINIU cloud
-  if(data){
+  if(data) {
 
     if(data.shareID) data.shareID = safeEval( data.shareID );
     filename = data.key;
@@ -699,13 +721,16 @@ app.post("/uploadPCImage", function (req, res) {
 
     var baseName = moment().format('YYYYMMDDHHmmss') ;
     var destPath = IMAGE_UPFOLDER+ baseName + '.'+ ext;
+    var UPFOLDER = IMAGE_UPFOLDER+ baseName+'/';
 
-    var wget = 'wget -P ' + IMAGE_UPFOLDER + ' -N "' + FILE_HOST+filename +'"';
+    var wget = 'mkdir '+ UPFOLDER +'; wget -P ' + UPFOLDER + ' -N "' + FILE_HOST+filename +'"';
     var child = exec(wget, function(err, stdout, stderr) {
       console.log( err, stdout, stderr );
       if(err) return res.send('');
 
-      exec( util.format('identify "%s"', IMAGE_UPFOLDER+ filename ), function(err, stdout, stderr) {
+      filename = filename.split(/\//).pop();
+
+      exec( util.format('identify "%s"', UPFOLDER+ filename ), function(err, stdout, stderr) {
       	console.log(err, stdout, stderr);
       	if(err) return res.send('');
 
@@ -718,7 +743,7 @@ app.post("/uploadPCImage", function (req, res) {
       	if( r>=1 && dim[0]>MAX_WIDTH ) scale = ' -resize '+ MAX_WIDTH;
       	if( r<1 && dim[1]>MAX_HEIGHT ) scale = ' -resize '+ MAX_HEIGHT/dim[1]*100 + '%';
 
-      	var cmd =  util.format( 'convert "%s" -quality 85 -density 72 %s "%s"', IMAGE_UPFOLDER+ filename, scale, destPath);
+      	var cmd =  util.format( 'convert "%s" -quality 85 -density 72 %s "%s"', UPFOLDER+ filename, scale, destPath);
       	console.log(cmd);
 
 	     exec(cmd, function(err, stdout, stderr) {
@@ -743,6 +768,7 @@ app.post("/uploadPCImage", function (req, res) {
 
      var baseName = moment().format('YYYYMMDDHHmmss') ;
      var destPath = IMAGE_UPFOLDER+ baseName + '.'+ ext;
+
      exec( util.format( 'convert "%s" -density 72 "%s"', IMAGE_UPFOLDER+ filename, destPath), function(err, stdout, stderr) {
      	if(err) return res.send('');
 
@@ -758,6 +784,9 @@ app.post("/uploadPCImage", function (req, res) {
 app.get("/uploadWXImage", function (req, res) {
   var mediaID = req.query.mediaID;
   var person = req.query.person;
+  var path = req.query.path;
+    console.log(path);
+
   api.getMedia(mediaID, function(err, buffer, httpRes){
     if(err) {console.log(err); return res.send('');}
 
@@ -770,7 +799,7 @@ app.get("/uploadWXImage", function (req, res) {
     fs.writeFile(fileName, buffer, function(err){
       console.log(err, 'image file written', fileName);
       if (err) return res.send( '' );
-      imageToPDF(person, fileName, res);
+      imageToPDF(person, fileName, res, null, path);
 
     });
 
@@ -911,7 +940,7 @@ app.post("/rotateFile", function (req, res) {
 	    			console.log('exist rotate,', newName);
 	    			return res.send( JSON.stringify(newFile) );
 	    		} else {
-					var child = exec('rm -rf '+DOWNLOAD_DIR+'; mkdir -p ' + DOWNLOAD_DIR, function(err, stdout, stderr) {
+					var child = exec('rm -f '+DOWNLOAD_DIR+'; mkdir -p ' + DOWNLOAD_DIR, function(err, stdout, stderr) {
 					    if (err) throw err;
 					    else download_file_wget(file_url);
 					});
@@ -1221,9 +1250,13 @@ app.get("/downloadFile2/:name", function (req, res) {
 	var shareID = req.query.shareID||'';
 	var userid = req.query.userid||'';
 	var person = req.query.person||'';
+	var rename = req.query.rename||realname;
+	if(!realname) return res.end();
 
 	var filename = path.basename(file);
   	var mimetype = mime.lookup(file);
+
+  	console.log(filename, rename);
 
   	genPDF(filename, shareID, realname, function  (err) {
 
@@ -1234,12 +1267,13 @@ app.get("/downloadFile2/:name", function (req, res) {
   		}
 
   		console.log('gen pdf ok, now download', IMAGE_UPFOLDER+realname, mimetype);
-  		res.download(IMAGE_UPFOLDER+realname);
-
+  		exec('rm -f "'+ IMAGE_UPFOLDER+rename +'"; mv '+IMAGE_UPFOLDER+realname+' "'+IMAGE_UPFOLDER+rename+'"', function(){
+  			res.download(IMAGE_UPFOLDER+rename);
+  		});
   		return;
 
-  		res.setHeader('Content-disposition', 'attachment; filename=' + realname);
-		res.setHeader('Content-type', mimetype);
+  		res.setHeader('Content-disposition', 'attachment; filename=' + rename);
+		//res.setHeader('Content-type', mimetype);
 
 		var filestream = fs.createReadStream( IMAGE_UPFOLDER+realname );
 		filestream.pipe(res);
@@ -1247,17 +1281,27 @@ app.get("/downloadFile2/:name", function (req, res) {
 });
 
 
-app.get("/downloadFile", function (req, res) {
+app.get("/downloadFile/:name", function (req, res) {
 
-	var file = FILE_HOST+req.query.key;
-	return res.send(file);
+	var key = req.query.key;
+	var file = FILE_HOST+key;
+	var rename = req.query.rename;
+	console.log(rename);
 
+	exec( 'wget -P '+ DOWNLOAD_DIR + ' -N '+ file, function(){
+		exec('rm -f "'+DOWNLOAD_DIR+rename+'"; mv '+DOWNLOAD_DIR+key+' "'+DOWNLOAD_DIR+rename+'"', function(){
+			res.download( DOWNLOAD_DIR+rename );
+		});
+	} );
 
+	return;
+
+	// below is not work for rename download file!!!!!
 	var filename = path.basename(file);
   	var mimetype = mime.lookup(file);
 
 	res.setHeader('Content-disposition', 'attachment; filename=' + filename);
-	res.setHeader('Content-type', mimetype);
+	res.setHeader('Content-type', 'application/pdf');
 
 	var filestream = fs.createReadStream(file);
 	filestream.pipe(res);

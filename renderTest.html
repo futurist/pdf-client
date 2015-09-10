@@ -254,7 +254,7 @@ function parseTemplate(str, templateEl){
 	parseT(str);
 
 	str = str.replace(/{{(\d+)}}/, function(match, $1, offset, origin) {
-		return repA[$1-1];
+		return ''; //repA[$1-1];
 	});
 
 	return str;
