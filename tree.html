@@ -50,19 +50,19 @@ var isWeiXin = navigator.userAgent.match(/MicroMessenger\/([\d.]+)/i);
 var isiOS = /iPhone/i.test(navigator.userAgent) || /iPod/i.test(navigator.userAgent) || /iPad/i.test(navigator.userAgent);
 var isMobile = isAndroid||isWeiXin||isiOS;
 
-
-var DEBUG= 0;
-if(isWeiXin)
+var wxUserInfo;
+var DEBUG= 1;
+//if(isWeiXin)
 if(!DEBUG)
 {
-	var wxUserInfo = Cookies.get( 'wxUserInfo' );
+	wxUserInfo = Cookies.get( 'wxUserInfo' );
 	if( !wxUserInfo ){
 		window.location.replace( 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx59d46493c123d365&redirect_uri=http%3A%2F%2F1111hui.com%2F/pdf/getUserID.php&response_type=code&scope=snsapi_base&state='+ encodeURIComponent( window.location.href.replace('#','{@@@}') ) +'#wechat_redirect');
 	} else {
 		wxUserInfo = JSON.parse(wxUserInfo);
 	}
 }else {
-	var wxUserInfo={};
+	wxUserInfo={};
 	wxUserInfo.UserId = 'yangjiming';
 }
 
@@ -282,6 +282,7 @@ function humanFileSize(bytes, si) {
 				showLine:false,
 				nameIsHTML:true,
 				fontCss: getFont,
+				addDiyDom:addDiyDom,
 			},
 			data: {
 				keep:{
@@ -341,7 +342,32 @@ function humanFileSize(bytes, si) {
 		];
 
 
+function addDiyDom(treeId, treeNode) {
+	var aObj = $("#" + treeNode.tId + "_a");
+	if ($("#diyBtn_"+treeNode.id).length>0 || !treeNode.fsize) return;
 
+	var shareID = getShareID(treeNode)||'';
+
+    var downloadUrl = host+'/downloadFile2/'+ treeNode.key +'?key='+ treeNode.key +'&shareID='+shareID+'&person='+rootPerson.userid;
+
+	var dateStr = moment(treeNode.date).isBefore( moment([moment().year(),0,1]) ) ?  moment(treeNode.date).format('YYYY-MM-DD HH:mm') : moment(treeNode.date).format('MM-DD HH:mm');
+	var info = $('<a href="#" class="glyphicon glyphicon-download-alt downloadIcon" aria-hidden="true"></a><div class="fileInfo" id="info_'+treeNode.tId +'"><p>'+ humanFileSize(treeNode.fsize) +'</p><span class="date">'+ dateStr +'</span></div>');
+	aObj.append(info).closest('li').addClass('withInfo');
+
+	setTimeout(function(){
+		var downBtn = info.eq(0);
+		var ext = treeNode.key.split('.').pop();
+		var filename = treeNode.name.match( new RegExp('\\.'+ext+'$', 'i') ) ? treeNode.name : treeNode.name+'.'+ext;
+		var srcFile = treeNode.key.match('\.pdf$') ? downloadUrl : FILE_HOST+(treeNode.key);
+
+		if(isWeiXin) {
+			downBtn.removeAttr('download').attr( 'href', 'http://1111hui.com/pdf/getSrcFile.php?filename='+ filename +'&url='+ encodeURIComponent(srcFile)  );
+		}else {
+			downBtn.attr( 'href', srcFile );
+			downBtn.attr( 'download', filename );
+		}
+	},100);
+}
 
 //FOR QT, but no use, we changed to NW.js
 // setTimeout(function  () {
@@ -2183,7 +2209,7 @@ if(isWeiXin) initWX();
 
 $(function  () {
 
-	$.post(host+ (isWeiXin? '/getUserInfo' : '/getLoginUserInfo') , { userid: isWeiXin? wxUserInfo.UserId:'' }, function  (userinfo) {
+	$.post(host+ (wxUserInfo? '/getUserInfo' : '/getLoginUserInfo') , { userid: wxUserInfo? wxUserInfo.UserId:'' }, function  (userinfo) {
 
 		if(!userinfo) {
 			alert('非法用户');
@@ -2270,7 +2296,56 @@ $(function  () {
     -webkit-tap-highlight-color: rgba(0,0,0,0);
 }
 
+.clearfix {
+  *zoom: 1;
+}
 
+.clearfix:before,
+.clearfix:after {
+  display: table;
+  line-height: 0;
+  content: "";
+}
+
+.clearfix:after {
+  clear: both;
+}
+
+
+
+
+.ztree li a:before,
+.ztree li a:after {
+  display: table;
+  line-height: 0;
+  content: "";
+}
+
+.ztree li a:after {
+  clear: both;
+}
+
+
+
+
+@font-face{
+	font-family:'Glyphicons Halflings';
+	src:url(fonts/glyphicons-halflings-regular.eot);
+	src:url(fonts/glyphicons-halflings-regular.eot?#iefix) format('embedded-opentype'),url(fonts/glyphicons-halflings-regular.woff2) format('woff2'),url(fonts/glyphicons-halflings-regular.woff) format('woff'),url(fonts/glyphicons-halflings-regular.ttf) format('truetype'),url(fonts/glyphicons-halflings-regular.svg#glyphicons_halflingsregular) format('svg')
+}
+.ztree .glyphicon {
+
+    font-size: 18px;
+    position: relative;
+    top: 1px;
+    display: inline-block;
+    font-family: 'Glyphicons Halflings';
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
 
 .noselect {
     -webkit-touch-callout: none;
@@ -2279,6 +2354,59 @@ $(function  () {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+}
+
+
+
+.ztree li{
+	position: relative;
+}
+.ztree li.withInfo{
+	padding:2px 0;
+}
+.ztree li a{
+	padding-top: 2px;
+	margin-left: 17px;
+	display: block;
+	height: auto;
+	border:1px solid rgba(0,0,0,0);
+}
+.ztree li span.button{
+}
+.ztree li span.button.switch {
+	float: left;
+    width: 18px;
+    height: 16px;
+    margin-top: 2px;
+}
+.ztree li a.curSelectedNode{
+	height: auto;
+	padding-top:2px;
+}
+
+.ztree li .fileInfo{
+	float: right;
+	right: 0px;
+	top: 10px;
+    padding-right: 0px;
+}
+.fileInfo span.date{
+	font:12px Arial;
+	color:#999;
+}
+
+.ztree .glyphicon-download-alt {
+    font-size: 18px;
+    color: #aaa;
+	float: right;
+    padding-top: 6px;
+    padding-left: 10px;
+    padding-right: 10px;
+    margin-left: 0;
+    margin-top: 5px;
+}
+.ztree .glyphicon-download-alt:before {
+    content: "\e025";
 }
 
 	div#rMenu {position:absolute; z-index: 9999; visibility:hidden; top:0; background-color: #555;text-align: left;padding: 2px;}

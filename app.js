@@ -2239,7 +2239,7 @@ function genPDF ( filename, shareID,  realname, cb ) {
 	var wget = 'rm -r '+ IMAGE_UPFOLDER+realname+ '; wget -P ' + IMAGE_UPFOLDER + ' -O '+ tempFile +' -N "' + FILE_HOST+filename +'" ';
 	var child = exec(wget, function(err, stdout, stderr) {
 
-		console.log( err, stdout, stderr );
+		//console.log( err, stdout, stderr );
 		if(err || (stdout+stderr).indexOf('200 OK')<0 ) return cb?cb('无法获取原始文件'):'';
 
 		var tempPDF = IMAGE_UPFOLDER + (+new Date()+Math.random()) +'.pdf';
@@ -2250,7 +2250,7 @@ function genPDF ( filename, shareID,  realname, cb ) {
 
 		if(err || stdout.toString().indexOf('render page:')<0 ) return cb?cb('生成绘图数据错误'):'';
 		exec('./mergepdf.py -i '+ tempFile +' -m '+tempPDF+' -o '+ IMAGE_UPFOLDER+realname +' ', function (error, stdout, stderr) {
-			console.log(error,stdout, stderr);
+			//console.log(error,stdout, stderr);
 			if(error){
 				cb('合并PDF文件错误');
 			}
