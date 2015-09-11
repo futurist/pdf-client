@@ -377,6 +377,11 @@ var DOWNLOAD_DIR = './downloads/';
 
 
 
+app.get("/app.js", function (req, res) {
+	res.end();
+});
+
+
 app.get("/main.html", function (req, res) {
   res.render('main',{
     abc:1

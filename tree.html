@@ -1010,7 +1010,7 @@ function hidePrintCon() {
 				document.title = JSON.stringify({action:"openPDF", url:viewerURL, text:text });
 			} else{
 
-				if(typeof global!='undefined'){
+				if( isNWJS ){
 					global._nwMain.showReader(viewerURL);
 				}else
 					window.location = viewerURL;
@@ -1614,6 +1614,10 @@ function getFileKeys(node){
 								? $('.fConvert').show()
 								: $('.fConvert').hide();
 
+							targetNode.key.match(regex_image)
+								? $('.fPreView').show()
+								: $('.fPreView').hide();
+
 						}
 
 
@@ -2151,6 +2155,26 @@ function initWX() {
 		});
 
 	});
+}
+
+function previewWXImage (  ){
+	var sel = treeObj.getSelectedNodes();
+	if(!sel) return;
+	imgArray = sel.map( function(v){ return  FILE_HOST+ v.key } );
+
+	if(isWeiXin){
+		wx.previewImage({
+		    current: imgArray[0], // 当前显示图片的http链接
+		    urls: imgArray // 需要预览的图片http链接列表
+		});
+	} else {
+
+		if(isNWJS)		
+			global._nwMain.showReader( imgArray[0] );
+		else
+			window.open( imgArray[0] );
+
+	}
 }
 
 function wxConfigMenu(){
@@ -3163,6 +3187,7 @@ $(function initPopupMenu () {
 	<div class="unknownMenu">
 		<a class="fDownload" href="#" download onclick="">下载</a>
 		<a class="fConvert" href="javascript:;" onclick="convertPDF()">转为PDF</a>
+		<a class="fPreView" href="javascript:;" onclick="previewWXImage()">查看</a>
 		<a class="fRename" href="javascript:;" onclick="renameTreeNode()">改名</a>
 		<a class="fRemove" href="javascript:;" onclick="removeTreeNode()">删除</a>
 		<a class="fRemove" href="javascript:;" onclick="cutNode()">移动</a>
