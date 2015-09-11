@@ -71,6 +71,7 @@ function safeEval (str) {
 function qiniu_getUpToken() {
 	var responseBody =
 	{
+    "shareID":"$(x:shareID)",
     "srcPath":"$(x:path)",
 		"key":"$(key)",
 		"hash":"$(hash)",
@@ -715,6 +716,7 @@ app.post("/uploadPCImage", function (req, res) {
   var data = req.body.data;
   var filename = req.body.filename;
   var person = req.body.person;
+  var shareID = req.body.shareID;
 
   var MAX_WIDTH = 2000;
   var MAX_HEIGHT = 2000;
@@ -791,6 +793,7 @@ app.get("/uploadWXImage", function (req, res) {
   var mediaID = req.query.mediaID;
   var person = req.query.person;
   var path = req.query.path;
+  var shareID = req.query.shareID;
     console.log(path);
 
   api.getMedia(mediaID, function(err, buffer, httpRes){
@@ -815,6 +818,10 @@ app.get("/uploadWXImage", function (req, res) {
           srcRet.client = '';
           srcRet.title = fileName.split('/').pop();
           srcRet.path = path || '/';
+          if(shareID){
+            srcRet.shareID = shareID;
+            srcRet.role = 'share';
+          } 
 
         upfileFunc(srcRet, function(srcRet2){
             res.send(srcRet2);
@@ -890,10 +897,12 @@ function upfileFunc (data, callback) {
 
   if( data.shareID ) {
 
+      data.shareID = safeEval( data.shareID );
       var newData = _.extend( data, { person: person, date: new Date(), path:savePath } );
       col.update({ role:'share', shareID:data.shareID }, { $addToSet:{ files: newData } } , {upsert:true, w: 1}, function(err, result) {
           if(err) callback('');
           console.log('up shared file: ', { role:'share', shareID:data.shareID, 'files.key': data.key }, data.shareID, data.key, err);
+          newData.role = 'share';
           callback( newData );
        });    
 
@@ -2153,15 +2162,14 @@ app.post("/shareFile", function (req, res) {
 
         if(!data.isSign){
           var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
-          var content = util.format('共享ID：%d %s%s分享了 %d 个文档：%s，收件人：%s%s\n%s',
-              shareID,
-              data.isSign ? "【请求签名】" : "",
+          var content = util.format('%s创建了共享ID：%d(%s)，相关文档：%s，收件人：%s\n%s',
               data.fromPerson.map(function(v){return '<a href="'+ treeUrl + '&fromPerson='+ v.userid + '">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
-              data.files.length,
+              shareID,
+              data.msg,
+              // data.files.length,
               data.files.map(function(v){return '<a href="'+ treeUrl +'">'+v.title+'</a>'}).join('，'),
               data.selectRange.map(function(v){
                 return v.depart? '<a href="'+treeUrl + '&toPerson='+ v.userid +'">'+v.depart+'-'+v.name+'</a>' : '<a href="'+treeUrl + '&toDepart='+ v.name +'">【'+v.name+'】</a>' }).join('；'),
-              data.msg ? '，附言：\n'+data.msg : '',
               '<a href="'+ treeUrl +'">点此查看</a>'
             );
         } else {

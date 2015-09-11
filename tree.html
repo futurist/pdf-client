@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<HTML>
+<html manifest="">
 <HEAD>
 <TITLE>PDFClient</TITLE>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8">
@@ -78,7 +78,6 @@ var DragParentNode = null;
 var sendRoot = null;
 var receiveRoot = null;
 var urlQuery = searchToObject( window.location.hash );
-
 
 
 //Check if we are in NW.JS env
@@ -241,7 +240,7 @@ function humanFileSize(bytes, si) {
 				if(typeof msg.isFinish!='undefined') {
 					return reloadTree2();
 				}
-				reloadTree2(msg.files[0].key, msg.shareID, false, msg.openShare, msg.openMessage);
+				reloadTree2( msg.files ? msg.files[0].key : msg.key , msg.shareID, false, msg.openShare, msg.openMessage);
 				break;
 
 			case 'addToShare':
@@ -343,6 +342,7 @@ function humanFileSize(bytes, si) {
 
 
 function addDiyDom(treeId, treeNode) {
+	var $li = $("#" + treeNode.tId);
 	var aObj = $("#" + treeNode.tId + "_a");
 	if ($("#diyBtn_"+treeNode.id).length>0 || !treeNode.fsize) return;
 
@@ -350,7 +350,10 @@ function addDiyDom(treeId, treeNode) {
 
 	var dateStr = moment(treeNode.date).isBefore( moment([moment().year(),0,1]) ) ?  moment(treeNode.date).format('YYYY-MM-DD HH:mm') : moment(treeNode.date).format('MM-DD HH:mm');
 	var info = $('<a href="#" class="glyphicon glyphicon-download-alt downloadIcon" aria-hidden="true"></a><div class="fileInfo" id="info_'+treeNode.tId +'"><p>'+ humanFileSize(treeNode.fsize) +'</p><span class="date">'+ dateStr +'</span></div>');
-	aObj.append(info).addClass('clearfix').closest('li').addClass('withInfo');
+	$li.append(info).addClass('clearfix withInfo');
+	if( treeNode.key.match(regex_image)  ) aObj.find('.ico_docu').addClass('image');
+	if( treeNode.key.match(regex_can_be_convert)  ) aObj.find('.ico_docu').addClass('canBeConverted');
+	if( treeNode.key.match( /\.pdf$/i )  ) aObj.find('.ico_docu').addClass('pdf');
 
 	setTimeout(function(){
 		var downBtn = info.eq(0);
@@ -969,8 +972,10 @@ function hidePrintCon() {
 			className = (className === "dark" ? "":"dark");
 			if(curSrcNode && treeNode.open) return true;
 
+			var prevScrollPos = $(window).scrollTop();
 			if (treeNode.isParent && treeNode.level>0 && treeNode.click!==false) {
 				treeObj.expandNode(treeNode);
+				$(window).scrollTop( prevScrollPos );
 			}
 			showLog("[ "+getTime()+" beforeClick ]&nbsp;&nbsp;" + treeNode.name );
 			return (treeNode.click != false);
@@ -1271,10 +1276,12 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 			}
 			if(openShare){
 				shareFile();
-			}
-			if(openMessage){
+			}else if(openMessage){
 				viewDetail();
+			} else if(urlQuery.tab) {
+				showTab( urlQuery.tab );
 			}
+
 		});
 	});
 }
@@ -1614,9 +1621,6 @@ function getFileKeys(node){
 								? $('.fConvert').show()
 								: $('.fConvert').hide();
 
-							targetNode.key.match(regex_image)
-								? $('.fPreView').show()
-								: $('.fPreView').hide();
 
 						}
 
@@ -1662,6 +1666,10 @@ function getFileKeys(node){
 						$('.fView, .fPrint').show();
 						$('.fDownload').hide();
 					}
+
+					targetNode.key.match(regex_image) || (! isWeiXin && targetNode.key.match(/\.txt$/i))
+					? $('.fPreView').show()
+					: $('.fPreView').hide();
 
 				}
 
@@ -1978,6 +1986,8 @@ function viewDetail () {
 	$('.header').hide();
 	$('.ztreeFile').hide();
 	$('.msg_wrap').show();
+	
+	if(!isWeiXin) moveUploaderButton( $('.upHolder2') );
 
 	var title = getPath(sel);
 	title = title.split('/').slice(0,2).join('/')+'/';
@@ -2070,6 +2080,8 @@ function closeViewDetail () {
 	$('.header').show();
 	showTab();
 
+	moveUploaderButton( $('.upHolder1') );
+
 	updateMenu(sel);
 }
 
@@ -2080,7 +2092,8 @@ function addShareFiles () {
 
 }
 
-function getShareID(p){
+function getShareID (p){
+	if(!p) return '';
 	while( p && !p.shareID){
 		p = p.getParentNode();
 	}
@@ -2157,7 +2170,7 @@ function initWX() {
 	});
 }
 
-function previewWXImage (  ){
+function previewImage (  ){
 	var sel = treeObj.getSelectedNodes();
 	if(!sel) return;
 	imgArray = sel.map( function(v){ return  FILE_HOST+ v.key } );
@@ -2215,7 +2228,9 @@ function wxUploadImage(){
 	        	        var serverId = res.serverId; // 返回图片的服务器端ID
 	        	        var path = getPath( treeObj.getSelectedNodes().shift() );
 
-	        	        $.get(host+'/uploadWXImage', {mediaID:serverId, person:rootPerson.userid, path: path }, function(data){
+	        	        var shareID = getShareID(  treeObj.getSelectedNodes().shift() );
+	        	        if(shareID) path = path.replace( /^\/[^/]+/, '' );
+	        	        $.get(host+'/uploadWXImage', {mediaID:serverId, person:rootPerson.userid, path: path, shareID:shareID }, function(data){
 
 	        	        	if(!data) return alert('上传图片错误');
 	        	        	//appendTree1(data);
@@ -2385,6 +2400,51 @@ $(function  () {
     -moz-osx-font-smoothing: grayscale;
 }
 
+
+.ztree li span.button.ico_docu, .ztree li span.button.ico_open,  .ztree li span.button.ico_close {
+	background: none;
+    font-size: 14px;
+    margin-top: 1px;
+    margin-left: 4px;
+    color: #3296A2;
+    display: inline-block;
+    font-family: 'Glyphicons Halflings';
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.ztree li span.button.chk{
+	margin-top: 5px;
+}
+
+.ztree li span.button.ico_open:before{
+    content: "\e118";
+}
+.ztree li span.button.ico_close:before{
+    content: "\e117";
+}
+
+.ztree li span.button.ico_docu:before {
+    content: "\e022";
+}
+
+.ztree li span.button.ico_docu.image:before {
+    content: "\e060";
+}
+.ztree li span.button.ico_docu.canBeConverted:before {
+    content: "\e224";
+}
+.ztree li span.button.ico_docu.pdf:before {
+    content: "\e065";
+}
+
+
+
+
+
 .noselect {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -2408,8 +2468,8 @@ $(function  () {
 }
 .ztree li a{
 	padding-top: 2px;
-	margin-left: 17px;
-	display: block;
+	margin-left: 0px;
+	display: inline-block;
 	height: auto;
 	border:1px solid rgba(0,0,0,0);
 }
@@ -2606,7 +2666,26 @@ $(function  () {
 		border-radius: 4px;
 		 height: 88px;
 		 width: 365px;
-		     font: 28px/1 Arail;
+	     font: 28px/1 Arail;
+	    float: left;
+	    margin-bottom: 10px;
+	}
+
+	.leftButton{
+		float: right;
+		width:65px;
+	}
+
+	.inputBtn2{
+	    width: 58px;
+	    height: 38px;
+        margin: 4px 0;
+        vertical-align: top;
+        background-color: rgb(70, 129, 183);
+	    border: none;
+	    border-radius: 4px;
+        color: white;
+	    font: 18px/1 "黑体";
 	}
 	.inputBtn{
 	    width: 80px;
@@ -2881,7 +2960,8 @@ $(function () {
 	    			var key =moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'/' + data.files[0].name;
 	    			UploadNonImage = true;
 
-	    			$('#fileupload1').fileupload('add', {files: data.files, formData:{key:key, token:token, 'x:path':relativePath }, url: 'http://up.qiniu.com'} );
+	    			var shareID = getShareID( treeObj.getSelectedNodes().shift() );
+	    			$('#fileupload1').fileupload('add', {files: data.files, formData:{key:key, token:token, 'x:path':relativePath, 'x:shareID':shareID||'' }, url: 'http://up.qiniu.com'} );
 	    			// This will trigger ADD event again, with UploadNonImage = true
 
 	    		});
@@ -2899,7 +2979,7 @@ $(function () {
         	if( data.result.file ) {
 	            $.each(data.result.file, function (index, file) {
 	            	if(file.error) return alert(file.error);
-	            	$.post(host+'/uploadPCImage', {person:rootPerson.userid, filename:file.name}, function(ret){
+	            	$.post(host+'/uploadPCImage', {person:rootPerson.userid, filename:file.name }, function(ret){
 	            		//console.log(ret);
 	            	}  );
 	            });
@@ -2914,7 +2994,15 @@ $(function () {
 				var sel = getSelectFiles().shift();
 				var oldPath = sel? getPath(sel) : '/';
 
-				result.path = oldPath.replace(/[^/]+$/,'') + result.srcPath ;
+				if( result.shareID ){
+				
+					result.path = '/'+result.srcPath;
+
+				} else {
+					result.path = oldPath.replace(/[^/]+$/,'') + result.srcPath ;
+				}
+
+				console.log(result);
 
 				result.returnPath = oldPath;
 
@@ -3043,9 +3131,11 @@ $(function initPopupMenu () {
 		var pop = $('.addFilePopup');
 		pop.find( '>a' ).css({padding: '0 '+ ( Math.min( $(pop).width()*.23, 40) ) +'px'});
 
-		isWeiXin
-		? $('#fileupload1').css({top: menuHeight+'px', height:menuHeight+'px' })
-		: $('#fileupload1').css({top: 0+'px', height:menuHeight*2+'px' })
+		if(isWeiXin) {
+			$('#fileupload1').css({ height:menuHeight+'px' });  $('.upHolder1').css({top: menuHeight+'px' });  
+		} else {
+			$('#fileupload1').css({ height:menuHeight*2+'px' });  $('.upHolder1').css({top: 0+'px' });
+		}
 
 	});
 
@@ -3061,6 +3151,13 @@ $(function initPopupMenu () {
 
 
 });
+
+
+function moveUploaderButton (el) {
+	
+	$('#fileupload1').appendTo( $(el) );
+
+}
 
 
 
@@ -3108,7 +3205,9 @@ $(function initPopupMenu () {
 				<a class="addImageBtn" onclick="addPictureCon()">图片
 				</a>
 				<a onclick="">文件</a>
-				<input id="fileupload1" type="file" name="file" data-url="./phpupload/" multiple>
+				<div class="upHolder1" style="position: absolute; top:0; left:0; width:100%; overflow:visible; ">
+					<input id="fileupload1" type="file" name="file" data-url="./phpupload/" multiple>
+				</div>
 				<a class="fRename" onclick="addTreeNode()">文件夹</a>
 				<a class="fShare" onclick="addTemplateCon()">模板</a>
 			</div>
@@ -3164,9 +3263,18 @@ $(function initPopupMenu () {
 		<ul></ul>
 	</div>
 	<div class="msgText">
-		<textarea class="inputMsg"></textarea>
+		<div>
+			<div class="leftButton">
+				<div class="upHolder2" style="overflow:hidden; width:100%; height:46px; position:relative;">
+					<input class="inputBtn2" type="button" value="图片" onclick="addPictureCon()" />
+				</div>
+				<input class="inputBtn2" type="button" value="语音" onclick="sendShareSnd()" />
+			</div>
+			<div style="display:block; margin-right:70px; padding-right:10px;"><textarea class="inputMsg" style="width:100%;"></textarea></div>
+			<div style="clear:both;"></div>
+		</div>
+		<input class="inputBtn closeBtn" type="button" value="关闭"  onclick=" closeViewDetail()" />
 		<input class="inputBtn" type="button" value="发送" onclick="sendShareMsg()" />
-		<input class="inputBtn closeBtn" type="button" value="关闭"  onclick="closeViewDetail()" />
 	</div>
 </div>
 
@@ -3187,7 +3295,7 @@ $(function initPopupMenu () {
 	<div class="unknownMenu">
 		<a class="fDownload" href="#" download onclick="">下载</a>
 		<a class="fConvert" href="javascript:;" onclick="convertPDF()">转为PDF</a>
-		<a class="fPreView" href="javascript:;" onclick="previewWXImage()">查看</a>
+		<a class="fPreView" href="javascript:;" onclick="previewImage()">预览</a>
 		<a class="fRename" href="javascript:;" onclick="renameTreeNode()">改名</a>
 		<a class="fRemove" href="javascript:;" onclick="removeTreeNode()">删除</a>
 		<a class="fRemove" href="javascript:;" onclick="cutNode()">移动</a>
@@ -3222,6 +3330,7 @@ $(function initPopupMenu () {
 		<a class="fDownload" href="#" download onclick="">下载</a>
 		<a class="fConvert" href="javascript:;" onclick="convertPDF()">转为PDF</a>
 		<a class="fFile fView" href="javascript:;" onclick="">查看文件</a>
+		<a class="fPreView" href="javascript:;" onclick="previewImage()">预览</a>
 		<a class="fFile fShare" href="javascript:;" onclick="shareFile()">分享</a>
 		<a class="fCommon fMessage" href="javascript:;" onclick="viewDetail()">消息记录</a>
 		<a class="fFile fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>
@@ -3233,6 +3342,7 @@ $(function initPopupMenu () {
 		<a class="fDownload" href="#" download onclick="">下载</a>
 		<a class="fConvert" href="javascript:;" onclick="convertPDF()">转为PDF</a>
 		<a class="fFile fView" href="javascript:;" onclick="">查看文件</a>
+		<a class="fPreView" href="javascript:;" onclick="previewImage()">预览</a>
 		<a class="fFile fShare" href="javascript:;" onclick="shareFile()">分享</a>
 		<a class="fCommon fMessage" href="javascript:;" onclick="viewDetail()">消息记录</a>
 		<a class="fFile fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>
