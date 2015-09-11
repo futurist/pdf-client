@@ -629,7 +629,8 @@ function imageToPDF (person, fileName, res, oldData, folder ){
 
 
       } else {
-    	ret.role = 'upfile';
+  
+      	ret.role = 'upfile';
         ret.person = person;
         ret.client = '';
         ret.title = '图片上传-'+baseName+'.pdf';
@@ -799,7 +800,22 @@ app.get("/uploadWXImage", function (req, res) {
     fs.writeFile(fileName, buffer, function(err){
       console.log(err, 'image file written', fileName);
       if (err) return res.send( '' );
-      imageToPDF(person, fileName, res, null, path);
+      // imageToPDF(person, fileName, res, null, path);
+
+
+      qiniu_uploadFile(fileName, function(srcRet) {
+
+          srcRet.role = 'upfile';
+          srcRet.person = person;
+          srcRet.client = '';
+          srcRet.title = fileName.split('/').pop();
+          srcRet.path = path || '/';
+
+        upfileFunc(srcRet, function(srcRet2){
+            res.send(srcRet2);
+            wsBroadcast(srcRet2);
+        });
+      });
 
     });
 
@@ -1515,7 +1531,8 @@ app.post("/getSavedSign", function (req, res) {
           	if(!v.signData) return false;
             return x&&x._id&& v && v.signData && (x._id.toHexString() == v.signData.toString() )
           });
-          v.sign = t.shift();
+          var sign = t.shift();
+          v.sign = sign;
         });
         res.send(docs);
       });

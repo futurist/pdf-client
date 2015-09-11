@@ -282,7 +282,7 @@ function humanFileSize(bytes, si) {
 				showLine:false,
 				nameIsHTML:true,
 				fontCss: getFont,
-				addDiyDom:addDiyDom,
+				addDiyDom: 0 ? null : addDiyDom ,
 			},
 			data: {
 				keep:{
@@ -350,7 +350,7 @@ function addDiyDom(treeId, treeNode) {
 
 	var dateStr = moment(treeNode.date).isBefore( moment([moment().year(),0,1]) ) ?  moment(treeNode.date).format('YYYY-MM-DD HH:mm') : moment(treeNode.date).format('MM-DD HH:mm');
 	var info = $('<a href="#" class="glyphicon glyphicon-download-alt downloadIcon" aria-hidden="true"></a><div class="fileInfo" id="info_'+treeNode.tId +'"><p>'+ humanFileSize(treeNode.fsize) +'</p><span class="date">'+ dateStr +'</span></div>');
-	aObj.append(info).closest('li').addClass('withInfo');
+	aObj.append(info).addClass('clearfix').closest('li').addClass('withInfo');
 
 	setTimeout(function(){
 		var downBtn = info.eq(0);
@@ -2342,20 +2342,6 @@ $(function  () {
 
 
 
-.ztree li a:before,
-.ztree li a:after {
-  display: table;
-  line-height: 0;
-  content: "";
-}
-
-.ztree li a:after {
-  clear: both;
-}
-
-
-
-
 @font-face{
 	font-family:'Glyphicons Halflings';
 	src:url(fonts/glyphicons-halflings-regular.eot);
@@ -2435,11 +2421,11 @@ $(function  () {
     font-size: 18px;
     color: #aaa;
 	float: right;
-    padding-top: 6px;
+    padding-top: 2px;
     padding-left: 10px;
     padding-right: 10px;
     margin-left: 0;
-    margin-top: 5px;
+    margin-top: 0px;
 }
 .ztree .glyphicon-download-alt:before {
     content: "\e025";
