@@ -34,6 +34,8 @@
 	<SCRIPT type="text/javascript">
 
 
+moment.locale('zh-cn');
+
 //******* Common Function & Variable part **************
 
 function searchToObject(search) {
@@ -534,6 +536,15 @@ function addTemplateCon() {
 
 };
 
+function sendShareSnd () {
+	if(isWeiXin){
+
+	} else {
+		alert('语音请求已发送到微信，请点链接微信留言');
+	}
+}
+
+
 function addPictureCon() {
 	if(isWeiXin) wxUploadImage();
 	else pcUploadImage();
@@ -738,11 +749,13 @@ function hidePrintCon() {
 			treeNode.isNew = false;
 		}
 
-		function removeTreeNode() {
+		function removeTreeNode () {
 			if( !confirm('确定要删除吗？此操作不可恢复！') ) return;
 			hideRMenu();
 			var nodes = treeObj.getSelectedNodes();
 			console.log(nodes[0]);
+			var shareID = getShareID(nodes[0]);
+
 			if (nodes && nodes.length>0) {
 				if (nodes[0].children && nodes[0].children.length > 0) {
 					var msg = "要删除的节点是目录，如果删除将连同内部的文件一起删掉。\n\n请确认！";
@@ -751,7 +764,7 @@ function hidePrintCon() {
 						treeObj.removeNode(nodes[0]);
 					}
 				} else {
-					$.post(host+'/removeFile', { hash:nodes[0].hash }, function  () {} );
+					$.post(host+'/removeFile', { hash:nodes[0].hash, key:nodes[0].key, shareID: shareID }, function  () {} );
 					treeObj.removeNode(nodes[0]);
 				}
 			}
@@ -950,19 +963,29 @@ function hidePrintCon() {
 
 
 		function beforeDblClick (treeId, treeNode) {
-			if( treeNode && treeNode.key && treeNode.key.match(/\.pdf$/) ){
+			if( treeNode && treeNode.key) {
 				return true;
 			}
 			return false;
 		}
 		function onDblClick (event, treeId, treeNode) {
+			if(!treeNode || !treeNode.key ) return;
+
 			if( ! $('.content_wrap').is(':visible') ) return;
 			var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
 			shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
 
 			shareStr += treeNode.isTemplate ? '&isTemplate=1' : '';
 
-			sendClientMsg(treeNode.key + shareStr, treeNode.title);
+			if(  treeNode.key.match(/\.pdf$/) ){
+				sendClientMsg(treeNode.key + shareStr, treeNode.title);
+			} else if( treeNode.key.match(regex_preview) ) {
+				previewImage();
+			} else if( treeNode.key.match(regex_can_be_convert) ) {
+				if(window.confirm('此文件可转为PDF进行预，现在转换为PDF吗?')) convertPDF();
+			}else {
+				eve( $('#'+ treeNode.tId+'').find('.downloadIcon') );
+			}
 		}
 
 
@@ -1007,6 +1030,8 @@ function hidePrintCon() {
 		function sendClientMsg (url, text) {
 
 			var viewerURL = 'http://1111hui.com/pdf/webpdf/viewer.html#file='+ FILE_HOST +url;
+
+			console.log(url);
 
 			if(isQT){
 
@@ -1667,9 +1692,15 @@ function getFileKeys(node){
 						$('.fDownload').hide();
 					}
 
-					targetNode.key.match(regex_image) || (! isWeiXin && targetNode.key.match(/\.txt$/i))
+					targetNode.key.match(regex_preview) 
 					? $('.fPreView').show()
 					: $('.fPreView').hide();
+
+					if(rootPerson.userid== targetNode.person ){
+						$('.receiveMenu .fRemove, .sendMenu .fRemove').show()
+					} else {
+						$('.receiveMenu .fRemove, .sendMenu .fRemove').hide()
+					}
 
 				}
 
@@ -2048,8 +2079,8 @@ function viewDetail () {
 	});
 }
 
-function appendShareMsg(v){
-	if( !$('.msg_wrap').is(':visible') ) return;
+function appendShareMsg (v){
+	if( !v || !$('.msg_wrap').is(':visible') ) return;
 	var sel = treeObj.getSelectedNodes();
 	if(!sel.length) return;
 	sel = sel[0];
@@ -2059,18 +2090,49 @@ function appendShareMsg(v){
 	title = title.split('/').slice(0,2).join('/')+'/';
 
 	var titleReg = title.replace(/\(/g, '\\(').replace(/\)/g, '\\)');
-	var content = v.text.content.replace(new RegExp(titleReg,'ig'), '');
 
-	var $div = $('<div></div>');
-	$div.html(content);
-	$div.find('a').each(function  () {
-		if( $(this).html()=='' ) $(this).remove();
-	});
-	content = $div.html().replace(/对\s+/, '');
+	// Text Message
+	if(v.text ){
+		var content = v.text.content.replace(new RegExp(titleReg,'ig'), '');
 
-	var li = $('<li>'+ content +'</li>');
+		var $div = $('<div></div>');
+		$div.html(content);
+		$div.find('a').each(function  () {
+			if( $(this).html()=='' ) $(this).remove();
+		});
+		content = $div.html().replace(/对\s+/, '');
+
+
+	}
+
+	// Text Message
+	if(v.news ){
+
+		var item = v.news.articles.shift();
+		var content = item.title.replace(new RegExp(titleReg,'ig'), '');
+
+		var $div = $('<div></div>');
+		$div.html(content+'<br>');
+		$div.append( '<img class="msgImage" src="'+ item.picurl +'">' );
+		
+		$div.find('a').each(function  () {
+			if( $(this).html()=='' ) $(this).remove();
+		});
+
+		content = $div.html().replace(/[在|对]\s+/, '');
+
+	}
+
+	var diff = moment().diff( moment(v.date), 'days' );
+	var dtime = 
+		diff<1 
+		? moment(v.date).from( moment() )
+		: (diff >=1 && diff<=180) ? moment(v.date).format('MM-DD HH:mm') : moment(v.date).format('YYYY-MM-DD HH:mm');
+
+	var li = $('<li><span class="msgDate">'+ dtime +'</span> '+ content +'</li>');
 	$('.msgTree ul').append(li);
-	$('.msgTree').scrollTop( Infinity )
+	$('.msgTree').scrollTop( Infinity )		
+
 }
 
 function closeViewDetail () {
@@ -2098,6 +2160,14 @@ function getShareID (p){
 		p = p.getParentNode();
 	}
 	return p && p.shareID;
+}
+
+function getShareName (p){
+	if(!p) return '';
+	while( p && p.level && p.level!=1 ) {
+		p = p.getParentNode();
+	}
+	return p && p.name;
 }
 
 function sendShareMsg () {
@@ -2428,7 +2498,7 @@ $(function  () {
 }
 
 .ztree li span.button.ico_docu:before {
-    content: "\e022";
+    content: "\e142";
 }
 
 .ztree li span.button.ico_docu.image:before {
@@ -2438,7 +2508,7 @@ $(function  () {
     content: "\e224";
 }
 .ztree li span.button.ico_docu.pdf:before {
-    content: "\e065";
+    content: "\e022";
 }
 
 
@@ -2609,7 +2679,10 @@ $(function  () {
 	}
 
 	.msgTree ul li{
-		margin:10px 0;
+		padding: 10px 0;
+    	border-bottom: 1px solid #eee;
+		font: 14px Arial;
+    	color: #666;
 	}
 	.msgTitle{
 		position: fixed;
@@ -2624,6 +2697,12 @@ $(function  () {
 	  line-height: 41px;
 	    overflow: hidden;
 	}
+
+	.msgDate{
+		font: 12px Arial;
+	    color: #999;
+	}
+
 
 	#shareMsg{
 		border:1px solid #666;
@@ -2846,6 +2925,7 @@ $(function  () {
 <script>
 
 var regex_image= /(gif|jpe?g|png|bmp)$/i;
+var regex_preview = /(gif|jpe?g|png|bmp|txt)$/i;
 var regex_can_be_convert = /(docx?|xlsx?|pptx?|txt)$/i;
 var UploadNonImage = false;
 var CONVERT_TIMEOUT = 2*60*1000 ; 	//5 mins
@@ -2894,7 +2974,7 @@ function convertPDF () {
 		  error: function(xhr, type){
 		  	showMainWindow();
 		  	$('.bg_mask').hide();
-		    alert('连接超时');
+		    alert('连接超时或转换服务发生故障，请告知管理员');
 		  }
 		});
 	}
@@ -2994,9 +3074,13 @@ $(function () {
 				var sel = getSelectFiles().shift();
 				var oldPath = sel? getPath(sel) : '/';
 
+
 				if( result.shareID ){
-				
-					result.path = '/'+result.srcPath;
+					
+					var folder = oldPath.replace(/^\/[^/]+/,'');
+					result.path = folder +'/'+ result.srcPath;
+					result.path = result.path.replace(/\/\//g, '/');
+					result.shareName = '/'+getShareName(sel)+'/';
 
 				} else {
 					result.path = oldPath.replace(/[^/]+$/,'') + result.srcPath ;
@@ -3005,6 +3089,10 @@ $(function () {
 				console.log(result);
 
 				result.returnPath = oldPath;
+
+				var isInMsg = $('.msg_wrap').is(':visible');
+				result.isInMsg = isInMsg;
+
 
         		$.post(host+'/upfile', result, function(ret){  });
 
@@ -3316,13 +3404,13 @@ function moveUploaderButton (el) {
 
 	<div class="moveMenu">
 		<a class="fRename" href="javascript:;">选择目标目录：</a>
-		<a class="fRemove" href="javascript:;" onclick="moveTreeNodeCancel()">取消</a>
+		<a class="fBackCab" href="javascript:;" onclick="moveTreeNodeCancel()">取消</a>
 		<a class="fPaste" href="javascript:;" onclick="pasteNode()">确定</a>
 	</div>
 
 	<div class="shareMenu">
 		<a class="fRename" href="javascript:;">分享给：</a>
-		<a class="fRemove" href="javascript:;" onclick="hideShare()">取消</a>
+		<a class="fBackCab" href="javascript:;" onclick="hideShare()">取消</a>
 		<a class="fPaste" href="javascript:;" onclick="return shareNodePre()">确定</a>
 	</div>
 
@@ -3330,6 +3418,7 @@ function moveUploaderButton (el) {
 		<a class="fDownload" href="#" download onclick="">下载</a>
 		<a class="fConvert" href="javascript:;" onclick="convertPDF()">转为PDF</a>
 		<a class="fFile fView" href="javascript:;" onclick="">查看文件</a>
+		<a class="fRemove" href="javascript:;" onclick="removeTreeNode()">删除</a>
 		<a class="fPreView" href="javascript:;" onclick="previewImage()">预览</a>
 		<a class="fFile fShare" href="javascript:;" onclick="shareFile()">分享</a>
 		<a class="fCommon fMessage" href="javascript:;" onclick="viewDetail()">消息记录</a>
@@ -3342,6 +3431,7 @@ function moveUploaderButton (el) {
 		<a class="fDownload" href="#" download onclick="">下载</a>
 		<a class="fConvert" href="javascript:;" onclick="convertPDF()">转为PDF</a>
 		<a class="fFile fView" href="javascript:;" onclick="">查看文件</a>
+		<a class="fRemove" href="javascript:;" onclick="removeTreeNode()">删除</a>
 		<a class="fPreView" href="javascript:;" onclick="previewImage()">预览</a>
 		<a class="fFile fShare" href="javascript:;" onclick="shareFile()">分享</a>
 		<a class="fCommon fMessage" href="javascript:;" onclick="viewDetail()">消息记录</a>

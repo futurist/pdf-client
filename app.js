@@ -245,7 +245,7 @@ function wsSendPrinter (msg, printerName, res) {
   if(!printerName) {
 
     var printer = choosePrinter();
-    if(!printer) return null;
+    if(!printer) return res.send('');
 
     printerName = printer.clientName;
   }
@@ -898,14 +898,20 @@ function upfileFunc (data, callback) {
   if( data.shareID ) {
 
       data.shareID = safeEval( data.shareID );
+      data.isInMsg = safeEval( data.isInMsg );
+
       var newData = _.extend( data, { person: person, date: new Date(), path:savePath } );
+
+      if(data.isInMsg){
+      	newData.path = '/消息附件/';
+      }
+
       col.update({ role:'share', shareID:data.shareID }, { $addToSet:{ files: newData } } , {upsert:true, w: 1}, function(err, result) {
           if(err) callback('');
           console.log('up shared file: ', { role:'share', shareID:data.shareID, 'files.key': data.key }, data.shareID, data.key, err);
           newData.role = 'share';
           callback( newData );
-       });    
-
+       });
 
   } else {
 
@@ -932,9 +938,51 @@ function upfileFunc (data, callback) {
 
 app.post("/upfile", function (req, res) {
 
-	upfileFunc(req.body, function(ret){
+	upfileFunc(req.body, function(ret) {
 		res.send( JSON.stringify(ret) );
 		wsBroadcast(ret);
+
+		// Send WX Message when it's upload images & sound files to share Folder
+
+
+		if(! ret.isInMsg) return;
+
+		var shareID = ret.shareID;
+
+		col.findOne( 
+			{role:'share', shareID:shareID, 'files.key': ret.key }, { fields: {'files': { $elemMatch:{ files: { key: ret.key } } }, toPerson:1, fromPerson:1, msg:1  }   },  function(err, data){
+
+
+	      //get segmented path, Target Path segment and A link
+	     var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, ret.key, shareID, ret.shareName ) ;
+
+
+
+	      var msg = {
+	       "touser": data.toPerson.map(function(v){return v.userid}).join('|'),
+	       "touserName": data.toPerson.map(function(v){return v.name}).join('|'),
+	       "msgtype": "news",
+	       "news": {
+	         "articles":[
+	         {
+	          "title": util.format('%s 在%s 上传了图片',
+	            data.fromPerson.shift().name,
+	            overAllPath  // if we need segmented path:   pathName.join('-'),
+	          ),
+	          "description": "点击查看消息记录",
+	          "url": util.format('%s#path=%s&shareID=%d&openMessage=1', TREE_URL, ret.key, shareID ),
+		       "picurl": FILE_HOST+ret.key
+		     }
+	       ] },
+	       "safe":"0",
+	        date : new Date(),
+	        role : 'shareMsg',
+	        shareID:shareID
+	      };
+
+	      sendWXMessage(msg);
+
+		});
 	});
 
 } );
@@ -1369,7 +1417,15 @@ app.post("/updatefile", function (req, res) {
 
 app.post("/removeFile", function (req, res) {
   var hash = req.body.hash;
-  col.update({hash: hash}, {$set:{status:-1}}, {multi:true});
+  var key = req.body.key;
+  var shareID = safeEval(req.body.shareID);
+  
+  if(shareID && key ){
+	  col.update({role:'share', 'files.key': key, shareID:shareID }, { $pull:{ 'files': {key:key } } }, {multi:false});  		
+  }else{
+	  col.update({ role:'upfile', hash: hash}, {$set:{status:-1}}, {multi:true});
+  }
+  
   res.send("delete file ok");
 });
 
@@ -1685,7 +1741,7 @@ app.post("/getShareMsg", function (req, res) {
   var hash = req.body.hash;
   var keyword = req.body.keyword;
 
-  var condition = {  role:'shareMsg', msgtype:'text' };
+  var condition = {  role:'shareMsg' };
   if(shareID) condition.shareID = parseInt(shareID,10);
   if(fromPerson) condition.fromPerson = fromPerson;
 
@@ -1701,7 +1757,7 @@ app.post("/getShareMsg", function (req, res) {
       if(hash) hashA = hashA.concat(hash);
       //if(hashA.length>1) condition.hash = {$in:hashA};
 
-      col.find( condition , {'text.content':1,touser:1, touserName:1} , {limit:500} ).sort({shareID:1, date:1}).toArray(function(err, docs){
+      col.find( condition , {} , {limit:500} ).sort({shareID:1, date:1}).toArray(function(err, docs){
           if(err || !docs) {
             return res.send('error');
           }
