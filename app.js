@@ -967,7 +967,7 @@ app.post("/upfile", function (req, res) {
 	         {
 	          "title": util.format('%s 在%s 上传了图片',
 	            data.fromPerson.shift().name,
-	            overAllPath  // if we need segmented path:   pathName.join('-'),
+	            ret.shareName  // if we need segmented path:   pathName.join('-'),
 	          ),
 	          "description": "点击查看消息记录",
 	          "url": util.format('%s#path=%s&shareID=%d&openMessage=1', TREE_URL, ret.key, shareID ),
