@@ -364,7 +364,7 @@ function addDiyDom(treeId, treeNode) {
 
 	    var downloadUrl2 = host+'/downloadFile2/'+ treeNode.key +'?key='+ treeNode.key +'&shareID='+shareID +'&person='+rootPerson.userid+'&rename='+ encodeURIComponent(filename);
 	    var downloadUrl = host+'/downloadFile/'+ encodeURIComponent(filename) +'?key='+ treeNode.key +'&shareID='+shareID +'&person='+rootPerson.userid+'&rename='+ encodeURIComponent(filename);
-	    
+
 	    downloadUrl = FILE_HOST + treeNode.key;
 
 		var srcFile = treeNode.key.match('\.pdf$') ? downloadUrl2 : downloadUrl ;
@@ -741,7 +741,7 @@ function hidePrintCon() {
 			var filename = treeNode.name.match( new RegExp('\\.'+ext+'$', 'i') ) ? treeNode.name : treeNode.name+'.'+ext;
 			var $dl = $('#'+treeNode.tId).find('.downloadIcon')
 			var url = $dl.attr( 'href' );
-			
+
 			url = url.split('&rename=').shift()+ '&rename='+ encodeURIComponent( filename );
 			$dl.attr('href', url);
 
@@ -1682,8 +1682,8 @@ function getFileKeys(node){
 					if(changeURL) window.location = '#path='+ ( getPath(targetNode)+(targetNode.key||'') ) + shareStr;
 					// window.location.replace(window.location);
 					if( !targetNode.key) return $('.fDownload').hide();
-					if( targetNode.key.match(regex_can_be_convert)|| targetNode.key.match(regex_image) ){ 
-						$('.fConvert').show(); 
+					if( targetNode.key.match(regex_can_be_convert)|| targetNode.key.match(regex_image) ){
+						$('.fConvert').show();
 						$('.fView, .fPrint').hide();
 					} else if( !targetNode.key.match(/\.pdf$/i) ) {
 						$('.fConvert, .fView, .fPrint').hide();
@@ -1692,7 +1692,7 @@ function getFileKeys(node){
 						$('.fDownload').hide();
 					}
 
-					targetNode.key.match(regex_preview) 
+					targetNode.key.match(regex_preview)
 					? $('.fPreView').show()
 					: $('.fPreView').hide();
 
@@ -2017,13 +2017,13 @@ function viewDetail () {
 	$('.header').hide();
 	$('.ztreeFile').hide();
 	$('.msg_wrap').show();
-	
+
 	if(!isWeiXin) moveUploaderButton( $('.upHolder2') );
 
 	var title = getPath(sel);
 	title = title.split('/').slice(0,2).join('/')+'/';
 
-	$('.msgTitle').html( title );
+	$('.msgTitle .titleContent').html( title );
 	$('.msgTree').css({bottom: $('.msgText').height()+10 }).css( {}, 300, 'linear' );
 
 	updateMenu('.msgMenu');
@@ -2071,7 +2071,7 @@ function viewDetail () {
 		if(!data)return;
 		data = JSON.parse(data);
 		var lastData = data[data.length-1];
-		if(lastData.touserName) $('.msgTitle').html( '群成员:<b>'+ $.unique(lastData.touserName.split('|')).join(',') + '</b> 文件:'+ title );
+		if(lastData.touserName) $('.msgTitle .titleContent').html( '群成员:<b>'+ $.unique(lastData.touserName.split('|')).join(',') + '</b> 标题:'+ title );
 		data.forEach(function  (v) {
 
 			appendShareMsg(v);
@@ -2114,7 +2114,7 @@ function appendShareMsg (v){
 		var $div = $('<div></div>');
 		$div.html(content+'<br>');
 		$div.append( '<img class="msgImage" src="'+ item.picurl +'">' );
-		
+
 		$div.find('a').each(function  () {
 			if( $(this).html()=='' ) $(this).remove();
 		});
@@ -2124,8 +2124,8 @@ function appendShareMsg (v){
 	}
 
 	var diff = moment().diff( moment(v.date), 'days' );
-	var dtime = 
-		diff<1 
+	var dtime =
+		diff<1
 		? moment(v.date).from( moment() )
 		: (diff >=1 && diff<=180) ? moment(v.date).format('MM-DD HH:mm') : moment(v.date).format('YYYY-MM-DD HH:mm');
 
@@ -2258,7 +2258,7 @@ function previewImage (  ){
 		});
 	} else {
 
-		if(isNWJS)		
+		if(isNWJS)
 			global._nwMain.showReader( imgArray[0] );
 		else
 			window.open( imgArray[0] );
@@ -2483,7 +2483,7 @@ $(function  () {
     // Most likely LocalStorage disabled, so hopeless...
     return;
   }
-  
+
   // POST-RENDER
   if (!cache) {
     window.addEventListener('load', function() {
@@ -2491,7 +2491,7 @@ $(function  () {
           response;
       request.open('GET', 'js/glyphicon.json', true);
       request.onload = function() {
-      	alert(this.status);
+
         if (this.status == 200) {
           try {
             response = JSON.parse(this.response);
@@ -2554,8 +2554,7 @@ $(function  () {
 }*/
 
 
-.ztree .glyphicon {
-
+.glyphicon {
     font-size: 18px;
     position: relative;
     top: 1px;
@@ -2793,18 +2792,22 @@ $(function  () {
 		font: 14px Arial;
     	color: #666;
 	}
-	.msgTitle{
+	.msgTitle {
 		position: fixed;
 		top:0;
 		z-index: 9;
 		left:0;
 		width: 100%;
-		height: 42px;
-		border-bottom: 1px solid #ccc;
-		background: #eee;
-	  text-align: center;
-	  line-height: 41px;
+	    height: 22px;
+	    border-bottom: 1px solid #ccc;
+	    background: #eee;
+	    text-align: center;
+	    line-height: 1;
+	    padding: 10px 10px;
 	    overflow: hidden;
+	}
+	.msgTitle.expend {
+		height: auto;
 	}
 
 	.msgDate{
@@ -2852,7 +2855,7 @@ $(function  () {
 	.inputMsg{
     	border: 1px solid #ccc;
 		border-radius: 4px;
-		 height: 88px;
+		 height: 48px;
 		 width: 365px;
 	     font: 28px/1 Arail;
 	    float: left;
@@ -3015,8 +3018,22 @@ $(function  () {
     position: relative;
 }
 
+.msgTitleMenu {
+    float:right;
+    width: 28px;
+    height: 30px;
+    padding-top: 9px;
+    padding-right: 10px;
+    margin-top: -10px;
+}
 
+.msgTitleMenu:before {
+    content: "\e236";
+}
 
+.titleContent{
+	margin-right: 40px;
+}
 
 </style>
 
@@ -3185,7 +3202,7 @@ $(function () {
 
 
 				if( result.shareID ){
-					
+
 					var folder = oldPath.replace(/^\/[^/]+/,'');
 					result.path = folder +'/'+ result.srcPath;
 					result.path = result.path.replace(/\/\//g, '/');
@@ -3329,7 +3346,7 @@ $(function initPopupMenu () {
 		pop.find( '>a' ).css({padding: '0 '+ ( Math.min( $(pop).width()*.23, 40) ) +'px'});
 
 		if(isWeiXin) {
-			$('#fileupload1').css({ height:menuHeight+'px' });  $('.upHolder1').css({top: menuHeight+'px' });  
+			$('#fileupload1').css({ height:menuHeight+'px' });  $('.upHolder1').css({top: menuHeight+'px' });
 		} else {
 			$('#fileupload1').css({ height:menuHeight*2+'px' });  $('.upHolder1').css({top: 0+'px' });
 		}
@@ -3345,13 +3362,19 @@ $(function initPopupMenu () {
 
 	});
 
+	$('.msgTitle .titleContent').click(function(){
+		$(this).parent().toggleClass('expend');
+	});
 
-
+	$(window).resize(function(){
+		$('.msgTitle').width( $(this).width() );
+	});
+	$(window).resize();
 });
 
 
 function moveUploaderButton (el) {
-	
+
 	$('#fileupload1').appendTo( $(el) );
 
 }
@@ -3455,7 +3478,11 @@ function moveUploaderButton (el) {
 
 
 <div class="msg_wrap">
-	<div class="msgTitle"></div>
+	<div class="msgTitle clearfix">
+		<div class="msgTitleMenu glyphicon"></div>
+		<div class="titleContent"></div>
+	</div>
+	
 	<div class="msgTree">
 		<ul></ul>
 	</div>
@@ -3465,7 +3492,7 @@ function moveUploaderButton (el) {
 				<div class="upHolder2" style="overflow:hidden; width:100%; height:46px; position:relative;">
 					<input class="inputBtn2" type="button" value="图片" onclick="addPictureCon()" />
 				</div>
-				<input class="inputBtn2" type="button" value="语音" onclick="sendShareSnd()" />
+				<!-- <input class="inputBtn2" type="button" value="语音" onclick="sendShareSnd()" /> -->
 			</div>
 			<div style="display:block; margin-right:70px; padding-right:10px;"><textarea class="inputMsg" style="width:100%;"></textarea></div>
 			<div style="clear:both;"></div>
