@@ -2372,24 +2372,42 @@ app.post("/shareFile", function (req, res) {
               data.shareID = shareID;
               data.role = 'share';
 
-
               col.insert(data, {w:1}, function(err, r){
                 //res.send( {err:err, insertedCount: r.insertedCount } );
                 if(!err){
                   console.log(data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|') );
 
                   if(!data.isSign){
-                    var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
-                    var content = util.format('%s创建了共享ID：%d(%s)，相关文档：%s，收件人：%s\n%s',
-                        data.fromPerson.map(function(v){return '<a href="'+ treeUrl + '&fromPerson='+ v.userid + '">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
-                        shareID,
-                        data.msg,
-                        // data.files.length,
-                        data.files.map(function(v){return '<a href="'+ treeUrl +'">'+v.title+'</a>'}).join('，'),
-                        data.selectRange.map(function(v){
-                          return v.depart? '<a href="'+treeUrl + '&toPerson='+ v.userid +'">'+v.depart+'-'+v.name+'</a>' : '<a href="'+treeUrl + '&toDepart='+ v.name +'">【'+v.name+'】</a>' }).join('；'),
-                        '<a href="'+ treeUrl +'">点此查看</a>'
-                      );
+
+                  	// it's not empty topic ,it's file share 
+                  	if( data.files.length ){
+
+	                    var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
+	                    var content = util.format('%s创建了共享ID：%d(%s)，相关文档：%s，收件人：%s\n%s',
+	                        data.fromPerson.map(function(v){return '<a href="'+ treeUrl + '&fromPerson='+ v.userid + '">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
+	                        shareID,
+	                        data.msg,
+	                        // data.files.length,
+	                        data.files.map(function(v){return '<a href="'+ treeUrl +'">'+v.title+'</a>'}).join('，'),
+	                        data.selectRange.map(function(v){
+	                          return v.depart? '<a href="'+treeUrl + '&toPerson='+ v.userid +'">'+v.depart+'-'+v.name+'</a>' : '<a href="'+treeUrl + '&toDepart='+ v.name +'">【'+v.name+'】</a>' }).join('；'),
+	                        '<a href="'+ treeUrl +'">点此查看</a>'
+	                      );
+
+	                } else {
+	                	// it's empty topic 
+	                	
+	                	var treeUrl = TREE_URL + '#path=&shareID='+ shareID;
+	                    var content = util.format('%s创建了新话题，共享ID：%d(%s)，收件人：%s\n%s',
+	                        data.fromPerson.map(function(v){return '<a href="'+ treeUrl + '&fromPerson='+ v.userid + '">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
+	                        shareID,
+	                        data.msg,
+	                        data.selectRange.map(function(v){
+	                          return v.depart? '<a href="'+treeUrl + '&toPerson='+ v.userid +'">'+v.depart+'-'+v.name+'</a>' : '<a href="'+treeUrl + '&toDepart='+ v.name +'">【'+v.name+'】</a>' }).join('；'),
+	                        '<a href="'+ treeUrl +'">点此查看</a>'
+	                      );
+	                }
+
                   } else {
                     var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&isSign=1&shareID='+ shareID;
                     var content = util.format('流程ID：%d %s发起了流程：%s，文档：%s，经办人：%s%s\n%s',

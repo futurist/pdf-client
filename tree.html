@@ -1206,23 +1206,36 @@ function initShareTo (data) {
 		var toPersonStr = toPerson.length>2? '('+toPerson.slice(0,2).join(',')+'...)' :  '('+toPerson.join(',')+')' ;
 		var flowName = '('+data[i].flowName+'-'+fromPerson.join(',')+ ')';
 
-		files.every(function(v){
-			try{
-				var folderName = isSign? '流程-'+shareID+flowName+ (msg) : '共享-'+shareID+fromPersonStr+ (msg);
-				v.path = "/"+ folderName  + v.path;
-				v.isSign = isSign;
-				v.shareID = shareID;
-				pathToObj( v );
-				root[root.length-1].shareID = shareID;
-				root[root.length-1].isSign = isSign;
-				root[root.length-1].isFinish = isFinish;
-				if(isFinish) root[root.length-1].font = {color:'blue'};
-			} catch(e){
-				alert('发件柜初始化错误');
-				return false;
-			}
-			return true;
-		});
+		if(files.length) {
+			files.every(function(v){
+				try{
+					var folderName = isSign? '流程-'+shareID+flowName+ (msg) : '共享-'+shareID+fromPersonStr+ (msg);
+					v.path = "/"+ folderName  + v.path;
+					v.isSign = isSign;
+					v.shareID = shareID;
+					pathToObj( v );
+					root[root.length-1].shareID = shareID;
+					root[root.length-1].isSign = isSign;
+					root[root.length-1].isFinish = isFinish;
+					if(isFinish) root[root.length-1].font = {color:'blue'};
+				} catch(e){
+					alert('发件柜初始化错误');
+					return false;
+				}
+				return true;
+			});
+		} else{
+
+			var folderName = isSign? '流程-'+shareID+flowName+ (msg) : '共享-'+shareID+fromPersonStr+ (msg);
+			var v = {};
+			v.name = v.title = folderName;
+			v.isSign = isSign;
+			v.isFinish = isFinish;
+			v.shareID = shareID;
+			v.isParent = true;
+			if(isFinish) v.font = {color:'blue'};
+			root=[v];
+		}
 	}
 
 
@@ -1829,13 +1842,25 @@ function onClick2(event, treeId, treeNode, clickFlag) {
 }
 
 function hideShare () {
-	var sel = treeObj.getSelectedNodes()[0];
+	var role = $('.company_wrap').data('role');
+	$('.company_wrap').data('role', null);
 	$('.company_wrap').hide();
-	showContentWrap();
-	$('.header').show();
-	//$('.treeCompanyCon').css({left: $('.company_wrap').width() });
-	updateMenu(sel);
-	curTree = treeObj;
+
+	if(role=='member'){
+
+		$('.msg_wrap').show();
+		$('.botmenu').hide();
+		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
+
+	} else {
+		var sel = treeObj.getSelectedNodes()[0];
+		showContentWrap();
+		$('.header').show();
+		//$('.treeCompanyCon').css({left: $('.company_wrap').width() });
+		updateMenu(sel);
+		curTree = treeObj;
+	}
+
 }
 
 
@@ -1941,30 +1966,39 @@ function shareNode (){
 	}
 
 	curTree = treeObj;
-	var sel = treeObj.getSelectedNodes()[0];
+	var sel = treeObj.getSelectedNodes().shift();
 	var shareID = getShareID(sel);
-
-	var files = getAllFiles(sel);
-	if(sel.isParent) files.forEach(function(v){ v.path = v.path.replace( getPath(sel), '/') });
-	else sel.path = '/';
-
-	//files.sort( function(a,b){ return a.key>b.key } );
-
-	var fileArr = [];
-	$.each(files, function  (i,v) {
-		var obj = fileKeys.reduce(function(o, key, idx) {
-		  o[key] = v[key];
-		  return o;
-		}, {});
-		fileArr.push( obj  );
-	});
-
 	var filePathS = {};
-	var fileIDS = files.map(function(v){
-		filePathS[ v.key.replace(/\./g, '\uff0e' ) ] = v.path;
-		return v.key;
-	});
+	var dialogRole = $( "#mydialog" ).data('role');
+	$( "#mydialog" ).data('role', null);
+	var isTopic = false;
 
+	if(dialogRole!='topic') {
+
+		var files = getAllFiles(sel);
+		if(sel.isParent) files.forEach(function(v){ v.path = v.path.replace( getPath(sel), '/') });
+		else sel.path = '/';
+
+		//files.sort( function(a,b){ return a.key>b.key } );
+
+		var fileArr = [];
+		$.each(files, function  (i,v) {
+			var obj = fileKeys.reduce(function(o, key, idx) {
+			  o[key] = v[key];
+			  return o;
+			}, {});
+			fileArr.push( obj  );
+		});
+
+		var fileIDS = files.map(function(v){
+			filePathS[ v.key.replace(/\./g, '\uff0e' ) ] = v.path;
+			return v.key;
+		});
+
+	} else {
+		fileIDS = [];
+		isTopic = true;
+	}
 
 	if(!isSign){
 
@@ -2049,6 +2083,10 @@ function beginFlow () {
 	$('.flowCon, .flowPerson').show();
 	$('#isExistShare').parent().hide();
 
+	$('#isExistShare').prop('checked', false);
+	$('.existShareCon').hide();
+	$('#isExistShare').parent().hide();
+
 	$('#shareMsg').val('');
 	$( "#mydialog" ).trigger( "dialog-open" );
 }
@@ -2057,9 +2095,22 @@ function shareFileDialog (){
 	$('#isSign').prop('checked', false);
 	$('.flowCon, .flowPerson').hide();
 
+
 	$('#isExistShare').parent().show();
 	$('#shareMsg').val('');
 	$( "#mydialog" ).trigger( "dialog-open" );
+}
+function addTopic (){
+	$('#isSign').prop('checked', false);
+	$('.flowCon, .flowPerson').hide();
+
+	$('#isExistShare').prop('checked', false);
+	$('.existShareCon').hide();
+	$('#isExistShare').parent().hide();
+
+	$('#shareMsg').val('');
+	$( "#mydialog" ).data('role', 'topic').trigger( "dialog-open" );
+
 }
 
 function shareFile (){
@@ -2207,30 +2258,36 @@ function appendShareMsg (v){
 	}
 
 	var li = $('<li><span class="msgDate"></span> '+ content +'</li>');
-	// li.find('.msgDate').data( 'date', v.date );
+	li.find('.msgDate').data( 'date', v.date );
 	$('.msgTree ul').append(li);
 	$('.msgTree').scrollTop( 99999999999 )
 
-	function updateTime () {
-
-		if( typeof inter1!='undefined' && !$('.msg_wrap').is(":visible") ){
-			clearInterval(inter1);
-			return;
-		}
-		var diff = moment().diff( moment(v.date), 'days' );
-		var dtime =
-			diff<1
-			? moment(v.date).from( moment() )
-			: (diff >=1 && diff<=180) ? moment(v.date).format('MM-DD HH:mm') : moment(v.date).format('YYYY-MM-DD HH:mm');
-
-		li.find('.msgDate').html(dtime);
-
-	}
-	updateTime();
-
-	var inter1 = setInterval(updateTime, 10000);
+	updateMsgTime();
 
 }
+
+function updateMsgTime () {
+
+	if( !$('.msg_wrap').is(":visible") ){
+		// return;
+	}
+
+	$('.msg_wrap .msgDate').each(function(i, msgDate){
+
+		var date = $(msgDate).data('date');
+		if(!date) return true;
+		var diff = moment().diff( moment(date), 'days' );
+		var dtime =
+			diff<1
+			? moment(date).from( moment() )
+			: (diff >=1 && diff<=180) ? moment(date).format('MM-DD HH:mm') : moment(date).format('YYYY-MM-DD HH:mm');
+
+
+		$(msgDate).html(dtime);
+
+	});
+}
+
 
 function closeViewDetail () {
 	var sel = treeObj.getSelectedNodes()[0];
@@ -3173,6 +3230,7 @@ $(function  () {
 }
 
 .msgTitleMenuPop li {
+	cursor: pointer;
     padding: 16px 10px;
     border-bottom: 1px solid #ccc;
 }
@@ -3588,11 +3646,11 @@ $(function initPopupMenu () {
 
 			if(!ret) return alert('退出成员错误');
 			var delNode = treeObj.getNodesByFilter( function(node){ return node.shareID==shareID && node.level==1 } ).shift();
-			
+
 			if(delNode) treeObj.removeNode(delNode);
 
 			return closeViewDetail();
-			
+
 		} );
 
 
@@ -3616,6 +3674,14 @@ $(function initPopupMenu () {
 
 	});
 
+	var msgDateInterval = setInterval(updateMsgTime, 10000);
+
+
+	$(document).click(function(e){
+		if( $(e.target).hasClass('msgTitleMenu') ) return;
+
+		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
+	});
 
 	$(window).resize(function(){
 		$('.msgTitle').width( $(this).width() );
@@ -3658,7 +3724,7 @@ function moveUploaderButton (el) {
 	    		<option value="">请稍候加载...</option>
 	    	</select>
     	</div>
-		
+
     </div>
 
     <div class="flowPerson">
@@ -3695,6 +3761,7 @@ function moveUploaderButton (el) {
 				</div>
 				<a class="fRename" onclick="addTreeNode()">文件夹</a>
 				<a class="fShare" onclick="addTemplateCon()">模板</a>
+				<a class="fShare" onclick="addTopic()">话题</a>
 			</div>
 		</li>
 		<li data-idx=1 class="tab noselect">发件柜</li>
@@ -3753,7 +3820,7 @@ function moveUploaderButton (el) {
 			<li class="exitMember">退出共享</li>
 		</ul>
 	</div>
-	
+
 	<div class="msgTree">
 		<ul></ul>
 	</div>
