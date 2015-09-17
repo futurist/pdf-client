@@ -1107,8 +1107,15 @@ function locateNode (rootNode, path, shareID, switchTo){
 		//path = '/'+rootNode.name+path;
 		targetNode = treeObj.getNodesByFilter(function(node){
 			var p = getPath(node);
+			var comp = path;
+
 			p += (node.key||node.hash||'');
-			return p==path;
+
+			if(shareID) {
+				p = p.replace( /^\/[^/]+/, '' );
+				comp = comp.replace( /^\/[^/]+/, '' );
+			}
+			return p==comp;
 		}, true, rootNode);
 	}else{
 		targetNode = treeObj.getNodesByFilter(function(node){
@@ -1780,7 +1787,7 @@ var companySetting = {
 	}
 }
 
-function showTab(idx) {
+function showTab (idx) {
 
 	if( !$('.content_wrap').is(':visible') ) return;
 
@@ -1789,6 +1796,12 @@ function showTab(idx) {
 	var prevIdx = $('.currTab').data('idx');
 	if(typeof idx=='undefined') idx = prevIdx;
 
+	// hide right top menu of msgTitle
+	if(idx==1){
+		$('.msgTitleMenu').hide();
+	}else if(idx==2) {
+		$('.msgTitleMenu').show();
+	}
 	$('.ztreeFile').hide().eq(idx).show();
 	$('.header ul li').removeClass('currTab').eq(idx).addClass('currTab');
 	treeObj = eval('treeObj'+(idx+1) );
@@ -1849,7 +1862,7 @@ var optionsDrag = {
   }
 };
 
-function shareNodePre(e){
+function shareNodePre(){
 
 	if( !companyTree.getCheckedNodes().length ){
 		alert("请先选择分享目标");
@@ -1867,9 +1880,42 @@ function shareNodePre(e){
 		return {name: v.name, userid: v.userid, depart: v.getParentNode().name }
 	} );
 
+	var role = $('.company_wrap').data('role');
 
-	$('#shareMsg').val('');
-	$( "#mydialog" ).trigger( "dialog-open" );
+	if(role == 'share'){
+
+		$('#shareMsg').val('');
+		$( "#mydialog" ).trigger( "dialog-open" );
+
+	} else if(role == 'member') {
+		$('.company_wrap, .botmenu').hide();
+		$('.msg_wrap').show();
+		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
+
+
+		var nodes = companyTree.getCheckedNodes();
+		var stuffs =  getAllFiles(nodes);
+
+		stuffs = stuffs.map( function(v) {
+			return {name: v.name, userid: v.userid, depart: v.getParentNode().name }
+		} );
+
+
+		stuffs = stuffs.sort(function(a,b){return a.userid>b.userid})
+		.filter( function(v){ var pos=stuffs.indexOf(v); return pos==0||stuffs[pos-1].userid!=v.userid } );
+
+		var sel = treeObj.getSelectedNodes().shift();
+		var shareID = getShareID( sel );
+		var shareName = '/'+getShareName(sel)+'/';
+
+		$.post(host+'/addMember', {shareID:shareID, shareName:shareName, stuffs:stuffs, personName: rootPerson.name }, function  (ret) {
+			if(!ret) return alert('添加成员错误');
+			console.log( ret );
+			$('.memberList').html('<b>'+ ret.map(function(v){return v.name}).join(',') +'</b>');
+		}  );
+
+	}
+
 	return false;
 
 }
@@ -1993,18 +2039,24 @@ function showContentWrap () {
 }
 
 
-function shareFile(){
+function shareFile (){
 	var sel = treeObj.getSelectedNodes();
 	if(!sel.length) return;
 	sel2 = sel[0];
 	var title = sel.length>1?  sel2.name+'..' : sel2.name;
-	$('.company_wrap').show();
-	hideContentWrap();
-	$('.header').hide();
-	$('.msgTitle').html( "分享 "+  title +' 给:' );
-	$('.treeCompanyCon').css({}, 300, 'linear');
-	updateMenu('.shareMenu');
-	curTree = companyTree;
+
+	if( window.confirm('是否添加到已有共享？') ){
+
+	} else {
+		$('.company_wrap').show().data('role', 'share');
+		hideContentWrap();
+		$('.header').hide();
+		$('.msgTitle').html( "分享 "+  title +' 给:' );
+		$('.treeCompanyCon').css({}, 300, 'linear');
+		updateMenu('.shareMenu');
+		curTree = companyTree;
+	}
+
 }
 
 
@@ -2071,7 +2123,7 @@ function viewDetail () {
 		if(!data)return;
 		data = JSON.parse(data);
 		var lastData = data[data.length-1];
-		if(lastData.touserName) $('.msgTitle .titleContent').html( '群成员:<b>'+ $.unique(lastData.touserName.split('|')).join(',') + '</b> 标题:'+ title );
+		if(lastData.touserName) $('.msgTitle .titleContent').html( '群成员:<span class="memberList"><b>'+ $.unique(lastData.touserName.split('|')).join(',') + '</b></span> 标题:'+ title );
 		data.forEach(function  (v) {
 
 			appendShareMsg(v);
@@ -2123,20 +2175,35 @@ function appendShareMsg (v){
 
 	}
 
-	var diff = moment().diff( moment(v.date), 'days' );
-	var dtime =
-		diff<1
-		? moment(v.date).from( moment() )
-		: (diff >=1 && diff<=180) ? moment(v.date).format('MM-DD HH:mm') : moment(v.date).format('YYYY-MM-DD HH:mm');
-
-	var li = $('<li><span class="msgDate">'+ dtime +'</span> '+ content +'</li>');
+	var li = $('<li><span class="msgDate"></span> '+ content +'</li>');
+	// li.find('.msgDate').data( 'date', v.date );
 	$('.msgTree ul').append(li);
 	$('.msgTree').scrollTop( 99999999999 )
+
+	function updateTime () {
+
+		if( typeof inter1!='undefined' && !$('.msg_wrap').is(":visible") ){
+			clearInterval(inter1);
+			return;
+		}
+		var diff = moment().diff( moment(v.date), 'days' );
+		var dtime =
+			diff<1
+			? moment(v.date).from( moment() )
+			: (diff >=1 && diff<=180) ? moment(v.date).format('MM-DD HH:mm') : moment(v.date).format('YYYY-MM-DD HH:mm');
+
+		li.find('.msgDate').html(dtime);
+
+	}
+	updateTime();
+
+	var inter1 = setInterval(updateTime, 10000);
 
 }
 
 function closeViewDetail () {
 	var sel = treeObj.getSelectedNodes()[0];
+	$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
 	$('.msg_wrap').hide();
 	showContentWrap();
 	$('.header').show();
@@ -2170,10 +2237,14 @@ function getShareName (p){
 	return p && p.name;
 }
 
-function sendShareMsg () {
+function sendShareMsg ( state ) {
 	var sel = treeObj.getSelectedNodes();
 	if(!sel.length) return;
 	sel = sel[0];
+
+	var val = $('.inputMsg').val();
+	val = $.trim(val);
+	if(!val) return;
 
 	var p = sel;
 	while( p && !p.shareID){
@@ -2194,7 +2265,7 @@ function sendShareMsg () {
 		path += sel.hash;
 	}
 
-	var data = { person: rootPerson.userid, shareID:p.shareID, text:$('.inputMsg').val(), hash:hash, fileKey:sel.key, path:path.split('/'), fileName: fileName };
+	var data = { person: rootPerson.userid, shareID:p.shareID, text:val, hash:hash, fileKey:sel.key, path:path.split('/'), fileName: fileName };
 
 	$.post(host+'/sendShareMsg', data , function(ret){
 		if(!ret){
@@ -2594,6 +2665,8 @@ $(function  () {
     -moz-osx-font-smoothing: grayscale;
 }
 
+
+
 .ztree li span.button.chk{
 	margin-top: 5px;
 }
@@ -2607,6 +2680,9 @@ $(function  () {
 
 .ztree li span.button.ico_docu:before {
     content: "\e142";
+}
+#companyTree.ztree li span.button.ico_docu:before {
+    content: "\e008";
 }
 
 .ztree li span.button.ico_docu.image:before {
@@ -2798,7 +2874,7 @@ $(function  () {
 		z-index: 9;
 		left:0;
 		width: 100%;
-	    height: 22px;
+	    height: 21px;
 	    border-bottom: 1px solid #ccc;
 	    background: #eee;
 	    text-align: center;
@@ -2808,6 +2884,16 @@ $(function  () {
 	}
 	.msgTitle.expend {
 		height: auto;
+	}
+
+	.msgTitle.expend:after {
+		font-family: "Glyphicons Halflings";
+		font-size:10px;
+		display: block;
+		margin:0 auto;
+		content:"\e253";
+	    position: relative;
+	    bottom: -7px;
 	}
 
 	.msgDate{
@@ -2879,6 +2965,8 @@ $(function  () {
 	    font: 18px/1 "黑体";
 	}
 	.inputBtn{
+		float: right;
+	    margin-right: 10px;
 	    width: 80px;
 	    height: 44px;
         vertical-align: top;
@@ -2888,10 +2976,16 @@ $(function  () {
 	        color: white;
 	    font: 18px/1 "黑体";
 	}
+	.inputBtn.mileBtn{
+		background-color: rgb(70, 141, 183);
+	}
+	.inputBtn.sendBtn{
+		margin-right: 78px;
+	}
 	.inputBtn.closeBtn{
 		background: none;
 		color: #333;
-		    border: 1px solid #aaa;
+		border: 1px solid #aaa;
 	}
 
 	.flowCon, .flowPerson{
@@ -3018,7 +3112,14 @@ $(function  () {
     position: relative;
 }
 
+.msgTitleMenu.active {
+    color: #EC700C;
+}
 .msgTitleMenu {
+    position: absolute;
+    z-index: 99;
+    top: 10px;
+    right: -10px;
     float:right;
     width: 28px;
     height: 30px;
@@ -3027,12 +3128,47 @@ $(function  () {
     margin-top: -10px;
 }
 
+.msgTitleMenuPop.active {
+	display: block;
+}
+.msgTitleMenuPop {
+	display: none;
+    position: absolute;
+    z-index: 99;
+    top: 41px;
+    right: 0px;
+    background-color: #fff;
+    border: 1px solid #D0D0D0;
+}
+
+.msgTitleMenuPop li {
+    padding: 16px 10px;
+    border-bottom: 1px solid #ccc;
+}
+
+.msgTitleMenuPop li.addMember:before {
+	font-family:'Glyphicons Halflings';
+    content: "\2b";
+    font-size: 13px;
+    padding-right: 4px;
+}
+.msgTitleMenuPop li.exitMember:before {
+	font-family:'Glyphicons Halflings';
+    content: "\e014";
+    font-size: 14px;
+    padding-right: 4px;
+    position: relative;
+    top: 1px;
+}
+
 .msgTitleMenu:before {
     content: "\e236";
 }
 
 .titleContent{
 	margin-right: 40px;
+    word-wrap: break-word;
+    word-break: break-all;
 }
 
 </style>
@@ -3362,9 +3498,55 @@ $(function initPopupMenu () {
 
 	});
 
-	$('.msgTitle .titleContent').click(function(){
-		$(this).parent().toggleClass('expend');
+	$('.msgTitle').click(function(){
+		if( $(this).find('.titleContent').height()<20 ) return;
+		$(this).toggleClass('expend');
 	});
+
+	$('.addMember').click(function(){
+		addShareMember();
+	});
+
+	$('.exitMember').click(function(){
+		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
+		if(! window.confirm('确定要退出吗？(以后可以由其它成员邀请加入)') ){
+			return;
+		}
+		var sel = treeObj.getSelectedNodes().shift();
+		var shareID = getShareID( sel );
+		var shareName = '/'+getShareName(sel)+'/';
+		$.post(host+'/exitMember', { shareID:shareID, shareName:shareName, person:rootPerson.userid, personName:rootPerson.name }, function(ret){
+
+			if(!ret) return alert('退出成员错误');
+			var delNode = treeObj.getNodesByFilter( function(node){ return node.shareID==shareID && node.level==1 } ).shift();
+			
+			if(delNode) treeObj.removeNode(delNode);
+
+			return closeViewDetail();
+			
+		} );
+
+
+	});
+
+
+
+function addShareMember(){
+	$('.company_wrap').show().data('role', 'member');
+	$('.msg_wrap').hide();
+	$('.company_wrap .msgTitle').html( '选择成员' );
+	$('.treeCompanyCon').css({}, 300, 'linear');
+	updateMenu('.shareMenu');
+	curTree = companyTree;
+}
+
+
+	$('.msgTitleMenu').click(function(){
+		$(this).toggleClass('active');
+		$(this).next().toggleClass('active');
+
+	});
+
 
 	$(window).resize(function(){
 		$('.msgTitle').width( $(this).width() );
@@ -3479,8 +3661,14 @@ function moveUploaderButton (el) {
 
 <div class="msg_wrap">
 	<div class="msgTitle clearfix">
-		<div class="msgTitleMenu glyphicon"></div>
 		<div class="titleContent"></div>
+	</div>
+	<div class="msgTitleMenu glyphicon"></div>
+	<div class="msgTitleMenuPop">
+		<ul>
+			<li class="addMember">添加成员</li>
+			<li class="exitMember">退出共享</li>
+		</ul>
 	</div>
 	
 	<div class="msgTree">
@@ -3497,8 +3685,9 @@ function moveUploaderButton (el) {
 			<div style="display:block; margin-right:70px; padding-right:10px;"><textarea class="inputMsg" style="width:100%;"></textarea></div>
 			<div style="clear:both;"></div>
 		</div>
+		<input class="inputBtn sendBtn" type="button" value="发送" onclick="sendShareMsg()" />
+		<!-- <input class="inputBtn mileBtn" type="button" value="里程" onclick="sendShareMsg('mile')" /> -->
 		<input class="inputBtn closeBtn" type="button" value="关闭"  onclick=" closeViewDetail()" />
-		<input class="inputBtn" type="button" value="发送" onclick="sendShareMsg()" />
 	</div>
 </div>
 
@@ -3547,7 +3736,7 @@ function moveUploaderButton (el) {
 	<div class="shareMenu">
 		<a class="fRename" href="javascript:;">分享给：</a>
 		<a class="fBackCab" href="javascript:;" onclick="hideShare()">取消</a>
-		<a class="fPaste" href="javascript:;" onclick="return shareNodePre()">确定</a>
+		<a class="fPaste" href="javascript:;" onclick="return shareNodePre(true)">确定</a>
 	</div>
 
 	<div class="sendMenu">

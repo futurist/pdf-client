@@ -959,8 +959,8 @@ app.post("/upfile", function (req, res) {
 
 
 	      var msg = {
-	       "touser": data.toPerson.map(function(v){return v.userid}).join('|'),
-	       "touserName": data.toPerson.map(function(v){return v.name}).join('|'),
+	       "touser": data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|'),
+	       "touserName": data.toPerson.concat(data.fromPerson).map(function(v){return v.name}).join('|'),
 	       "msgtype": "news",
 	       "news": {
 	         "articles":[
@@ -1105,6 +1105,101 @@ function getUserInfo (userid, res) {
 
 
 
+app.post("/exitMember", function (req, res) {
+    var data = req.body;
+    var shareID = safeEval(data.shareID) ;
+    var shareName = data.shareName ;
+    var person = data.person ;
+    var personName = data.personName ;
+
+
+    col.findOneAndUpdate({role:'share', shareID:shareID }, { $pull: { 'toPerson': { userid: person }  }  }, {returnOriginal:false},
+        function(err, result) {
+
+          if(err) return res.send('');
+          else res.send(result.value.toPerson);
+
+          var colShare = result.value;
+
+
+            var overAllPath = util.format('%s#path=%s&shareID=%d', TREE_URL, encodeURIComponent(shareName), shareID ) ;
+            var wxmsg = {
+             "touser": colShare.toPerson.concat(colShare.fromPerson).map(function(v){return v.userid}).join('|'),
+             "touserName": colShare.toPerson.concat(colShare.fromPerson).map(function(v){return v.name}).join('|'),
+             "msgtype": "text",
+             "text": {
+               "content":
+               util.format('<a href="%s">%s</a>退订成员：%s',
+                  overAllPath,  // if we need segmented path:   pathName.join('-'),
+                  shareName,
+                  personName
+                )
+             },
+             "safe":"0",
+              date : new Date(),
+              role : 'shareMsg',
+              shareID:shareID
+            };
+
+            sendWXMessage(wxmsg);    
+
+
+
+    });
+
+
+});
+
+app.post("/addMember", function (req, res) {
+
+    var data = req.body;
+    var shareID = safeEval(data.shareID) ;
+    var shareName = data.shareName ;
+    var stuffs = data.stuffs ;
+    var personName = data.personName ;
+
+    col.findOneAndUpdate({role:'share', shareID:shareID }, { $addToSet: { 'toPerson': { $each: stuffs }  }  }, {returnOriginal:false},
+        function(err, result) {
+
+          if(err) return res.send('');
+          else res.send(result.value.toPerson);
+
+          var colShare = result.value;
+
+          var existMember = _.intersection(colShare.toPerson, stuffs); 
+          var newMember = _.difference(stuffs, existMember);
+
+          if(newMember.length) {
+
+            var overAllPath = util.format('%s#path=%s&shareID=%d', TREE_URL, encodeURIComponent(shareName), shareID ) ;
+            var wxmsg = {
+             "touser": colShare.toPerson.concat(colShare.fromPerson).map(function(v){return v.userid}).join('|'),
+             "touserName": colShare.toPerson.concat(colShare.fromPerson).map(function(v){return v.name}).join('|'),
+             "msgtype": "text",
+             "text": {
+               "content":
+               util.format('<a href="%s">%s</a>加入了新成员：%s，操作人：%s',
+                  overAllPath,  // if we need segmented path:   pathName.join('-'),
+                  shareName,
+                  newMember.map(function(v){return v.name}).join(',') ,
+                  personName
+                )
+             },
+             "safe":"0",
+              date : new Date(),
+              role : 'shareMsg',
+              shareID:shareID
+            };
+
+            sendWXMessage(wxmsg);    
+
+          }
+
+
+    });
+});
+
+
 app.post("/markFinish", function (req, res) {
 
     var data = req.body;
@@ -1124,8 +1219,8 @@ app.post("/markFinish", function (req, res) {
           var overAllPath = util.format('%s#path=%s&shareID=%d', TREE_URL, encodeURIComponent(path), shareID ) ;
 
           var wxmsg = {
-           "touser": colShare.toPerson.map(function(v){return v.userid}).join('|'),
-           "touserName": colShare.toPerson.map(function(v){return v.name}).join('|'),
+           "touser": colShare.toPerson.concat(colShare.fromPerson).map(function(v){return v.userid}).join('|'),
+           "touserName": colShare.toPerson.concat(colShare.fromPerson).map(function(v){return v.name}).join('|'),
            "msgtype": "text",
            "text": {
              "content":
@@ -1493,8 +1588,8 @@ app.post("/saveCanvas", function (req, res) {
 
 
              var wxmsg = {
-               "touser": colShare.toPerson.map(function(v){return v.userid}).join('|'),
-               "touserName": colShare.toPerson.map(function(v){return v.name}).join('|'),
+               "touser": colShare.toPerson.concat(colShare.fromPerson).map(function(v){return v.userid}).join('|'),
+               "touserName": colShare.toPerson.concat(colShare.fromPerson).map(function(v){return v.name}).join('|'),
                "msgtype": "text",
                "text": {
                  "content":content
@@ -1934,8 +2029,8 @@ app.post("/finishSign", function (req, res) {
 
 
               var wxmsg = {
-               "touser": colShare.toPerson.map(function(v){return v.userid}).join('|'),
-               "touserName": colShare.toPerson.map(function(v){return v.name}).join('|'),
+               "touser": colShare.toPerson.concat(colShare.fromPerson).map(function(v){return v.userid}).join('|'),
+               "touserName": colShare.toPerson.concat(colShare.fromPerson).map(function(v){return v.name}).join('|'),
                "msgtype": "text",
                "text": {
                  "content":
@@ -1963,8 +2058,8 @@ app.post("/finishSign", function (req, res) {
 
         //info to all person about the status
         var wxmsg = {
-         "touser": colShare.toPerson.map(function(v){return v.userid}).join('|'),
-         "touserName": colShare.toPerson.map(function(v){return v.name}).join('|'),
+         "touser": colShare.toPerson.concat(colShare.fromPerson).map(function(v){return v.userid}).join('|'),
+         "touserName": colShare.toPerson.concat(colShare.fromPerson).map(function(v){return v.name}).join('|'),
          "msgtype": "text",
          "text": {
            "content":
@@ -2158,8 +2253,8 @@ app.post("/sendShareMsg", function (req, res) {
      var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, encodeURIComponent(link), shareID, a ) ;
 
       var msg = {
-       "touser": data.toPerson.map(function(v){return v.userid}).join('|'),
-       "touserName": data.toPerson.map(function(v){return v.name}).join('|'),
+       "touser": data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|'),
+       "touserName": data.toPerson.concat(data.fromPerson).map(function(v){return v.name}).join('|'),
        "msgtype": "text",
        "text": {
          "content":
@@ -2214,7 +2309,7 @@ app.post("/shareFile", function (req, res) {
     col.insert(data, {w:1}, function(err, r){
       //res.send( {err:err, insertedCount: r.insertedCount } );
       if(!err){
-        console.log(data.toPerson.map(function(v){return v.userid}).join('|') );
+        console.log(data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|') );
 
         if(!data.isSign){
           var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
@@ -2242,8 +2337,8 @@ app.post("/shareFile", function (req, res) {
             );
         }
         var msg = {
-         "touser": data.toPerson.map(function(v){return v.userid}).join('|'),
-         "touserName": data.toPerson.map(function(v){return v.name}).join('|'),
+         "touser": data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|'),
+         "touserName": data.toPerson.concat(data.fromPerson).map(function(v){return v.name}).join('|'),
          "msgtype": "text",
          "text": {
            "content": content
