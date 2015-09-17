@@ -1178,7 +1178,7 @@ app.post("/addMember", function (req, res) {
              "msgtype": "text",
              "text": {
                "content":
-               util.format('<a href="%s">%s</a>加入了新成员：%s，操作人：%s',
+               util.format('<a href="%s">%s</a>加入了新成员：%s，操作者：%s',
                   overAllPath,  // if we need segmented path:   pathName.join('-'),
                   shareName,
                   newMember.map(function(v){return v.name}).join(',') ,
@@ -2283,6 +2283,20 @@ app.post("/sendShareMsg", function (req, res) {
 });
 
 
+app.post("/getAllShareID", function (req, res) {
+
+  var data = req.body;
+  var person = data.person;
+
+  col.find( {role:'share', isSign:{$in:[null,'',false]}, isFinish:{$in:[null,'',false]}, $or:[ {'toPerson.userid':person}, {'fromPerson.userid':person } ]  }
+      , { limit: 1000, sort:{ shareID:-1 }, fields: {shareID:1, msg:1, fromPerson:1, toPerson:1 } }).toArray(function(err, result) {
+      if(err) return res.send('');
+      res.send(result);
+  } );
+
+});
+
+
 app.post("/shareFile", function (req, res) {
   var data = req.body.data;
   try{
@@ -2293,72 +2307,129 @@ app.post("/shareFile", function (req, res) {
 
   // return console.log( data );
 
+
+
   col.find( {role:'upfile', key:{ $in: data.fileIDS } }, { sort:{ key:1 } } ).toArray(function  (err, files) {
+
   	files.forEach(function(v, i){
   		v.path = data.filePathS[ v.key.replace(/\./g, '\uff0e') ];
   	});
   	data.files = files;
 
-  col.findOneAndUpdate({role:'config'}, {$inc:{ shareID:1 } }, function  (err, result) {
+      if(data.existShareID){
 
-    var shareID = result.value.shareID+1;
-    data.shareID = shareID;
-    data.role = 'share';
+        data.existShareID = safeEval( data.existShareID );
+        col.findOneAndUpdate( {role:'share', shareID: data.existShareID }, { $addToSet: { files: {$each:data.files} } }, function(err, result){
+          if(err) return res.send('');
+
+          var colShare = result.value;
+          res.send(colShare);
+
+          var shareID = colShare.shareID;
+          var shareName = util.format('共享%d(%s)[%s]', shareID, colShare.msg, colShare.toPerson.map(function(v){return v.name}).join(',') );
+
+            var overAllPath = util.format('%s#path=%s&shareID=%d', TREE_URL, encodeURIComponent( shareName+data.files[0].key ), shareID ) ;
+            var wxmsg = {
+             "touser": colShare.toPerson.concat(colShare.fromPerson).map(function(v){return v.userid}).join('|'),
+             "touserName": colShare.toPerson.concat(colShare.fromPerson).map(function(v){return v.name}).join('|'),
+             "msgtype": "text",
+             "text": {
+               "content":
+               util.format('<a href="%s">%s</a>添加了新文件：%s; 操作者：%s%s',
+                  overAllPath,  // if we need segmented path:   pathName.join('-'),
+                  shareName,
+                  data.files.map(function(v){
+                    return util.format('<a href="%s#file=%s&shareID=%d&isSign=%d">%s</a>', 
+                      VIEWER_URL, 
+                      FILE_HOST+ encodeURIComponent(v.key), 
+                      shareID,
+                      colShare.isSign?1:0,
+                      v.title
+                       )  
+                  }).join(','),
+                  colShare.fromPerson.shift().name,
+                  data.msg? ', 附言：'+data.msg : ''
+                )
+             },
+             "safe":"0",
+              date : new Date(),
+              role : 'shareMsg',
+              shareID:shareID
+            };
+
+            sendWXMessage(wxmsg);    
 
 
-    col.insert(data, {w:1}, function(err, r){
-      //res.send( {err:err, insertedCount: r.insertedCount } );
-      if(!err){
-        console.log(data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|') );
+        } );
 
-        if(!data.isSign){
-          var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
-          var content = util.format('%s创建了共享ID：%d(%s)，相关文档：%s，收件人：%s\n%s',
-              data.fromPerson.map(function(v){return '<a href="'+ treeUrl + '&fromPerson='+ v.userid + '">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
-              shareID,
-              data.msg,
-              // data.files.length,
-              data.files.map(function(v){return '<a href="'+ treeUrl +'">'+v.title+'</a>'}).join('，'),
-              data.selectRange.map(function(v){
-                return v.depart? '<a href="'+treeUrl + '&toPerson='+ v.userid +'">'+v.depart+'-'+v.name+'</a>' : '<a href="'+treeUrl + '&toDepart='+ v.name +'">【'+v.name+'】</a>' }).join('；'),
-              '<a href="'+ treeUrl +'">点此查看</a>'
-            );
-        } else {
-          var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&isSign=1&shareID='+ shareID;
-          var content = util.format('流程ID：%d %s发起了流程：%s，文档：%s，经办人：%s%s\n%s',
-              shareID,
-              data.fromPerson.map(function(v){return '<a href="'+treeUrl+ '&fromPerson='+ v.userid + '">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
-              data.flowName,
-              data.files.map(function(v){return '<a href="'+ treeUrl +'">'+v.title+'</a>'}).join('，'),
-              data.selectRange.map(function(v){
-                return v.depart? '<a href="'+treeUrl + '&toPerson='+ v.userid +'">'+v.depart+'-'+v.name+'</a>' : '<a href="'+treeUrl + '&toDepart='+ v.name +'">【'+v.name+'】</a>' }).join('；'),
-              data.msg ? '，附言：\n'+data.msg : '',
-              '<a href="'+ treeUrl +'">点此查看</a>'
-            );
-        }
-        var msg = {
-         "touser": data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|'),
-         "touserName": data.toPerson.concat(data.fromPerson).map(function(v){return v.name}).join('|'),
-         "msgtype": "text",
-         "text": {
-           "content": content
-         },
-         "safe":"0",
-          date : new Date(),
-          role : 'shareMsg',
-          shareID:shareID
-        };
-        sendWXMessage(msg);
-        res.send( data );
+      } else {
 
-        data.openShare = false;
-        data.openMessage = false;
-        wsBroadcast(data);
+
+
+            col.findOneAndUpdate({role:'config'}, {$inc:{ shareID:1 } }, function  (err, result) {
+
+              var shareID = result.value.shareID+1;
+              data.shareID = shareID;
+              data.role = 'share';
+
+
+              col.insert(data, {w:1}, function(err, r){
+                //res.send( {err:err, insertedCount: r.insertedCount } );
+                if(!err){
+                  console.log(data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|') );
+
+                  if(!data.isSign){
+                    var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
+                    var content = util.format('%s创建了共享ID：%d(%s)，相关文档：%s，收件人：%s\n%s',
+                        data.fromPerson.map(function(v){return '<a href="'+ treeUrl + '&fromPerson='+ v.userid + '">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
+                        shareID,
+                        data.msg,
+                        // data.files.length,
+                        data.files.map(function(v){return '<a href="'+ treeUrl +'">'+v.title+'</a>'}).join('，'),
+                        data.selectRange.map(function(v){
+                          return v.depart? '<a href="'+treeUrl + '&toPerson='+ v.userid +'">'+v.depart+'-'+v.name+'</a>' : '<a href="'+treeUrl + '&toDepart='+ v.name +'">【'+v.name+'】</a>' }).join('；'),
+                        '<a href="'+ treeUrl +'">点此查看</a>'
+                      );
+                  } else {
+                    var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&isSign=1&shareID='+ shareID;
+                    var content = util.format('流程ID：%d %s发起了流程：%s，文档：%s，经办人：%s%s\n%s',
+                        shareID,
+                        data.fromPerson.map(function(v){return '<a href="'+treeUrl+ '&fromPerson='+ v.userid + '">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
+                        data.flowName,
+                        data.files.map(function(v){return '<a href="'+ treeUrl +'">'+v.title+'</a>'}).join('，'),
+                        data.selectRange.map(function(v){
+                          return v.depart? '<a href="'+treeUrl + '&toPerson='+ v.userid +'">'+v.depart+'-'+v.name+'</a>' : '<a href="'+treeUrl + '&toDepart='+ v.name +'">【'+v.name+'】</a>' }).join('；'),
+                        data.msg ? '，附言：\n'+data.msg : '',
+                        '<a href="'+ treeUrl +'">点此查看</a>'
+                      );
+                  }
+                  var msg = {
+                   "touser": data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|'),
+                   "touserName": data.toPerson.concat(data.fromPerson).map(function(v){return v.name}).join('|'),
+                   "msgtype": "text",
+                   "text": {
+                     "content": content
+                   },
+                   "safe":"0",
+                    date : new Date(),
+                    role : 'shareMsg',
+                    shareID:shareID
+                  };
+                  sendWXMessage(msg);
+                  res.send( data );
+
+                  data.openShare = false;
+                  data.openMessage = false;
+                  wsBroadcast(data);
+
+                }
+              });
+
+              } );
+
 
       }
-    });
 
-	  } );
 
 	});
 
