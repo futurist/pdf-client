@@ -1129,10 +1129,10 @@ app.post("/exitMember", function (req, res) {
              "msgtype": "text",
              "text": {
                "content":
-               util.format('<a href="%s">%s</a>退订成员：%s',
-                  overAllPath,  // if we need segmented path:   pathName.join('-'),
+               util.format('退订成员：%s <a href="%s">点此查看</a>',
                   shareName,
-                  personName
+                  personName,
+                  overAllPath  // if we need segmented path:   pathName.join('-'),
                 )
              },
              "safe":"0",
@@ -1178,11 +1178,11 @@ app.post("/addMember", function (req, res) {
              "msgtype": "text",
              "text": {
                "content":
-               util.format('<a href="%s">%s</a>加入了新成员：%s，操作者：%s',
-                  overAllPath,  // if we need segmented path:   pathName.join('-'),
+               util.format('%s加入了新成员：%s，操作者：%s <a href="%s">点此查看</a>',
                   shareName,
                   newMember.map(function(v){return v.name}).join(',') ,
-                  personName
+                  personName,
+                  overAllPath  // if we need segmented path:   pathName.join('-'),
                 )
              },
              "safe":"0",
@@ -1224,11 +1224,11 @@ app.post("/markFinish", function (req, res) {
            "msgtype": "text",
            "text": {
              "content":
-             util.format('<a href="%s">%s</a>已由%s标记为：%s',
-                overAllPath,  // if we need segmented path:   pathName.join('-'),
+             util.format('%s已由%s标记为：%s<a href="%s">点此查看</a>',
                 path.replace(/^\/|\/$/g,''),
                 personName,
-                isFinish?'已完成' : '未完成'
+                isFinish?'已完成' : '未完成',
+                overAllPath  // if we need segmented path:   pathName.join('-'),
               )
            },
            "safe":"0",
@@ -1266,18 +1266,18 @@ app.post("/signInWeiXin", function (req, res) {
             var isSign = colShare.isSign;
             var content =
             colShare.isSign?
-            util.format('<a href="%s">流程%d %s (%s-%s)需要您签署，点此签署</a>',
-                    url,  // if we need segmented path:   pathName.join('-'),
+            util.format('流程%d %s (%s-%s)需要您签署，<a href="%s">点此签署</a>',
                     shareID,
                     msg,
                     colShare.flowName,
-                    colShare.fromPerson[0].name
+                    colShare.fromPerson[0].name,
+                    url  // if we need segmented path:   pathName.join('-'),
                   ) :
-            util.format('<a href="%s">共享%d %s (%s)需要您签署，点此签署</a>',
-                    url,  // if we need segmented path:   pathName.join('-'),
+            util.format('共享%d %s (%s)需要您签署，<a href="%s">点此签署</a>',
                     shareID,
                     msg,
-                    colShare.fromPerson[0].name
+                    colShare.fromPerson[0].name,
+                    url  // if we need segmented path:   pathName.join('-'),
                   )
 
 
@@ -1580,20 +1580,20 @@ app.post("/saveCanvas", function (req, res) {
             var overAllPath = util.format('%s#file=%s&shareID=%d&isSign=%d', VIEWER_URL, FILE_HOST+ encodeURIComponent(fileKey), shareID, isSign?1:0 ) ;
             var content =
             colShare.isSign?
-            util.format('<a href="%s">流程%d %s (%s-%s)标注已由%s更新，点此查看</a>',
-                    overAllPath,  // if we need segmented path:   pathName.join('-'),
+            util.format('流程%d %s (%s-%s)标注已由%s更新，<a href="%s">点此查看</a>',
                     shareID,
                     msg,
                     colShare.flowName,
                     colShare.fromPerson[0].name,
-                    personName
+                    personName,
+                    overAllPath  // if we need segmented path:   pathName.join('-'),
                   ) :
-            util.format('<a href="%s">共享%d %s (%s)标注已由%s更新，点此查看</a>',
-                    overAllPath,  // if we need segmented path:   pathName.join('-'),
+            util.format('共享%d %s (%s)标注已由%s更新 <a href="%s">点此查看</a>',
                     shareID,
                     msg,
                     colShare.fromPerson[0].name,
-                    personName
+                    personName,
+                    overAllPath  // if we need segmented path:   pathName.join('-'),
                   )
 
 
@@ -2044,13 +2044,13 @@ app.post("/finishSign", function (req, res) {
                "msgtype": "text",
                "text": {
                  "content":
-                 util.format('<a href="%s">流程%d %s (%s-%s)</a>已由%s签署,此流程已结束',
-                    overAllPath,  // if we need segmented path:   pathName.join('-'),
+                 util.format('流程%d %s (%s-%s)</a>已由%s签署,此流程已结束 <a href="%s">点此预览</a>',
                     colShare.shareID,
                     msg,
                     colShare.flowName,
                     colShare.fromPerson[0].name,
-                    colShare.toPerson.pop().name
+                    colShare.toPerson.pop().name,
+                    overAllPath  // if we need segmented path:   pathName.join('-'),
                   )
                },
                "safe":"0",
@@ -2073,14 +2073,14 @@ app.post("/finishSign", function (req, res) {
          "msgtype": "text",
          "text": {
            "content":
-           util.format('<a href="%s">流程%d %s (%s-%s)</a>已由 %s 签署,此流程已转交给下一经办人：%s',
-              overAllPath,  // if we need segmented path:   pathName.join('-'),
+           util.format('流程%d %s (%s-%s)已由 %s 签署,此流程已转交给下一经办人：%s <a href="%s">点此查看</a>',
               colShare.shareID,
               msg,
               colShare.flowName,
               colShare.fromPerson[0].name,
               toPerson[toPerson.length-1].name,
-              nextPerson.name
+              nextPerson.name,
+              overAllPath  // if we need segmented path:   pathName.join('-'),
             )
          },
          "safe":"0",
@@ -2096,13 +2096,13 @@ app.post("/finishSign", function (req, res) {
          "msgtype": "text",
          "text": {
            "content":
-           util.format('您有一个新流程需要签署：<a href="%s">流程%d %s (%s-%s)</a>, %s此前已完成签署。',
-              overAllPath,  // if we need segmented path:   pathName.join('-'),
+           util.format('您有一个新流程需要签署：流程%d %s (%s-%s), %s此前已完成签署。<a href="%s">点此查看</a>',
               colShare.shareID,
               msg,
               colShare.flowName,
               colShare.fromPerson[0].name,
-              toPerson.map(function(v){return v.name}).join(',')
+              toPerson.map(function(v){return v.name}).join(','),
+              overAllPath  // if we need segmented path:   pathName.join('-'),
             )
          },
          "safe":"0",
@@ -2345,8 +2345,7 @@ app.post("/shareFile", function (req, res) {
              "msgtype": "text",
              "text": {
                "content":
-               util.format('<a href="%s">%s</a>添加了新文件：%s; 操作者：%s%s',
-                  overAllPath,  // if we need segmented path:   pathName.join('-'),
+               util.format('%s添加了新文件：%s; 操作者：%s%s <a href="%s">点此查看</a>',
                   shareName,
                   data.files.map(function(v){
                     return util.format('<a href="%s#file=%s&shareID=%d&isSign=%d">%s</a>',
@@ -2358,7 +2357,8 @@ app.post("/shareFile", function (req, res) {
                        )
                   }).join(','),
                   colShare.fromPerson.shift().name,
-                  data.msg? ', 附言：'+data.msg : ''
+                  data.msg? ', 附言：'+data.msg : '',
+                  overAllPath  // if we need segmented path:   pathName.join('-'),
                 )
              },
              "safe":"0",
@@ -2394,13 +2394,13 @@ app.post("/shareFile", function (req, res) {
 
 	                    var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
 	                    var content = util.format('%s创建了共享ID：%d(%s)，相关文档：%s，收件人：%s\n%s',
-	                        data.fromPerson.map(function(v){return '<a href="'+ treeUrl + '&fromPerson='+ v.userid + '">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
+	                        data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
 	                        shareID,
 	                        data.msg,
 	                        // data.files.length,
-	                        data.files.map(function(v){return '<a href="'+ treeUrl +'">'+v.title+'</a>'}).join('，'),
+	                        data.files.map(function(v){return ''+v.title+''}).join('，'),
 	                        data.selectRange.map(function(v){
-	                          return v.depart? '<a href="'+treeUrl + '&toPerson='+ v.userid +'">'+v.depart+'-'+v.name+'</a>' : '<a href="'+treeUrl + '&toDepart='+ v.name +'">【'+v.name+'】</a>' }).join('；'),
+	                          return v.depart? ''+v.depart+'-'+v.name+'' : '【'+v.name+'】' }).join('；'),
 	                        '<a href="'+ treeUrl +'">点此查看</a>'
 	                      );
 
@@ -2409,11 +2409,11 @@ app.post("/shareFile", function (req, res) {
 
 	                	var treeUrl = TREE_URL + '#path=&shareID='+ shareID;
 	                    var content = util.format('%s创建了新话题，共享ID：%d(%s)，收件人：%s\n%s',
-	                        data.fromPerson.map(function(v){return '<a href="'+ treeUrl + '&fromPerson='+ v.userid + '">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
+	                        data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
 	                        shareID,
 	                        data.msg,
 	                        data.selectRange.map(function(v){
-	                          return v.depart? '<a href="'+treeUrl + '&toPerson='+ v.userid +'">'+v.depart+'-'+v.name+'</a>' : '<a href="'+treeUrl + '&toDepart='+ v.name +'">【'+v.name+'】</a>' }).join('；'),
+	                          return v.depart? ''+v.depart+'-'+v.name+'' : '【'+v.name+'】' }).join('；'),
 	                        '<a href="'+ treeUrl +'">点此查看</a>'
 	                      );
 	                }
@@ -2422,11 +2422,11 @@ app.post("/shareFile", function (req, res) {
                     var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&isSign=1&shareID='+ shareID;
                     var content = util.format('流程ID：%d %s发起了流程：%s，文档：%s，经办人：%s%s\n%s',
                         shareID,
-                        data.fromPerson.map(function(v){return '<a href="'+treeUrl+ '&fromPerson='+ v.userid + '">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
+                        data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                         data.flowName,
-                        data.files.map(function(v){return '<a href="'+ treeUrl +'">'+v.title+'</a>'}).join('，'),
+                        data.files.map(function(v){return ''+v.title+''}).join('，'),
                         data.selectRange.map(function(v){
-                          return v.depart? '<a href="'+treeUrl + '&toPerson='+ v.userid +'">'+v.depart+'-'+v.name+'</a>' : '<a href="'+treeUrl + '&toDepart='+ v.name +'">【'+v.name+'】</a>' }).join('；'),
+                          return v.depart? ''+v.depart+'-'+v.name+'' : '【'+v.name+'】' }).join('；'),
                         data.msg ? '，附言：\n'+data.msg : '',
                         '<a href="'+ treeUrl +'">点此查看</a>'
                       );
