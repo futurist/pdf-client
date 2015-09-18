@@ -635,7 +635,7 @@ function imageToPDF (person, fileName, res, oldData, folder ){
 
 
       } else {
-  
+
       	ret.role = 'upfile';
         ret.person = person;
         ret.client = '';
@@ -663,7 +663,7 @@ function imageToPDF (person, fileName, res, oldData, folder ){
       }
 
 
-    
+
     } );
   });
 }
@@ -821,7 +821,7 @@ app.get("/uploadWXImage", function (req, res) {
           if(shareID){
             srcRet.shareID = shareID;
             srcRet.role = 'share';
-          } 
+          }
 
         upfileFunc(srcRet, function(srcRet2){
             res.send(srcRet2);
@@ -949,7 +949,7 @@ app.post("/upfile", function (req, res) {
 
 		var shareID = ret.shareID;
 
-		col.findOne( 
+		col.findOne(
 			{role:'share', shareID:shareID, 'files.key': ret.key }, { fields: {'files': { $elemMatch:{ files: { key: ret.key } } }, toPerson:1, fromPerson:1, msg:1  }   },  function(err, data){
 
 
@@ -1141,7 +1141,7 @@ app.post("/exitMember", function (req, res) {
               shareID:shareID
             };
 
-            sendWXMessage(wxmsg);    
+            sendWXMessage(wxmsg);
 
 
 
@@ -1166,7 +1166,7 @@ app.post("/addMember", function (req, res) {
 
           var colShare = result.value;
 
-          var existMember = _.intersection(colShare.toPerson, stuffs); 
+          var existMember = _.intersection(colShare.toPerson, stuffs);
           var newMember = _.difference(stuffs, existMember);
 
           if(newMember.length) {
@@ -1191,7 +1191,7 @@ app.post("/addMember", function (req, res) {
               shareID:shareID
             };
 
-            sendWXMessage(wxmsg);    
+            sendWXMessage(wxmsg);
 
           }
 
@@ -1439,10 +1439,20 @@ app.get("/downloadFile2/:name", function (req, res) {
   			return;
   		}
 
-  		console.log('gen pdf ok, now download', IMAGE_UPFOLDER+realname, mimetype);
-  		exec('rm -f "'+ IMAGE_UPFOLDER+rename +'"; mv '+IMAGE_UPFOLDER+realname+' "'+IMAGE_UPFOLDER+rename+'"', function(){
-  			res.download(IMAGE_UPFOLDER+rename);
-  		});
+  		console.log('gen pdf ok, now download', IMAGE_UPFOLDER+realname, IMAGE_UPFOLDER+rename);
+
+      if(realname == rename){
+
+        res.download(IMAGE_UPFOLDER+rename);
+
+      } else {
+
+        exec('rm -f "'+ IMAGE_UPFOLDER+rename +'"; mv '+IMAGE_UPFOLDER+realname+' "'+IMAGE_UPFOLDER+rename+'"', function(){
+          res.download(IMAGE_UPFOLDER+rename);
+        });
+
+      }
+
   		return;
 
   		res.setHeader('Content-disposition', 'attachment; filename=' + rename);
@@ -1514,13 +1524,13 @@ app.post("/removeFile", function (req, res) {
   var hash = req.body.hash;
   var key = req.body.key;
   var shareID = safeEval(req.body.shareID);
-  
+
   if(shareID && key ){
-	  col.update({role:'share', 'files.key': key, shareID:shareID }, { $pull:{ 'files': {key:key } } }, {multi:false});  		
+	  col.update({role:'share', 'files.key': key, shareID:shareID }, { $pull:{ 'files': {key:key } } }, {multi:false});
   }else{
 	  col.update({ role:'upfile', hash: hash}, {$set:{status:-1}}, {multi:true});
   }
-  
+
   res.send("delete file ok");
 });
 
@@ -2339,13 +2349,13 @@ app.post("/shareFile", function (req, res) {
                   overAllPath,  // if we need segmented path:   pathName.join('-'),
                   shareName,
                   data.files.map(function(v){
-                    return util.format('<a href="%s#file=%s&shareID=%d&isSign=%d">%s</a>', 
-                      VIEWER_URL, 
-                      FILE_HOST+ encodeURIComponent(v.key), 
+                    return util.format('<a href="%s#file=%s&shareID=%d&isSign=%d">%s</a>',
+                      VIEWER_URL,
+                      FILE_HOST+ encodeURIComponent(v.key),
                       shareID,
                       colShare.isSign?1:0,
                       v.title
-                       )  
+                       )
                   }).join(','),
                   colShare.fromPerson.shift().name,
                   data.msg? ', 附言：'+data.msg : ''
@@ -2357,7 +2367,7 @@ app.post("/shareFile", function (req, res) {
               shareID:shareID
             };
 
-            sendWXMessage(wxmsg);    
+            sendWXMessage(wxmsg);
 
 
         } );
@@ -2379,7 +2389,7 @@ app.post("/shareFile", function (req, res) {
 
                   if(!data.isSign){
 
-                  	// it's not empty topic ,it's file share 
+                  	// it's not empty topic ,it's file share
                   	if( data.files.length ){
 
 	                    var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
@@ -2395,8 +2405,8 @@ app.post("/shareFile", function (req, res) {
 	                      );
 
 	                } else {
-	                	// it's empty topic 
-	                	
+	                	// it's empty topic
+
 	                	var treeUrl = TREE_URL + '#path=&shareID='+ shareID;
 	                    var content = util.format('%s创建了新话题，共享ID：%d(%s)，收件人：%s\n%s',
 	                        data.fromPerson.map(function(v){return '<a href="'+ treeUrl + '&fromPerson='+ v.userid + '">【'+v.depart + '-' + v.name+'】</a>'}).join('|'),
@@ -2551,9 +2561,10 @@ function genPDF ( filename, shareID,  realname, cb ) {
 	var tempFile = IMAGE_UPFOLDER + (+new Date()+Math.random()) +'.pdf';
 
 	var wget = 'rm -r '+ IMAGE_UPFOLDER+realname+ '; wget -P ' + IMAGE_UPFOLDER + ' -O '+ tempFile +' -N "' + FILE_HOST+filename +'" ';
+	console.log(wget);
 	var child = exec(wget, function(err, stdout, stderr) {
 
-		//console.log( err, stdout, stderr );
+		console.log( err, stdout, stderr );
 		if(err || (stdout+stderr).indexOf('200 OK')<0 ) return cb?cb('无法获取原始文件'):'';
 
 		var tempPDF = IMAGE_UPFOLDER + (+new Date()+Math.random()) +'.pdf';
@@ -2563,8 +2574,10 @@ function genPDF ( filename, shareID,  realname, cb ) {
 		var child = exec(cmd, function(err, stdout, stderr) {
 
 		if(err || stdout.toString().indexOf('render page:')<0 ) return cb?cb('生成绘图数据错误'):'';
-		exec('./mergepdf.py -i '+ tempFile +' -m '+tempPDF+' -o '+ IMAGE_UPFOLDER+realname +' ', function (error, stdout, stderr) {
-			//console.log(error,stdout, stderr);
+		cmd = './mergepdf.py -i '+ tempFile +' -m '+tempPDF+' -o '+ IMAGE_UPFOLDER+realname +' ';
+		console.log(cmd);
+		exec(cmd, function (error, stdout, stderr) {
+			console.log(error,stdout, stderr);
 			if(error){
 				cb('合并PDF文件错误');
 			}
@@ -2847,7 +2860,7 @@ function updateCompanyTree () {
                 function(err, result) {
 
                   console.log('update companyTree: ', result.result.nModified);
-                  col.update( { company:CompanyName, role:"companyTree", 'companyTree.id':1 }, { '$addToSet': {  'companyTree.$.children': {"userid":"yangjiming","name":"董月霞","department":[1],"mobile":"18072266386","gender":"1","email":"hxsdyjm@qq.com","weixinid":"futurist6","avatar":"http://shp.qpic.cn/bizmp/guTsUowz0NPtOuBoHUiaw3lPyys0DWwTwdUsibvlmwyzdrmYdxwRU4ag/","status":1} } } );
+                  // col.update( { company:CompanyName, role:"companyTree", 'companyTree.id':1 }, { '$addToSet': {  'companyTree.$.children': {"userid":"yangjiming","name":"董月霞","department":[1],"mobile":"18072266386","gender":"1","email":"hxsdyjm@qq.com","weixinid":"futurist6","avatar":"http://shp.qpic.cn/bizmp/guTsUowz0NPtOuBoHUiaw3lPyys0DWwTwdUsibvlmwyzdrmYdxwRU4ag/","status":1} } } );
 
               });
             });

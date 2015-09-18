@@ -53,7 +53,7 @@ var isiOS = /iPhone/i.test(navigator.userAgent) || /iPod/i.test(navigator.userAg
 var isMobile = isAndroid||isWeiXin||isiOS;
 
 var wxUserInfo;
-var DEBUG= 1;
+var DEBUG= 0;
 if(isWeiXin)
 if(!DEBUG)
 {
@@ -2131,6 +2131,7 @@ function shareFile (){
 		return;
 	}
 
+	$( "#mydialog" ).trigger( "dialog-close" );
 	$('.company_wrap').show().data('role', 'share');
 	hideContentWrap();
 	$('.header').hide();
