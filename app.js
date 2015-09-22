@@ -894,7 +894,7 @@ function upfileFunc (data, callback) {
   var savePath = data.path || data.savePath || '/';   //first upload to root path
   var fname = data.fname;
   var maxOrder = 0;
-
+  
   if( data.shareID ) {
 
       data.shareID = safeEval( data.shareID );
@@ -937,53 +937,73 @@ function upfileFunc (data, callback) {
 }
 
 app.post("/upfile", function (req, res) {
+  var data = req.body;
 
-	upfileFunc(req.body, function(ret) {
-		res.send( JSON.stringify(ret) );
-		wsBroadcast(ret);
+  function upFun (ret) {
+    res.send( JSON.stringify(ret) );
+    wsBroadcast(ret);
 
-		// Send WX Message when it's upload images & sound files to share Folder
-
-
-		if(! ret.isInMsg) return;
-
-		var shareID = ret.shareID;
-
-		col.findOne(
-			{role:'share', shareID:shareID, 'files.key': ret.key }, { fields: {'files': { $elemMatch:{ files: { key: ret.key } } }, toPerson:1, fromPerson:1, msg:1  }   },  function(err, data){
+    // Send WX Message when it's upload images & sound files to share Folder
 
 
-	      //get segmented path, Target Path segment and A link
-	     var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, ret.key, shareID, ret.shareName ) ;
+    if(! ret.isInMsg) return;
+
+    var shareID = ret.shareID;
+
+    col.findOne(
+      {role:'share', shareID:shareID, 'files.key': ret.key }, { fields: {'files': { $elemMatch:{ files: { key: ret.key } } }, toPerson:1, fromPerson:1, msg:1  }   },  function(err, data){
+
+
+        //get segmented path, Target Path segment and A link
+       var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, ret.key, shareID, ret.shareName ) ;
 
 
 
-	      var msg = {
-	       "touser": data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|'),
-	       "touserName": data.toPerson.concat(data.fromPerson).map(function(v){return v.name}).join('|'),
-	       "msgtype": "news",
-	       "news": {
-	         "articles":[
-	         {
-	          "title": util.format('%s 在%s 上传了图片',
-	            data.fromPerson.shift().name,
-	            ret.shareName  // if we need segmented path:   pathName.join('-'),
-	          ),
-	          "description": "点击查看消息记录",
-	          "url": util.format('%s#path=%s&shareID=%d&openMessage=1', TREE_URL, ret.key, shareID ),
-		       "picurl": FILE_HOST+ret.key
-		     }
-	       ] },
-	       "safe":"0",
-	        date : new Date(),
-	        role : 'shareMsg',
-	        shareID:shareID
-	      };
+        var msg = {
+         "touser": data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|'),
+         "touserName": data.toPerson.concat(data.fromPerson).map(function(v){return v.name}).join('|'),
+         "msgtype": "news",
+         "news": {
+           "articles":[
+           {
+            "title": util.format('%s 在%s 上传了图片',
+              data.fromPerson.shift().name,
+              ret.shareName  // if we need segmented path:   pathName.join('-'),
+            ),
+            "description": "点击查看消息记录",
+            "url": util.format('%s#path=%s&shareID=%d&openMessage=1', TREE_URL, ret.key, shareID ),
+           "picurl": FILE_HOST+ret.key
+         }
+         ] },
+         "safe":"0",
+          date : new Date(),
+          role : 'shareMsg',
+          shareID:shareID
+        };
 
-	      sendWXMessage(msg);
+        sendWXMessage(msg);
 
-		});
-	});
+    });
+  }
+
+  _.each(data, function(v,i){
+    data[i] = safeEval(v);
+  });
+  
+  if(data.person){
+    upfileFunc(data, upFun);
+  } else if(data.client) {
+
+    var client = data.client.replace(/\\/g,'').toLowerCase();
+
+    col.findOne({role:'stuff', 'stuffList.client': client }, {fields: {'stuffList': {$elemMatch: { client: client } }  } }, function(err, ret){
+      if(err|| !ret) return res.send('');
+      var stuff = ret.stuffList.shift();
+      data.person = stuff.userid;
+      upfileFunc(data, upFun);
+    }  );
+  }
+	
 
 } );
 

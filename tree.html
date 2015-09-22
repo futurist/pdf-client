@@ -46,6 +46,7 @@ function searchToObject(search) {
   }, {})
 }
 
+var urlQuery = searchToObject( window.location.hash );
 
 var isAndroid = /(android)/i.test(navigator.userAgent);
 var isWeiXin = navigator.userAgent.match(/MicroMessenger\/([\d.]+)/i);
@@ -53,7 +54,9 @@ var isiOS = /iPhone/i.test(navigator.userAgent) || /iPod/i.test(navigator.userAg
 var isMobile = isAndroid||isWeiXin||isiOS;
 
 var wxUserInfo;
-var DEBUG= 0;
+var DEBUG= eval(urlQuery.debug||0);
+if(window.navigator.userAgent == "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.125 Safari/537.36") DEBUG=1;
+
 if(isWeiXin)
 if(!DEBUG)
 {
@@ -79,7 +82,6 @@ var addCount = 1;
 var DragParentNode = null;
 var sendRoot = null;
 var receiveRoot = null;
-var urlQuery = searchToObject( window.location.hash );
 
 
 //Check if we are in NW.JS env
@@ -661,6 +663,14 @@ function hidePrintCon() {
 }
 
 
+		function addTreeNodeFilter () {
+
+			var newNode = { name:"添加新搜索", title:"添加新搜索", isFilter:true, isParent:false};
+			var pNode = treeObj.getNodes()[0];
+			treeObj.expandNode(pNode,true);
+			node = treeObj.addNodes(pNode, newNode);
+			
+		}
 		function addTreeNode () {
 			hideRMenu();
 			var node;
@@ -675,7 +685,7 @@ function hidePrintCon() {
 				treeObj.expandNode(pNode,true);
 				node = treeObj.addNodes(pNode, newNode);
 				// If targetNode is a file, move it into new folder
-				if(!targetNode.isParent) {
+				if(0&&!targetNode.isParent) {
 					if(node.length) node=node[0];
 					node = treeObj.moveNode(targetNode, node, 'prev');
 					treeObj.moveNode(node, targetNode, 'inner');
@@ -704,6 +714,8 @@ function hidePrintCon() {
 
 			treeObj.editName(node[0]);
 			$('input.rename', $('#'+node[0].tId) ).get(0).select();
+			var nextNode = node[0].getNextNode();
+			addDiyDom(null, nextNode);
 		}
 
 		function beforeRename(treeId, treeNode, newName, isCancel)
@@ -714,8 +726,8 @@ function hidePrintCon() {
 				alert( "请指定一个名称");
 				return false;
 			}
-			if(newName.match(/[\\\/:*?"<>|]/) ) {
-				alert( "名称中不可包含:\\\/:*?\"<>|");
+			if(newName.match(/[\\\/*?"<>|]/) ) {
+				alert( "名称中不可包含:\\\/*?\"<>|");
 				return false;
 			}
 
@@ -737,13 +749,16 @@ function hidePrintCon() {
 		{
 			treeNode.title = treeNode.name;
 
-			var ext = treeNode.key.split('.').pop();
-			var filename = treeNode.name.match( new RegExp('\\.'+ext+'$', 'i') ) ? treeNode.name : treeNode.name+'.'+ext;
-			var $dl = $('#'+treeNode.tId).find('.downloadIcon')
-			var url = $dl.attr( 'href' );
+			if(treeNode.key){
+				var ext = treeNode.key.split('.').pop();
+				var filename = treeNode.name.match( new RegExp('\\.'+ext+'$', 'i') ) ? treeNode.name : treeNode.name+'.'+ext;
+				var $dl = $('#'+treeNode.tId).find('.downloadIcon')
+				var url = $dl.attr( 'href' );
 
-			url = url.split('&rename=').shift()+ '&rename='+ encodeURIComponent( filename );
-			$dl.attr('href', url);
+				url = url.split('&rename=').shift()+ '&rename='+ encodeURIComponent( filename );
+				$dl.attr('href', url);
+
+			}
 
 			if(!isCancel || treeNode.isNew) serverUpdateNode('rename', treeNode);
 			treeNode.isNew = false;
@@ -1374,11 +1389,14 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 
 			rMenu = $("#rMenu");
 
+
+			if( urlQuery.shareID || urlQuery.tab>0 ) return $('.tree1>.ztree').hide();
+
+			showTab(0);
+
 			updateMenu(sel);
 
 			curTree = treeObj;
-
-			showTab(0);
 
 		}
 
@@ -1821,6 +1839,10 @@ function showTab (idx) {
 
 	var sel = treeObj.getSelectedNodes();
 	updateMenu( sel );
+	
+	if(prevIdx==idx){
+		$(window).scrollTop(0);
+	}
 
 	if(typeof prevIdx=='undefined') return;
 
@@ -3762,7 +3784,7 @@ function moveUploaderButton (el) {
 				</div>
 				<a class="fRename" onclick="addTreeNode()">文件夹</a>
 				<a class="fShare" onclick="addTemplateCon()">模板</a>
-				<a class="fShare" onclick="addTopic()">话题</a>
+				<a class="fShare" onclick="addTopic()">共享</a>
 			</div>
 		</li>
 		<li data-idx=1 class="tab noselect">发件柜</li>
