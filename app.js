@@ -894,7 +894,7 @@ function upfileFunc (data, callback) {
   var savePath = data.path || data.savePath || '/';   //first upload to root path
   var fname = data.fname;
   var maxOrder = 0;
-  
+
   if( data.shareID ) {
 
       data.shareID = safeEval( data.shareID );
@@ -989,7 +989,7 @@ app.post("/upfile", function (req, res) {
   _.each(data, function(v,i){
     data[i] = safeEval(v);
   });
-  
+
   if(data.person){
     upfileFunc(data, upFun);
   } else if(data.client) {
@@ -1003,7 +1003,7 @@ app.post("/upfile", function (req, res) {
       upfileFunc(data, upFun);
     }  );
   }
-	
+
 
 } );
 
