@@ -55,7 +55,9 @@ var isMobile = isAndroid||isWeiXin||isiOS;
 
 var wxUserInfo;
 var DEBUG= eval(urlQuery.debug||0);
-if(window.navigator.userAgent == "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.152 Safari/537.36") DEBUG=1;
+
+// if(window.navigator.userAgent == "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.152 Safari/537.36") DEBUG=1;
+if(window.navigator.userAgent == "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36") DEBUG=1;
 
 if(isWeiXin)
 if(!DEBUG)
@@ -355,9 +357,9 @@ function addDiyDom(treeId, treeNode) {
 	var dateStr = moment(treeNode.date).isBefore( moment([moment().year(),0,1]) ) ?  moment(treeNode.date).format('YYYY-MM-DD HH:mm') : moment(treeNode.date).format('MM-DD HH:mm');
 	var info = $('<a href="#" class="glyphicon glyphicon-download-alt downloadIcon" aria-hidden="true"></a><div class="fileInfo" id="info_'+treeNode.tId +'"><p>'+ humanFileSize(treeNode.fsize) +'</p><span class="date">'+ dateStr +'</span></div>');
 	$li.append(info).addClass('clearfix withInfo');
-	if( treeNode.key.match(regex_image)  ) aObj.find('.ico_docu').addClass('image');
-	if( treeNode.key.match(regex_can_be_convert)  ) aObj.find('.ico_docu').addClass('canBeConverted');
-	if( treeNode.key.match( /\.pdf$/i )  ) aObj.find('.ico_docu').addClass('pdf');
+	if( treeNode.key.match(regex_image)  )   treeNode.iconSkin='image' //aObj.find('.ico_docu').addClass('image');
+	if( treeNode.key.match(regex_can_be_convert)  )   treeNode.iconSkin='canBeConverted'; //aObj.find('.ico_docu').addClass('canBeConverted');
+	if( treeNode.key.match( /\.pdf$/i )  )  treeNode.iconSkin='pdf'; //aObj.find('.ico_docu').addClass('pdf');
 
 	setTimeout(function(){
 		var downBtn = info.eq(0);
@@ -399,6 +401,19 @@ function addDiyDom(treeId, treeNode) {
 // }, 1000);
 
 
+var escapeRe = function(str) {
+    var re = (str+'').replace(/[.?*+^$[\]\\/(){}|-]/g, "\\$&");
+    return re;
+
+    // replace unicode Then
+    var ret = '';
+    for(var i=0;i<re.length;i++) {
+    	ret += /[\x00-\x7F]/.test(re[i])?re[i]: '\\u'+re[i].charCodeAt(0).toString(16);
+    }
+    return ret;
+};
+
+
 function getFont(treeId, node) {
 	return node.font ? node.font : {};
 }
@@ -433,7 +448,14 @@ function pathToObj (v) {
 	}
 	var name = title||file||"";
 	//If we have key it's file LEAF
-	if(file && p) p.push( $.extend( {name:name, oldName:name, oldPath:v.path}, v) );
+	if(file && p){
+		var treeNode = {name:name, oldName:name, oldPath:v.path};
+		if( file.match(regex_image)  )   treeNode.iconSkin='image';
+		if( file.match(regex_can_be_convert)  )   treeNode.iconSkin='canBeConverted'; 
+		if( file.match( /\.pdf$/i )  )  treeNode.iconSkin='pdf'; 
+
+		p.push( $.extend( treeNode, v) );
+	} 
 
 	//else we are creating empty folder LEAF
 
@@ -714,8 +736,8 @@ function hidePrintCon() {
 
 			treeObj.editName(node[0]);
 			$('input.rename', $('#'+node[0].tId) ).get(0).select();
-			var nextNode = node[0].getNextNode();
-			addDiyDom(null, nextNode);
+
+
 		}
 
 		function beforeRename(treeId, treeNode, newName, isCancel)
@@ -1208,6 +1230,7 @@ function initShareFrom (data) {
 
 function initShareTo (data) {
 	root= [];
+	$('.bg_mask').hide();
 
 	for(var i=0; i<data.length; i++){
 		var shareID = data[i].shareID;
@@ -1845,6 +1868,8 @@ function showTab (idx) {
 		$(window).scrollTop(0);
 	}
 
+	searchByName( $('.searchTxt').val() );
+	
 	if(typeof prevIdx=='undefined') return;
 
 }
@@ -2546,6 +2571,7 @@ $(function  () {
 			rootPerson = userinfo;
 		}
 
+		$('.bg_mask').show();
 		getFilesData();
 
 		$.post(host+'/getCompanyTree', { company:'lianrun' }, function  (data) {
@@ -2701,7 +2727,7 @@ $(function  () {
 
 <style type="text/css">
 
-*:focus, *:active {
+*:focus:not(select), *:active {
     border:none;
     outline: none;
     -webkit-tap-highlight-color: rgba(0,0,0,0);
@@ -2761,7 +2787,12 @@ $(function  () {
     padding: 10px 0;
 }
 
-.ztree li span.button.ico_docu, .ztree li span.button.ico_open,  .ztree li span.button.ico_close {
+.ztree li span.button.ico_docu, 
+.ztree li span.button.pdf_ico_docu, 
+.ztree li span.button.image_ico_docu, 
+.ztree li span.button.canBeConverted_ico_docu, 
+.ztree li span.button.ico_open,  
+.ztree li span.button.ico_close {
 	background: none;
     font-size: 15px;
     margin-top: 1px;
@@ -2797,13 +2828,13 @@ $(function  () {
     content: "\e008";
 }
 
-.ztree li span.button.ico_docu.image:before {
+.ztree li span.button.image_ico_docu:before {
     content: "\e060";
 }
-.ztree li span.button.ico_docu.canBeConverted:before {
+.ztree li span.button.canBeConverted_ico_docu:before {
     content: "\e224";
 }
-.ztree li span.button.ico_docu.pdf:before {
+.ztree li span.button.pdf_ico_docu:before {
     content: "\e022";
 }
 
@@ -3214,6 +3245,8 @@ $(function  () {
     background-color: white;
     border: 1px solid #ccc;
     overflow: hidden;
+    min-width: 120px;
+    z-index: 999;
 }
 .selTab li div.menuPopup.hidden{
     display: none;
@@ -3320,6 +3353,19 @@ $(function  () {
 	line-height: 36px;
 }
 
+
+@media screen and (max-width: 400px) {
+
+	.selTab li span{
+		left: -19px;
+		right:auto;
+	}
+	.header ul li {
+		text-indent: 18px;
+	}
+}
+
+
 </style>
 
 </HEAD>
@@ -3333,6 +3379,8 @@ $(function  () {
 <script src="js/vendor/jquery.ui.widget.js"></script>
 <script src="js/jquery.iframe-transport.js"></script>
 <script src="js/jquery.fileupload.js"></script>
+<script src="js/jquery.ba-throttle-debounce.min.js"></script>
+<script src="js/jquery.ztree.exhide-3.5.js"></script>
 <script>
 
 var regex_image= /(gif|jpe?g|png|bmp)$/i;
@@ -3727,12 +3775,51 @@ $(function initPopupMenu () {
 		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
 	});
 
+	$('.searchTxt').on('blur keydown change', debounce(function(){ searchByName( $('.searchTxt').val() ); }, 200) );
+
 	$(window).resize(function(){
 		$('.msgTitle').width( $(this).width() );
 	});
 	$(window).resize();
 });
 
+
+function debounce(fun, mil){
+    var timer;
+    return function(){
+        clearTimeout(timer);
+        timer = setTimeout(function(){
+            fun();
+        }, mil);
+    };
+}
+
+
+function searchByName (keyword) {
+
+	var nodes = treeObj.getNodesByFilter( function(v){return true} );
+	treeObj.showNodes(nodes);
+
+	keyword = $.trim(keyword);
+	if(!keyword) return;
+	keyword = escapeRe(keyword);
+
+	var nodes = treeObj.getNodesByFilter( function  (node) {
+		var condition = (node.level&&node.level>0) && !node.isParent && !node.name.match( new RegExp(keyword, 'i') );
+		return condition;
+	} );
+
+	treeObj.hideNodes(nodes);
+
+	var nodes = treeObj.getNodesByFilter( function  (node1) {
+		if(node1.level&&node1.level==0 || !node1.isParent ) return false;
+		var nodes2 = treeObj.getNodesByFilter( function(v){ return !v.isParent && v.isHidden==false }, true, node1);
+		return nodes2==null;
+	} );
+
+	treeObj.hideNodes(nodes);
+
+}
 
 function updateContentTop () {
 	$('.content_wrap').css('margin-top', $('.header').height() );
@@ -3745,6 +3832,11 @@ function moveUploaderButton (el) {
 }
 
 
+function alert (msg) {
+	$("#alert .shareMsg").html(msg);
+	$("#alert").trigger("dialog-open");
+}
+
 
 </script>
 
@@ -3753,9 +3845,21 @@ dl, dd, dt{
 	margin: 0;
 	padding: 0;
 }
+.searchDIV select{
+	font:16px Arial;
+	position: relative;
+	top:-2px;
+	border: 1px solid #ccc;
+	height: 24px;
+}
 .searchDIV input{
 	border:1px solid #ccc;
 	border-radius: 4px;
+	font: 16px/1 Arial;
+	position: relative;
+	top:-1px;
+	width: 130px;
+	padding: 4px;
 }
 .searchDIV{
 	padding: 10px;
@@ -3766,6 +3870,23 @@ dl, dd, dt{
 }
 .searchDIV dl dd{
 	float: left;
+}
+.dialog-content {
+	width: auto;
+	border-radius: 4px;
+}
+
+#alert .shareMsg{
+	margin: 20px;
+	text-align: center;
+	color: #888;
+}
+
+#alert a {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  color: #333;
 }
 
 
@@ -3809,6 +3930,15 @@ dl, dd, dt{
 
 </div>
 
+
+<div class="dialog" id="alert">
+
+    <div class="shareMsg"></div>
+    <a href="javascript:;" class="dialog-close2" onclick='$("#alert").trigger("dialog-close")'>确定</a>
+
+</div>
+
+
 <div id="rMenu">
 	<ul>
 		<li id="m_add" onclick="addTreeNode();">新建</li>
@@ -3839,7 +3969,7 @@ dl, dd, dt{
 		</ul>
 		<div class="topMenu glyphicon"></div>
 	</div>
-	<div class="searchDIV"> 搜索关键词: <input type="text" class="searchTxt"> <dl><dd>名称</dd><dd>内容</dd><dd>消息</dd></dl> </div>
+	<div class="searchDIV"> 搜索关键词: <input type="text" class="searchTxt"> <select><option>名称</option><option>内容</option><option>消息</option></select> </div>
 </div>
 
 <div class="content_wrap">
