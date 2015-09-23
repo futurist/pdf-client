@@ -1018,7 +1018,7 @@ app.post("/rotateFile", function (req, res) {
 	}
 
     // extract the file name
-    var file_name = url.parse(file_url).pathname.split('/').pop();
+    var file_name = file.replace(FILE_HOST, '');
     //var newName = file_name.replace(/(\(.*\))?\.pdf$/, '('+ 90 +').pdf' );
     var oldRotate = file_name.match(/(\(.*\))?\.pdf$/)[1];
     oldRotate = oldRotate ? parseInt(oldRotate.replace('(','')) : 0;
@@ -1449,9 +1449,9 @@ app.get("/downloadFile2/:name", function (req, res) {
 	var filename = path.basename(file);
   	var mimetype = mime.lookup(file);
 
-  	console.log(filename, rename);
+  	console.log(filename, rename, req.query.key);
 
-  	genPDF(filename, shareID, realname, function  (err) {
+  	genPDF(req.query.key, shareID, realname, function  (err) {
 
   		if(err) {
   			res.send('');
@@ -1580,7 +1580,7 @@ app.post("/saveCanvas", function (req, res) {
   var personName = req.body.personName;
   var shareID = parseInt( req.body.shareID );
 
-  var filename = url.parse(file).pathname.split('/').pop();
+  var filename = file.replace(FILE_HOST, '');
   if(!shareID){
     col.update({role:'upfile', key:filename }, { $set: { drawData:data }  }, function(err, result){
       res.send(err);
@@ -1644,7 +1644,7 @@ app.post("/saveInputData", function (req, res) {
   var file = req.body.file;
   var shareID = parseInt( req.body.shareID );
   try{
-    var filename = url.parse(file).pathname.split('/').pop();
+    var filename = file.replace(FILE_HOST, '');
   }catch(e){
     return res.send("");
   }
@@ -1671,7 +1671,7 @@ app.post("/getInputData", function (req, res) {
   var file = req.body.file;
   var shareID = parseInt( req.body.shareID );
   try{
-    var filename = url.parse(file).pathname.split('/').pop();
+    var filename = file.replace(FILE_HOST, '');
   }catch(e){
     return res.send("");
   }
@@ -1703,7 +1703,7 @@ app.post("/getSavedSign", function (req, res) {
   var file = req.body.file;
   var shareID = parseInt( req.body.shareID );
   try{
-    var filename = url.parse(file).pathname.split('/').pop();
+    var filename = file.replace(FILE_HOST, '');
   }catch(e){
     return res.send("");
   }
@@ -1776,7 +1776,7 @@ app.post("/getCanvas", function (req, res) {
   var file = req.body.file;
   var shareID = parseInt( req.body.shareID );
   try{
-    var filename = url.parse(file).pathname.split('/').pop();
+    var filename = file.replace(FILE_HOST, '');
   }catch(e){
     return res.send("[]");
   }
@@ -1934,7 +1934,7 @@ app.post("/drawSign", function (req, res) {
 
   var data =  req.body.data;
   var signPerson = data.signPerson;
-  var file = data.file.split('/').pop() ;
+  var file = data.file.replace(FILE_HOST, '') ;
   var page = data.page;
   var pos = data.pos;
   var isMobile = data.isMobile;
@@ -1983,7 +1983,7 @@ app.post("/deleteSign", function (req, res) {
   var person =  req.body.person;
   var file =  req.body.file;
 
-  var key = file.split('/').pop();
+  var key = file.replace(FILE_HOST, '');
 
   if(!id.length){
     return res.send('');
@@ -2004,7 +2004,7 @@ app.post("/deleteSignOnly", function (req, res) {
     return res.send('');
   }
 
-  var fileKey = file.split('/').pop();
+  var fileKey = file.replace(FILE_HOST, '');
 
   	if(shareID){
   		var unsetObj = {};

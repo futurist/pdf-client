@@ -366,7 +366,7 @@ function addDiyDom(treeId, treeNode) {
 		var ext = treeNode.key.split('.').pop();
 		var filename = treeNode.name.match( new RegExp('\\.'+ext+'$', 'i') ) ? treeNode.name : treeNode.name+'.'+ext;
 
-	    var downloadUrl2 = host+'/downloadFile2/'+ treeNode.key +'?key='+ treeNode.key +'&shareID='+shareID +'&person='+rootPerson.userid+'&rename='+ encodeURIComponent(filename);
+	    var downloadUrl2 = host+'/downloadFile2/'+ treeNode.key.split('/').pop() +'?key='+ treeNode.key +'&shareID='+shareID +'&person='+rootPerson.userid+'&rename='+ encodeURIComponent(filename);
 	    var downloadUrl = host+'/downloadFile/'+ encodeURIComponent(filename) +'?key='+ treeNode.key +'&shareID='+shareID +'&person='+rootPerson.userid+'&rename='+ encodeURIComponent(filename);
 
 	    downloadUrl = FILE_HOST + treeNode.key;
@@ -629,7 +629,7 @@ function applyPrint ( onlyDownload ) {
 	var info = getFileKeys(sel);
 	var fileKey = info.key;
 
-    var downloadUrl = host+'/downloadFile2/'+ fileKey +'?key='+ fileKey +'&shareID='+shareID+'&person='+rootPerson.userid;
+    var downloadUrl = host+'/downloadFile2/'+ fileKey.split('/').pop() +'?key='+ fileKey +'&shareID='+shareID+'&person='+rootPerson.userid;
 
 	$('.bg_mask').show();
 
@@ -1869,7 +1869,7 @@ function showTab (idx) {
 	}
 
 	searchByName( $('.searchTxt').val() );
-	
+
 	if(typeof prevIdx=='undefined') return;
 
 }
