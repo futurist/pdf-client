@@ -247,12 +247,12 @@ function humanFileSize(bytes, si) {
 				if(typeof msg.isFinish!='undefined') {
 					return reloadTree2();
 				}
-				reloadTree2( msg.files ? msg.files[0].key : msg.key , msg.shareID, false, msg.openShare, msg.openMessage);
+				reloadTree2( msg.files ? msg.files[0].key : msg.key , msg.shareID, msg.showTab||false, msg.openShare, msg.openMessage);
 				break;
 
 			case 'addToShare':
 
-				reloadTree2(msg.key, msg.shareID, false, msg.openShare, msg.openMessage);
+				reloadTree2(msg.key, msg.shareID, msg.showTab||false, msg.openShare, msg.openMessage);
 				break;
 
 			case 'errMsg':
@@ -523,7 +523,7 @@ var formatDate = function(format) {
 			}
 		}
 
-function applyTemplate(){
+function applyTemplate (){
 
 
 	var sel = treeObjTemplate.getSelectedNodes();
@@ -537,12 +537,21 @@ function applyTemplate(){
 
 	$('.bg_mask').show();
 
+	$.post(host+'/applyTemplate2', { info: JSON.stringify(info), userid: rootPerson.userid, path:path }, function  (data) {
+		$('.bg_mask').hide();
+		hideTemplateCon();
+	});
+
+
+	return;
 	$.post(host+'/applyTemplate', { info: JSON.stringify(info), userid: rootPerson.userid, path:path }, function  (data) {
 		$('.bg_mask').hide();
 		hideTemplateCon();
 		reloadTree1(data);
 
 	});
+
+
 }
 
 function hideTemplateCon() {
@@ -1722,7 +1731,7 @@ function getFileKeys(node){
 
 						$('.fAdmin').hide();
 
-						if(rootPerson.isAdmin)
+						if(rootPerson.isAdmin || rootPerson.userRole&&rootPerson.userRole.indexOf('designer')>-1 )
 						if(targetNode.isTemplate){
 							$('.fRemoveTemplate').show();
 						}else{
@@ -3746,7 +3755,7 @@ function searchByName (keyword) {
 
 	var nodes = treeObj.getNodesByFilter( function(p){
 		if(p.level==0) return false;
-		while( p.level>0 && !p.title.match( new RegExp(keyword, 'i')) ) {
+		while( p.level>0 && !(p.title||p.name).match( new RegExp(keyword, 'i')) ) {
 			p = p.getParentNode();
 		}
 		return p.level===0;
