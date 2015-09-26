@@ -1392,6 +1392,56 @@ app.post("/applyTemplate", function (req, res) {
 });
 
 
+function pickUser(user){ return _.pick( user, 'userid', 'name', 'depart', 'id', 'pId', 'parentid', 'placeholder' ) }
+
+function getUserFromPlaceholder (fromUserId, placeholder) {
+
+  var thePerson = null;
+  var fromPerson = _.find( COMPANY_TREE, function(v){ return v.userid== fromUserId } );
+
+  if( placeholder=='_self'){
+
+    thePerson = fromPerson;
+
+  } else if(placeholder=='_parent') {
+
+    var sameLevel = COMPANY_TREE.filter(function(v){ return v.pId == fromPerson.pId && !!v.userid });
+    thePerson = _.max( sameLevel, function(v){ return v.level } );
+
+  } else if(placeholder=='_grand') {
+
+      var start = fromPerson;
+      var depart = _.find( COMPANY_TREE, function(v){ return v.id==start.pId } );
+
+      var pDepart = _.find( COMPANY_TREE, function(v){ return v.id==depart.pId } );
+      var sameLevel = COMPANY_TREE.filter(function(v){ return v.pId == pDepart.id && !!v.userid });
+
+      while(sameLevel.length==0 && depart.pId>0) {
+        var pDepart = _.find( COMPANY_TREE, function(v){ return v.id==depart.pId } );
+        var sameLevel = COMPANY_TREE.filter(function(v){ return v.pId == pDepart.id && !!v.userid });
+        if(sameLevel.length==0) depart = pDepart;
+      }
+
+      thePerson = !sameLevel? null: _.max( sameLevel, function(v){ return v.level } );
+
+  } else if( placeholder=='_boss' ) {
+
+    thePerson = _.max( COMPANY_TREE, function(v){ return v.level } );
+
+  } else {
+
+    thePerson = _.find( COMPANY_TREE, function(v){ return v.userid== placeholder } );
+
+  }
+  if(!thePerson) return thePerson;
+
+  thePerson.placeholder = placeholder;
+  return thePerson;
+
+}
+
+
+
 app.post("/applyTemplate2", function (req, res) {
 
 	var data = req.body;
@@ -1445,7 +1495,6 @@ app.post("/applyTemplate2", function (req, res) {
 
       data.selectRange = [];
 
-      function pickUser(user){ return _.pick( user, 'userid', 'name', 'depart', 'id', 'pId', 'parentid' ) }
 
       var fromPerson = COMPANY_TREE.filter(function(v){ return v.userid== userid  }).shift();
 
@@ -1453,43 +1502,10 @@ app.post("/applyTemplate2", function (req, res) {
 
         // Choose the person from flowList
         var curFlowPos = i;
+
         var curFlow = flow.flowPerson[curFlowPos];
-        var thePerson = null;
 
-        if( curFlow.userid=='_self'){
-
-          thePerson = fromPerson;
-
-        } else if(curFlow.userid=='_parent') {
-
-          var sameLevel = COMPANY_TREE.filter(function(v){ return v.pId == fromPerson.pId && !!v.userid });
-          thePerson = _.max( sameLevel, function(v){ return v.level } );
-
-        } else if(curFlow.userid=='_grand') {
-
-            var start = fromPerson;
-            var depart = _.find( COMPANY_TREE, function(v){ return v.id==start.pId } );
-
-            var pDepart = _.find( COMPANY_TREE, function(v){ return v.id==depart.pId } );
-            var sameLevel = COMPANY_TREE.filter(function(v){ return v.pId == pDepart.id && !!v.userid });
-
-            while(sameLevel.length==0 && depart.pId>0) {
-              var pDepart = _.find( COMPANY_TREE, function(v){ return v.id==depart.pId } );
-              var sameLevel = COMPANY_TREE.filter(function(v){ return v.pId == pDepart.id && !!v.userid });
-              if(sameLevel.length==0) depart = pDepart;
-            }
-
-            thePerson = !sameLevel? null: _.max( sameLevel, function(v){ return v.level } );
-
-        } else if( curFlow.userid=='_boss' ) {
-
-          thePerson = _.max( COMPANY_TREE, function(v){ return v.level } );
-
-        } else {
-
-          thePerson = _.find( COMPANY_TREE, function(v){ return v.userid== curFlow.userid } );
-
-        }
+        var thePerson = getUserFromPlaceholder(fromPerson.userid, curFlow.userid);
 
         // Push the person into toPerson List
         data.selectRange.push(pickUser(thePerson));
@@ -2005,7 +2021,7 @@ app.post("/getShareMsg", function (req, res) {
 
       shareA = shareA.map( function(v){ return parseInt(v) } );
 
-      var condition = {  role:'shareMsg', shareID:{$in:shareA} };
+      var condition = {  role:'shareMsg', shareID:{$in:shareA}, WXOnly:{$in:[null,false,'']} };
 
       var hashA = [null];
       if(hash) hashA = hashA.concat(hash);
@@ -2193,7 +2209,7 @@ app.post("/finishSign", function (req, res) {
                "msgtype": "text",
                "text": {
                  "content":
-                 util.format('流程%d %s (%s-%s)</a>已由%s签署,此流程已结束 <a href="%s">点此预览</a>',
+                 util.format('流程%d %s (%s-%s)已由%s签署,此流程已结束 <a href="%s">点此预览</a>',
                     colShare.shareID,
                     msg,
                     colShare.flowName,
@@ -2313,7 +2329,7 @@ app.post("/saveSignFlow", function (req, res) {
     signIDS.sort(function(a,b){
       return a.level>b.level;
     });
-    
+
     var flowPerson = signIDS.map(function(v){
       var ret = v.userid
                 ? { name:v.name, userid:v.userid, depart:v.depart, level:v.level  }
@@ -2355,10 +2371,14 @@ app.post("/saveSign", function (req, res) {
       		// http://stackoverflow.com/questions/18986505/mongodb-array-element-projection-with-findoneandupdate-doesnt-work
 			col.findOneAndUpdate( {role:'share', shareID:shareID, 'files.key':fileKey },
 				{ $set: setObj }, { projection:{ key:1, 'files': {$elemMatch: {key: fileKey} } } } , function(err, result) {
-
-					if(err) return res.send('');
+					
+					if(err){
+						console.log(err);
+						return res.send('');
+					} 
 					try{var ret=result.value.files.shift().signIDS[ signIDX ]; }
 					catch(e){
+						console.log(e);
 						return res.send('');
 					}
 	          	res.send( ret );
@@ -3070,13 +3090,13 @@ function updateCompanyTree () {
                 function(err, result) {
 
                   if(err) return console.log('updateCompanyTree', err);
-                  
+
                   COMPANY_TREE = companyTree;
                   STUFF_LIST = stuffList;
 
                   // update COMPANY_TREE with extended info from db
                   col.findOne({role:'stuff'}, {sort: {level:-1} }, function(err, doc){
-                    
+
                       var stuff2 = doc.stuffList;
                       stuff2.forEach(function(v){
 

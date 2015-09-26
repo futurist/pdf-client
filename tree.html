@@ -12,6 +12,9 @@
     <meta http-equiv="cache-control" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
 
+<!-- weinre.cmd -->
+<!-- <script src="http://192.168.1.135:8080/target/target-script-min.js#anonymous"></script>
+ -->
 <script type="text/javascript" src="http://res.wx.qq.com/open/js/jweixin-1.0.0.js"></script>
 <script type="text/javascript" src="/js/cookies.js"></script>
 
@@ -2577,6 +2580,34 @@ function initOAth() {
 }
 if(isWeiXin) initWX();
 
+
+
+function sortCompanyNode (data) {
+  data = data.sort(function(a,b){
+
+    if(a.pId != b.pId)
+      return a.pId-b.pId;
+    var apid = a.parentid===undefined? -1 : a.parentid;
+    var bpid = b.parentid===undefined? -1 : b.parentid;
+    return apid-bpid;
+
+  });
+
+
+  var depart = data.filter(function(v){ return v.pId>=0 && v.parentid>=0 });
+  var opData = [];
+  depart.forEach(function(v){
+    opData.push(v);
+    opData = opData.concat(
+      data.filter(function(x){ return x.pId==v.id && x.parentid===undefined })
+      .sort(function(a,b){return a.userid>b.userid } )
+     );
+  });
+  return opData;
+}
+
+
+
 $(function  () {
 
 	$.post(host+ (wxUserInfo? '/getUserInfo' : '/getLoginUserInfo') , { userid: wxUserInfo? wxUserInfo.UserId:'' }, function  (userinfo) {
@@ -2594,8 +2625,8 @@ $(function  () {
 		getFilesData();
 
 		$.post(host+'/getCompanyTree', { company:'lianrun' }, function  (data) {
-			companyNode = JSON.parse( data );
-			console.log(data);
+			data = JSON.parse( data );
+			companyNode = sortCompanyNode(data);
 			companyTree = $.fn.zTree.init($("#companyTree"), companySetting, companyNode);
 		});
 
@@ -3776,7 +3807,7 @@ function searchByName (keyword) {
 	// var nodes = treeObj.getNodesByFilter( function  (node1) {
 	// 	if( node1.level===0 ) return true;
 	// 	if( node1.title.match( new RegExp(keyword, 'i') ) ) return true;
-	// 	var nodes2 = treeObj.getNodesByFilter( function(v){ 
+	// 	var nodes2 = treeObj.getNodesByFilter( function(v){
 	// 		return v.title.match( new RegExp(keyword, 'i') )
 	// 	}, true, node1);
 	// 	if(nodes2!=null) return true;
@@ -4112,7 +4143,6 @@ dl, dd, dt{
 
 
 
-<!-- <script src="http://192.168.1.135:8080/target/target-script-min.js#anonymous"></script> -->
 
 </BODY>
 </HTML>
