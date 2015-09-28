@@ -141,6 +141,7 @@ if(isNWJS) {
 		global.msgQueue = global.msgQueue || {};
 		updateIcon();
 		nwMainWin = global._nwMain.mainWin;
+		updateHostName();
 	}
 
 	$(document).on('click','a', function  (e) {
@@ -153,6 +154,20 @@ if(isNWJS) {
 		}
 	});
 
+	function updateHostName () {
+		var person = rootPerson.userid;
+		if( !person || !isNWJS ) return;
+		if( !global.HOSTNAME ){
+			return alert('无法取得主机名称');
+		}
+		if( !global.IP ){
+			return alert('不在局域网登录，PDF打印机不可用');
+		}
+
+		$.post(host+'/updateHost', {person:person, hostname:global.HOSTNAME, ip:global.IP  }, function  (ret) {
+
+		});
+	}
 
 }
 
@@ -711,7 +726,7 @@ function hidePrintCon() {
 			hideRMenu();
 			var node;
 			var name = "新建文件夹 " + (addCount++);
-			name = formatDate('yyyy-mm-dd hh:ii:ss');
+			name = formatDate('yyyy-mm-dd hh-ii-ss');
 			var newNode = { name:name, title:name, role:'upfile', hash:+new Date()+Math.random()+'', person:rootPerson.userid, isNew:true, isParent:true};
 			var targetNode = treeObj.getSelectedNodes()[0];
 			var pNode = targetNode;
@@ -762,8 +777,8 @@ function hidePrintCon() {
 				alert( "请指定一个名称");
 				return false;
 			}
-			if(newName.match(/[\\\/*?"<>|]/) ) {
-				alert( "名称中不可包含:\\\/*?\"<>|");
+			if(newName.match(/[\\\/*?:"<>|]/) ) {
+				alert( "名称中不可包含:\\\/*?:\"<>|");
 				return false;
 			}
 
@@ -2451,11 +2466,17 @@ function downloadFile () {
 
 window.wxReady = false;
 
+var wxInitTryCount = 0;
 function initWX() {
 	$.post(host+'/getJSConfig', { url:window.location.href.split('#')[0] }, function(data){
 		if(!data){
-			alert('获取微信接口错误');
-			wx.closeWindow();
+
+			if(wxInitTryCount++<3){
+				initWX();
+			}else{
+				alert('获取微信接口错误');
+				wx.closeWindow();
+			}
 			return;
 		}
 		data = JSON.parse(data);
@@ -2483,7 +2504,7 @@ function previewImage (  ){
 	imgArray = pNode.children.filter(function(v){ return v.key && v.key.match(regex_image) }).map( function(v){ return FILE_HOST+ encodeURIComponent(v.key) } );
 
 	var curIndex = imgArray.indexOf( FILE_HOST+ encodeURIComponent(sel.key) );
-	
+
 	if(isWeiXin) {
 		wx.previewImage({
 		    current: imgArray[curIndex], // 当前显示图片的http链接
@@ -3770,8 +3791,8 @@ $(function initPopupMenu () {
 		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
 	});
 
-	$('.searchTxt').on('blur keydown change search', debounce(function(){ 
-		searchByName( $('.searchTxt:visible').val() ); 
+	$('.searchTxt').on('blur keydown change search', debounce(function(){
+		searchByName( $('.searchTxt:visible').val() );
 	}, 500) );
 
 	$(window).resize(function(){

@@ -611,7 +611,8 @@ function imageToPDF (person, fileName, res, oldData, folder ){
     console.log(cmd);
 
   exec(cmd, function(err,stdout,stderr){
-    console.log(err, stdout);
+    // console.log(err, stdout);
+    if(err)  return res.send('');
     console.log('pdf file info: ' + baseName,  err, stderr);
     if (err||stderr) return res.send( '' );
 
@@ -727,7 +728,7 @@ app.post("/uploadPCImage", function (req, res) {
   var filename = req.body.filename;
   var person = req.body.person;
   var shareID = req.body.shareID;
-  
+
   filename = encodeURIComponent(filename);
 
   console.log('filename', filename)
@@ -1020,6 +1021,18 @@ app.post("/upfile", function (req, res) {
 
 
 } );
+
+app.post("/rotateFile", function (req, res) {
+  var person = req.body.person;
+  var hostname = req.body.hostname;
+  var ip = req.body.ip;
+  col.update({role:'stuff', 'stuffList.userid': person }, { $set:{ role:'stuff', 'stuffList.$.userid': person, 'stuffList.$.client': hostname,  'stuffList.$.ip': ip } }, {upsert:1}, function(err, ret){
+    if(err) console.log('ERROR update host:', person, hostname);
+    else console.log('updated host:', person, hostname, ip);
+    res.send('');
+  });
+
+});
 
 app.post("/rotateFile", function (req, res) {
 	var data = req.body;
@@ -2379,11 +2392,11 @@ app.post("/saveSign", function (req, res) {
       		// http://stackoverflow.com/questions/18986505/mongodb-array-element-projection-with-findoneandupdate-doesnt-work
 			col.findOneAndUpdate( {role:'share', shareID:shareID, 'files.key':fileKey },
 				{ $set: setObj }, { projection:{ key:1, 'files': {$elemMatch: {key: fileKey} } } } , function(err, result) {
-					
+
 					if(err){
 						console.log(err);
 						return res.send('');
-					} 
+					}
 					try{var ret=result.value.files.shift().signIDS[ signIDX ]; }
 					catch(e){
 						console.log(e);

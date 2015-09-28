@@ -9,13 +9,42 @@ var popupList = global.popupList||{};
 
 var nwMain = (function(gui) {
 
+
+	// http://stackoverflow.com/questions/3653065/get-local-ip-address-in-node-js
+	var os = require('os');
+	var HOSTNAME = os.hostname();
+	var ifaces = os.networkInterfaces();
+
+	var IPS = [];
+
+	Object.keys(ifaces).forEach(function (ifname) {
+	  var alias = 0;
+
+	  ifaces[ifname].forEach(function (iface) {
+	    if ('IPv4' !== iface.family || iface.internal !== false) {
+	      return;
+	    }
+
+	    if (alias >= 1) {
+	      IPS.push({ifname:ifname, address:iface.address});
+	    } else {
+	      IPS.push({ifname:ifname, address:iface.address});
+	    }
+	  });
+	});
+	// remain only LAN IPS
+	IPS = IPS.filter(function(v){ return v.address.indexOf('192.')>-1||v.address.indexOf('172.')>-1||v.address.indexOf('10.')>-1 });
+
+	global.IPS = IPS.shift();
+	global.HOSTNAME = HOSTNAME;
+
 	if( Object.keys(popupList).length || !window.location.href.match(/tree\.html/) ) return;
 
 	// some init data & number
 	var TaskBarHeight = 30;
 	var POP_WIDTH=300, POP_HEIGHT=300;
 
-	// global var 
+	// global var
 	var isShow = true;
 	var _tray;	//system _tray var
 	var win;	//main window var
@@ -164,7 +193,7 @@ var nwMain = (function(gui) {
 
 		nwNotify.setConfig( {lowerRightCorner: lowerRightCorner } );
 
-		// If you want to use your own notification.html you use this method. Use it like this: 
+		// If you want to use your own notification.html you use this method. Use it like this:
 		//nwNotify.setTemplatePath(nwNotify.getAppPath() + 'notification.html');
 		nwNotify.setTemplatePath( host + '/notification.html');
 
