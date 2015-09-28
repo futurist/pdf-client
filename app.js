@@ -607,9 +607,11 @@ app.post("/getJSTicket", function (req, res) {
 function imageToPDF (person, fileName, res, oldData, folder ){
 	var ext = path.extname(fileName);
 	var baseName = path.basename(fileName, ext);
-  var cmd = ' rm -f '+IMAGE_UPFOLDER+'/*.pdf; cd '+IMAGE_UPFOLDER+'; /bin/cp -f ../make.tex '+ baseName +'.tex; xelatex "\\def\\IMG{'+ baseName +'} \\input{'+ baseName +'.tex}"';
+  var cmd = ' rm -f '+IMAGE_UPFOLDER+'/*.pdf; cd '+IMAGE_UPFOLDER+'; /bin/cp -f ../make.tex '+ baseName +'.tex; pdflatex "\\def\\IMG{'+ baseName + ext +'} \\input{'+ baseName +'.tex}"';
+    console.log(cmd);
+
   exec(cmd, function(err,stdout,stderr){
-    //console.log(stdout);
+    console.log(err, stdout);
     console.log('pdf file info: ' + baseName,  err, stderr);
     if (err||stderr) return res.send( '' );
 
@@ -725,6 +727,10 @@ app.post("/uploadPCImage", function (req, res) {
   var filename = req.body.filename;
   var person = req.body.person;
   var shareID = req.body.shareID;
+  
+  filename = encodeURIComponent(filename);
+
+  console.log('filename', filename)
 
   var MAX_WIDTH = 2000;
   var MAX_HEIGHT = 2000;
@@ -736,10 +742,10 @@ app.post("/uploadPCImage", function (req, res) {
      var ext = filename.split(/\./).pop();
 
     var baseName = moment().format('YYYYMMDDHHmmss') ;
-    var destPath = IMAGE_UPFOLDER+ baseName + '.'+ ext;
+    var destPath = IMAGE_UPFOLDER+ baseName + '.'+ ext.toLowerCase();
     var UPFOLDER = IMAGE_UPFOLDER+ baseName+'/';
 
-    var wget = 'mkdir '+ UPFOLDER +'; wget -P ' + UPFOLDER + ' -N "' + FILE_HOST+filename +'"';
+    var wget = 'mkdir '+ UPFOLDER +'; wget --restrict-file-names=nocontrol -P ' + UPFOLDER + ' -N "' + FILE_HOST+ filename +'"';
     var child = exec(wget, function(err, stdout, stderr) {
       console.log( err, stdout, stderr );
       if(err) return res.send('');
@@ -1064,7 +1070,7 @@ app.post("/rotateFile", function (req, res) {
 	    function upToQiniu(){
 
 		    // compose the wget command
-		    var wget = 'wget -P ' + DOWNLOAD_DIR + ' -N "' + file_url+'"';
+		    var wget = 'wget --restrict-file-names=nocontrol -P ' + DOWNLOAD_DIR + ' -N "' + file_url+'"';
 		    // excute wget using child_process' exec function
 
 		    var child = exec(wget, function(err, stdout, stderr) {
@@ -1636,7 +1642,7 @@ app.get("/downloadFile/:name", function (req, res) {
 	var rename = req.query.rename;
 	console.log(rename);
 
-	exec( 'wget -P '+ DOWNLOAD_DIR + ' -N '+ file, function(){
+	exec( 'wget --restrict-file-names=nocontrol -P '+ DOWNLOAD_DIR + ' -N '+ file, function(){
 		exec('rm -f "'+DOWNLOAD_DIR+rename+'"; mv '+DOWNLOAD_DIR+key+' "'+DOWNLOAD_DIR+rename+'"', function(){
 			res.download( DOWNLOAD_DIR+rename );
 		});
@@ -2092,8 +2098,10 @@ app.post("/drawSign", function (req, res) {
   data._id = +new Date()+Math.random().toString().slice(2,5);
   delete data.file;
   delete data.signPerson;
+  console.log(file, data);
 
-  col.updateOne( { role:'upfile', key:file }, { $addToSet: { signIDS: data } },  {w:1}, function(err,result){
+  col.update( { role:'upfile', key:file }, { $push: { signIDS: data } }, function(err,result){
+  	console.log(err);
     if(err || !result) return res.send('');
     res.send(result);
   });
@@ -2788,7 +2796,7 @@ function genPDF ( filename, shareID,  realname, cb ) {
 
 	var tempFile = IMAGE_UPFOLDER + (+new Date()+Math.random().toString().slice(2,5)) +'.pdf';
 
-	var wget = 'rm -r '+ IMAGE_UPFOLDER+realname+ '; wget -P ' + IMAGE_UPFOLDER + ' -O '+ tempFile +' -N "' + FILE_HOST+filename +'" ';
+	var wget = 'rm -r '+ IMAGE_UPFOLDER+realname+ '; wget --restrict-file-names=nocontrol -P ' + IMAGE_UPFOLDER + ' -O '+ tempFile +' -N "' + FILE_HOST+filename +'" ';
 	console.log(wget);
 	var child = exec(wget, function(err, stdout, stderr) {
 
@@ -3143,7 +3151,6 @@ app.post("/getCompanyTree", function (req, res) {
         if(err|| !docs || !docs.length) return res.send('');
         var count = docs.length;
         if(count)
-        res.send( JSON.stringify( docs[0].companyTree ) );
 
         COMPANY_TREE = docs[0].companyTree;
         STUFF_LIST = docs[0].stuffList;
@@ -3162,6 +3169,7 @@ app.post("/getCompanyTree", function (req, res) {
 
           });
 
+          res.send( JSON.stringify( COMPANY_TREE ) );
 
         });
 

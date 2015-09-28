@@ -198,7 +198,7 @@ function humanFileSize(bytes, si) {
 
 	ws.addEventListener('open', function(){
 		console.log('ws opened init function');
-		ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc' }) );
+		ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
 	});
 
 	ws.addEventListener('message', function(data){
@@ -361,9 +361,10 @@ function addDiyDom(treeId, treeNode) {
 	var dateStr = moment(treeNode.date).isBefore( moment([moment().year(),0,1]) ) ?  moment(treeNode.date).format('YYYY-MM-DD HH:mm') : moment(treeNode.date).format('MM-DD HH:mm');
 	var info = $('<a href="#" class="glyphicon glyphicon-download-alt downloadIcon" aria-hidden="true"></a><div class="fileInfo" id="info_'+treeNode.tId +'"><p>'+ humanFileSize(treeNode.fsize) +'</p><span class="date">'+ dateStr +'</span></div>');
 	$li.append(info).addClass('clearfix withInfo');
-	if( treeNode.key.match(regex_image)  )   treeNode.iconSkin='image' //aObj.find('.ico_docu').addClass('image');
-	if( treeNode.key.match(regex_can_be_convert)  )   treeNode.iconSkin='canBeConverted'; //aObj.find('.ico_docu').addClass('canBeConverted');
-	if( treeNode.key.match( /\.pdf$/i )  )  treeNode.iconSkin='pdf'; //aObj.find('.ico_docu').addClass('pdf');
+
+	// if( treeNode.key.match(regex_image)  )   treeNode.iconSkin='image' //aObj.find('.ico_docu').addClass('image');
+	// if( treeNode.key.match(regex_can_be_convert)  )   treeNode.iconSkin='canBeConverted'; //aObj.find('.ico_docu').addClass('canBeConverted');
+	// if( treeNode.key.match( /\.pdf$/i )  )  treeNode.iconSkin='pdf'; //aObj.find('.ico_docu').addClass('pdf');
 
 	setTimeout(function(){
 		var downBtn = info.eq(0);
@@ -1380,8 +1381,10 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 			}
 			if(openShare){
 				shareFile();
-			}else if(openMessage){
+			}else if(openMessage==1){
 				viewDetail();
+			}else if(openMessage==2){
+				openPrintCon();
 			} else if(urlQuery.tab) {
 				showTab( urlQuery.tab );
 			}
@@ -2477,10 +2480,10 @@ function previewImage (  ){
 	var pNode = sel.getParentNode();
 	if(!pNode || pNode.level<1) return;
 
-	imgArray = pNode.children.filter(function(v){ return v.key && v.key.match(regex_image) }).map( function(v){ return  FILE_HOST+ v.key } );
+	imgArray = pNode.children.filter(function(v){ return v.key && v.key.match(regex_image) }).map( function(v){ return FILE_HOST+ encodeURIComponent(v.key) } );
 
-	var curIndex = imgArray.indexOf( FILE_HOST+ sel.key );
-
+	var curIndex = imgArray.indexOf( FILE_HOST+ encodeURIComponent(sel.key) );
+	
 	if(isWeiXin) {
 		wx.previewImage({
 		    current: imgArray[curIndex], // 当前显示图片的http链接
@@ -2628,6 +2631,7 @@ $(function  () {
 			data = JSON.parse( data );
 			companyNode = sortCompanyNode(data);
 			companyTree = $.fn.zTree.init($("#companyTree"), companySetting, companyNode);
+			companyTree.expandNode( companyTree.getNodes()[0] );
 		});
 
 		$.post(host+'/getFlowList', { }, function  (data) {
@@ -3498,7 +3502,7 @@ $(function () {
         	if( data.result.file ) {
 	            $.each(data.result.file, function (index, file) {
 	            	if(file.error) return alert(file.error);
-	            	$.post(host+'/uploadPCImage', {person:rootPerson.userid, filename:file.name }, function(ret){
+	            	$.post(host+'/uploadPCImage', {person:rootPerson.userid, filename: encodeURIComponent(file.name) }, function(ret){
 	            		//console.log(ret);
 	            	}  );
 	            });
@@ -3746,6 +3750,17 @@ $(function initPopupMenu () {
 
 	});
 
+	$('.topMenu').click(function(){
+		$('.company_wrap').show().data('role', 'contact');
+		$('.content_wrap').hide();
+		$('.msg_wrap').hide();
+		$('.header').hide();
+		$('.company_wrap .msgTitle').html( '查看联系人' );
+		updateMenu('.contactMenu');
+		curTree = companyTree;
+		treeObj = curTree;
+	});
+
 	var msgDateInterval = setInterval(updateMsgTime, 10000);
 	updateContentTop();
 
@@ -3755,7 +3770,9 @@ $(function initPopupMenu () {
 		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
 	});
 
-	$('.searchTxt').on('blur keydown change search', debounce(function(){ searchByName( $('.searchTxt').val() ); }, 500) );
+	$('.searchTxt').on('blur keydown change search', debounce(function(){ 
+		searchByName( $('.searchTxt:visible').val() ); 
+	}, 500) );
 
 	$(window).resize(function(){
 		$('.msgTitle').width( $(this).width() );
@@ -3763,6 +3780,34 @@ $(function initPopupMenu () {
 	$(window).resize();
 });
 
+
+function hideCompanyTree (){
+	$('.company_wrap').hide().data('role', '');
+	$('.content_wrap').show();
+	$('.header').show();
+	updateMenu();
+	treeObj = eval( 'treeObj'+ ($('.currTab').data('idx')+1) );
+};
+
+function viewContact  () {
+	var sel = companyTree.getSelectedNodes().shift();
+	if(!sel) return;
+	var str = '';
+	str += '<p>'+ sel.name +'</p>';
+	str += '<p>'+ sel.userid +'</p>';
+	str += '<p><a href="tel:'+sel.mobile+'">'+ sel.mobile +'</a></p>';
+	str += '<p><a href="tel:'+ sel.shortPhone +'">'+ sel.shortPhone +'</a></p>';
+	alert(str);
+}
+
+
+function isVisible(el){
+	el = $(el);
+	while( el.is(':visible') && !el.is(document) ){
+		el = el.parent();
+	}
+	return el.is(document);
+}
 
 function debounce(fun, mil){
     var timer;
@@ -3777,11 +3822,15 @@ function debounce(fun, mil){
 
 function searchByName (keyword) {
 
+	if(treeObj.prevKeyword == keyword) return;
+
 	var nodes = treeObj.getNodesByFilter( function(v){return true} );
 	treeObj.showNodes(nodes);
 
-	keyword = $.trim(keyword);
+	// keyword = $.trim(keyword);
 	if(!keyword) return;
+	treeObj.prevKeyword = keyword;
+
 	keyword = escapeRe(keyword);
 
 	var nodes = treeObj.getNodesByFilter( function(p){
@@ -3791,6 +3840,11 @@ function searchByName (keyword) {
 		}
 		return p.level===0;
 	} );
+
+	// var nodes2 = $.grep(nodes, function(v, i){
+	// 	return nodes.indexOf( v.getParentNode() )==-1;
+	// });
+
 	treeObj.hideNodes(nodes);
 
 	// var nodes = treeObj.getNodesByFilter( function  (node) {
@@ -3875,6 +3929,13 @@ dl, dd, dt{
 }
 .searchDIV dl dd{
 	float: left;
+}
+
+.popcon.treeCompanyCon{
+	margin-top:0;
+}
+.company_wrap .searchDIV{
+	margin-top: 42px;
 }
 .dialog-content {
 	width: auto;
@@ -4003,6 +4064,7 @@ dl, dd, dt{
 
 <div class="popupWin company_wrap">
 	<div class="msgTitle"></div>
+	<div class="searchDIV"> 搜索联系人: <input type="search" class="searchTxt"> </div>
 	<div class="popcon treeCompanyCon">
 		<ul id="companyTree" class="ztree ztreeCompany"></ul>
 	</div>
@@ -4095,6 +4157,11 @@ dl, dd, dt{
 		<a class="fRename" href="javascript:;">分享给：</a>
 		<a class="fBackCab" href="javascript:;" onclick="hideShare()">取消</a>
 		<a class="fPaste" href="javascript:;" onclick="return shareNodePre(true)">确定</a>
+	</div>
+
+	<div class="contactMenu">
+		<a class="fBackCab" href="javascript:;" onclick="hideCompanyTree()">关闭</a>
+		<a class="fContact" href="javascript:;" onclick="viewContact()">查看</a>
 	</div>
 
 	<div class="sendMenu">
