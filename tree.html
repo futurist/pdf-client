@@ -56,6 +56,8 @@ var isWeiXin = navigator.userAgent.match(/MicroMessenger\/([\d.]+)/i);
 var isiOS = /iPhone/i.test(navigator.userAgent) || /iPod/i.test(navigator.userAgent) || /iPad/i.test(navigator.userAgent);
 var isMobile = isAndroid||isWeiXin||isiOS;
 
+var clickE = isMobile?'ontouchstart':'click';
+
 var wxUserInfo;
 var DEBUG= eval(urlQuery.debug||0);
 
@@ -141,7 +143,7 @@ if(isNWJS) {
 		global.msgQueue = global.msgQueue || {};
 		updateIcon();
 		nwMainWin = global._nwMain.mainWin;
-		updateHostName();
+		global.updateHostName();
 	}
 
 	$(document).on('click','a', function  (e) {
@@ -154,25 +156,13 @@ if(isNWJS) {
 		}
 	});
 
-	function updateHostName () {
-		var person = rootPerson.userid;
-		if( !person || !isNWJS ) return;
-		if( !global.HOSTNAME ){
-			return alert('无法取得主机名称');
-		}
-		if( !global.IP ){
-			return alert('不在局域网登录，PDF打印机不可用');
-		}
-
-		$.post(host+'/updateHost', {person:person, hostname:global.HOSTNAME, ip:global.IP  }, function  (ret) {
-
-		});
-	}
 
 }
 
 
 FILE_HOST = 'http://7xkeim.com1.z0.glb.clouddn.com/';
+VIEWER_URL = 'http://1111hui.com/pdf/webpdf/viewer.html';
+
 
 function eve (el, type){
     el= ('get' in el)? el.get(0) : el ;	//(typeof el['jquery']!='undefined')
@@ -206,6 +196,37 @@ function humanFileSize(bytes, si) {
     return bytes.toFixed(1)+' '+units[u];
 }
 
+function applyTemplate (){
+
+
+	var sel = treeObjTemplate.getSelectedNodes();
+	if(!sel.length) return;
+	sel=sel[0];
+
+	var info = getFileKeys(sel);
+
+	var path = getPath(getSelectFiles().shift());
+
+	if(!path) path='/';
+
+	$('.bg_mask').show();
+
+	$.post(host+'/applyTemplate2', { info: JSON.stringify(info), userid: rootPerson.userid, path:path }, function  (data) {
+		$('.bg_mask').hide();
+		hideTemplateCon();
+	});
+
+
+	return;
+	$.post(host+'/applyTemplate', { info: JSON.stringify(info), userid: rootPerson.userid, path:path }, function  (data) {
+		$('.bg_mask').hide();
+		hideTemplateCon();
+		reloadTree1(data);
+
+	});
+
+
+}
 
 
 //******* Websocket part **************
@@ -214,6 +235,7 @@ function humanFileSize(bytes, si) {
 	ws.addEventListener('open', function(){
 		console.log('ws opened init function');
 		ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
+		if(isNWJS && global.updateHostName) global.updateHostName();
 	});
 
 	ws.addEventListener('message', function(data){
@@ -262,6 +284,13 @@ function humanFileSize(bytes, si) {
 				break;
 
 			case 'share':
+				if( msg.data && msg.data.isSign && isNWJS ) {
+					var viewerUrl1 = VIEWER_URL + '#file=' + FILE_HOST+msg.key + '&shareID=' + msg.data.shareID + '&isSign=1';
+					var viewerUrl2 = VIEWER_URL + '#file=' + FILE_HOST+ encodeURIComponent(msg.key) + '&shareID=' + msg.data.shareID + '&isSign=1';
+					var win = global.popupList[viewerUrl1] || global.popupList[viewerUrl2];
+
+					//if(win && win.window) return win.window.location.reload();
+				}
 				if(typeof msg.isFinish!='undefined') {
 					return reloadTree2();
 				}
@@ -504,74 +533,44 @@ var formatDate = function(format) {
 };
 
 
-		function OnRightClick(event, treeId, treeNode) {
-			console.log(treeNode);
-			if(!treeNode) return;
-			if(treeNode.isSend || treeNode.isReceive || treeNode.isTemplate ) return;
-			if (!treeNode && event.target.tagName.toLowerCase() != "button" && $(event.target).parents("a").length == 0) {
-				treeObj.cancelSelectedNode();
-				showRMenu("root", event.clientX, event.clientY);
-			} else if (treeNode && !treeNode.noR) {
-				treeObj.selectNode(treeNode);
-				showRMenu("node", event.clientX, event.clientY);
-			}
-		}
-
-		function showRMenu(type, x, y) {
-			$("#rMenu ul").show();
-			if (type=="root") {
-				$("#m_del").hide();
-				$("#m_check").hide();
-				$("#m_unCheck").hide();
-			} else {
-				$("#m_del").show();
-				$("#m_check").show();
-				$("#m_unCheck").show();
-			}
-			rMenu.css({"top":y+"px", "left":x+"px", "visibility":"visible"});
-
-			$("body").bind("mousedown", onBodyMouseDown);
-		}
-		function hideRMenu() {
-			if (rMenu) rMenu.css({"visibility": "hidden"});
-			$("body").unbind("mousedown", onBodyMouseDown);
-		}
-		function onBodyMouseDown(event){
-			if (!(event.target.id == "rMenu" || $(event.target).parents("#rMenu").length>0)) {
-				rMenu.css({"visibility" : "hidden"});
-			}
-		}
-
-function applyTemplate (){
-
-
-	var sel = treeObjTemplate.getSelectedNodes();
-	if(!sel.length) return;
-	sel=sel[0];
-
-	var info = getFileKeys(sel);
-
-	var path = getPath(getSelectFiles().shift());
-	if(!path) return;
-
-	$('.bg_mask').show();
-
-	$.post(host+'/applyTemplate2', { info: JSON.stringify(info), userid: rootPerson.userid, path:path }, function  (data) {
-		$('.bg_mask').hide();
-		hideTemplateCon();
-	});
-
-
-	return;
-	$.post(host+'/applyTemplate', { info: JSON.stringify(info), userid: rootPerson.userid, path:path }, function  (data) {
-		$('.bg_mask').hide();
-		hideTemplateCon();
-		reloadTree1(data);
-
-	});
-
-
+function OnRightClick(event, treeId, treeNode) {
+	console.log(treeNode);
+	if(!treeNode) return;
+	if(treeNode.isSend || treeNode.isReceive || treeNode.isTemplate ) return;
+	if (!treeNode && event.target.tagName.toLowerCase() != "button" && $(event.target).parents("a").length == 0) {
+		treeObj.cancelSelectedNode();
+		showRMenu("root", event.clientX, event.clientY);
+	} else if (treeNode && !treeNode.noR) {
+		treeObj.selectNode(treeNode);
+		showRMenu("node", event.clientX, event.clientY);
+	}
 }
+
+function showRMenu(type, x, y) {
+	$("#rMenu ul").show();
+	if (type=="root") {
+		$("#m_del").hide();
+		$("#m_check").hide();
+		$("#m_unCheck").hide();
+	} else {
+		$("#m_del").show();
+		$("#m_check").show();
+		$("#m_unCheck").show();
+	}
+	rMenu.css({"top":y+"px", "left":x+"px", "visibility":"visible"});
+
+	$("body").bind("mousedown", onBodyMouseDown);
+}
+function hideRMenu() {
+	if (rMenu) rMenu.css({"visibility": "hidden"});
+	$("body").unbind("mousedown", onBodyMouseDown);
+}
+function onBodyMouseDown(event){
+	if (!(event.target.id == "rMenu" || $(event.target).parents("#rMenu").length>0)) {
+		rMenu.css({"visibility" : "hidden"});
+	}
+}
+
 
 function hideTemplateCon() {
 	var idx = $('.currTab').data('idx');
@@ -587,6 +586,9 @@ function addTemplateCon() {
 	$('.templateFile_wrap .msgTitle').html('请选择模板');
 	updateMenu( treeObj.getSelectedNodes() );
 
+	$('[data-click]').off().on('click', function  () {
+		eval($(this).data('click'));
+	});
 };
 
 function sendShareSnd () {
@@ -1095,7 +1097,7 @@ function hidePrintCon() {
 
 		function sendClientMsg (url, text) {
 
-			var viewerURL = 'http://1111hui.com/pdf/webpdf/viewer.html#file='+ FILE_HOST +url;
+			var viewerURL = VIEWER_URL+'#file='+ FILE_HOST +url;
 
 			console.log(url);
 
@@ -1700,11 +1702,19 @@ function getFileKeys(node){
 					$('.sendMenu>a').hide();
 					$('.sendMenu .fCommon').show();
 
-					if(targetNode.isParent){
+					if(targetNode.isParent ){
 						$('.fFolder').show();
 						!targetNode.isFinish ? $('.fFinish').hide() : $('.fNotFinish').hide();
+						if(targetNode.isSign){
+							$('.fFinish, .fNotFinish').hide();
+						}
 					} else {
 						$('.fFile').show();
+						// if(targetNode.isFinish){
+						// 	$('.fShare').show();
+						// } else {
+						// 	$('.fShare').hide();
+						// }
 					}
 
 				} else if(targetNode.isReceive) {
@@ -1715,6 +1725,9 @@ function getFileKeys(node){
 					if(targetNode.isParent){
 						$('.fFolder').show();
 						!targetNode.isFinish ? $('.fFinish').hide() : $('.fNotFinish').hide();
+						if(targetNode.isSign){
+							$('.fFinish, .fNotFinish').hide();
+						}
 					} else {
 						$('.fFile').show();
 					}
@@ -1816,7 +1829,7 @@ function getFileUrl(targetNode){
 	shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
 	shareStr += treeNode.isTemplate ? '&isTemplate=1' : '';
 
-	return !treeNode.isParent ? 'http://1111hui.com/pdf/webpdf/viewer.html#file='+(FILE_HOST+treeNode.key)+shareStr : '';
+	return !treeNode.isParent ? VIEWER_URL+'#file='+(FILE_HOST+treeNode.key)+shareStr : '';
 
 }
 
@@ -3212,7 +3225,7 @@ $(function  () {
 		z-index: 9999;
 		top: 0;
 		left: 0;
-		height: 84px;
+		height: 42px;
 		width: 100%;
 		opacity: 0;
 		cursor: pointer;
@@ -3672,21 +3685,26 @@ function handleShortKey (evt) {
 
 
 
-$(function initPopupMenu () {
+$(function initPage () {
+
 
 	$('.addFileBtn').click(function  () {
+
 		$(this).next('div').toggleClass('hidden');
 
 		//$('#fileupload1').width( $('#fileupload1').parent().get(0).offsetWidth );
 		var menuHeight = $('.addImageBtn').get(0).offsetHeight;
+		menuHeight = 42;
 
 		var pop = $('.addFilePopup');
-		pop.find( '>a' ).css({padding: '0 '+ ( Math.min( $(pop).width()*.23, 40) ) +'px'});
+		pop.find( '>a' ).css({padding: '0 '+ ( Math.min( $(pop).width()*.23, 10) ) +'px'});
 
 		if(isWeiXin) {
-			$('#fileupload1').css({ height:menuHeight+'px' });  $('.upHolder1').css({top: menuHeight+'px' });
+			$('.addImageBtn').show();
+			//$('#fileupload1').css({ height:menuHeight+'px', top:'0px' });  $('.upHolder1').css({top: 0+'px', height:42 });
 		} else {
-			$('#fileupload1').css({ height:menuHeight*2+'px' });  $('.upHolder1').css({top: 0+'px' });
+			$('.addImageBtn').hide();
+			//$('#fileupload1').css({ height:menuHeight*2+'px' });  $('.upHolder1').css({top: 0+'px', height:84 });
 		}
 
 	});
@@ -3771,6 +3789,7 @@ $(function initPopupMenu () {
 
 	});
 
+
 	$('.topMenu').click(function(){
 		$('.company_wrap').show().data('role', 'contact');
 		$('.content_wrap').hide();
@@ -3784,6 +3803,10 @@ $(function initPopupMenu () {
 
 	var msgDateInterval = setInterval(updateMsgTime, 10000);
 	updateContentTop();
+
+	$('[data-click]').off().on(clickE, function  () {
+		eval($(this).data('click'));
+	});
 
 	$(document).click(function(e){
 		if( $(e.target).hasClass('msgTitleMenu') ) return;
@@ -3917,7 +3940,6 @@ function alert (msg) {
 	$("#alert").trigger("dialog-open");
 }
 
-
 </script>
 
 <style type="text/css">
@@ -4040,12 +4062,11 @@ dl, dd, dt{
 		<ul class="tab selTab">
 			<li data-idx=0 class="noselect">我的文件<span class="popBtn addFileBtn">+</span>
 				<div class="menuPopup hidden addFilePopup">
-					<a class="addImageBtn" onclick="addPictureCon()">图片
-					</a>
 					<a onclick="">文件</a>
-					<div class="upHolder1" style="position: absolute; top:0; left:0; width:100%; overflow:visible; ">
+					<div class="upHolder1" style="position: absolute; top:0; left:0; width:100%; height:42px; overflow:hidden; ">
 						<input id="fileupload1" type="file" name="file" data-url="./phpupload/" multiple>
 					</div>
+					<a class="addImageBtn" onclick="addPictureCon()">图片</a>
 					<a class="fRename" onclick="addTreeNode()">文件夹</a>
 					<a class="fShare" onclick="addTemplateCon()">模板</a>
 					<a class="fShare" onclick="addTopic()">共享</a>
@@ -4213,7 +4234,7 @@ dl, dd, dt{
 
 	<div class="templateMenu">
 		<a class="fBackTemplate" href="javascript:;" onclick="hideTemplateCon()">返回</a>
-		<a class="fConfirmTemplate" href="javascript:;" onclick="applyTemplate()">确定选择</a>
+		<a class="fConfirmTemplate" href="javascript:;" data-click="applyTemplate()">确定选择</a>
 	</div>
 
 	<div class="printMenu">

@@ -10,34 +10,6 @@ var popupList = global.popupList||{};
 var nwMain = (function(gui) {
 
 
-	// http://stackoverflow.com/questions/3653065/get-local-ip-address-in-node-js
-	var os = require('os');
-	var HOSTNAME = os.hostname();
-	var ifaces = os.networkInterfaces();
-
-	var IPS = [];
-
-	Object.keys(ifaces).forEach(function (ifname) {
-	  var alias = 0;
-
-	  ifaces[ifname].forEach(function (iface) {
-	    if ('IPv4' !== iface.family || iface.internal !== false) {
-	      return;
-	    }
-
-	    if (alias >= 1) {
-	      IPS.push({ifname:ifname, address:iface.address});
-	    } else {
-	      IPS.push({ifname:ifname, address:iface.address});
-	    }
-	  });
-	});
-	// remain only LAN IPS
-	IPS = IPS.filter(function(v){ return v.address.indexOf('192.')>-1||v.address.indexOf('172.')>-1||v.address.indexOf('10.')>-1 });
-
-	global.IPS = IPS.shift();
-	global.HOSTNAME = HOSTNAME;
-
 	if( Object.keys(popupList).length || !window.location.href.match(/tree\.html/) ) return;
 
 	// some init data & number
@@ -213,7 +185,7 @@ var nwMain = (function(gui) {
 	}
 
 	function _showReader(url){
-		var pop = gui.Window.open(url, {position:'center', toolbar:false, frame:true,width:Math.max(screen.width*.8, 790), height:Math.max(screen.height*.8, 790)});
+		var pop = gui.Window.open(url, {position:'center', toolbar:false, frame:true,width:900, height:Math.max(screen.height*.8, 790)});
 		pop.setShowInTaskbar(true);
 		pop.setAlwaysOnTop(false);
 		pop.setResizable(true);
@@ -280,6 +252,54 @@ var nwMain = (function(gui) {
 		return win;
 	}
 
+
+
+	function updateHostName () {
+
+		// http://stackoverflow.com/questions/3653065/get-local-ip-address-in-node-js
+		var os = require('os');
+		var HOSTNAME = os.hostname();
+		var ifaces = os.networkInterfaces();
+
+		var IPS = [];
+
+		Object.keys(ifaces).forEach(function (ifname) {
+		  var alias = 0;
+
+		  ifaces[ifname].forEach(function (iface) {
+		    if ('IPv4' !== iface.family || iface.internal !== false) {
+		      return;
+		    }
+
+		    if (alias >= 1) {
+		      IPS.push({ifname:ifname, address:iface.address});
+		    } else {
+		      IPS.push({ifname:ifname, address:iface.address});
+		    }
+		  });
+		});
+		// remain only LAN IPS
+		IPS = IPS.filter(function(v){ return v.address.indexOf('192.')>-1||v.address.indexOf('172.')>-1||v.address.indexOf('10.')>-1 });
+
+		global.IP = IPS.shift();
+		global.HOSTNAME = HOSTNAME;
+
+		var person = rootPerson.userid;
+		if( !person || !isNWJS ) return;
+		if( !global.HOSTNAME ){
+			return alert('无法取得主机名称');
+		}
+		if( !global.IP ){
+			return alert('不在局域网登录，PDF打印机不可用');
+		}
+
+		$.post(host+'/updateHost', {person:person, hostname:global.HOSTNAME, ip:global.IP  }, function  (ret) {
+
+		});
+	}
+
+
+
 	initNW();
 
 	var exports = {};
@@ -292,6 +312,7 @@ var nwMain = (function(gui) {
 	exports.findWindowByUrl = findWindowByUrl;
 	global._nwMain = exports;
 	global.popupList = popupList;
+	global.updateHostName = updateHostName;
 
 	return exports;
 })(gui);
