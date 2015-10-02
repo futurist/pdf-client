@@ -1271,6 +1271,7 @@ function initShareTo (data) {
 	$('.bg_mask').hide();
 
 	for(var i=0; i<data.length; i++){
+
 		var shareID = data[i].shareID;
 		var files = data[i].files;
 		var isSign = data[i].isSign;
@@ -1278,8 +1279,12 @@ function initShareTo (data) {
 		var msg = data[i].msg||'';
 		var fromPerson = data[i].fromPerson.map(function(v){return v.name});
 		var fromPersonStr =  '('+fromPerson.join(',')+')';
-		var toPerson = data[i].toPerson.map(function(v){return v.name});
-		var toPersonStr = toPerson.length>2? '('+toPerson.slice(0,2).join(',')+'...)' :  '('+toPerson.join(',')+')' ;
+		var toPerson = data[i].toPerson.length ? data[i].toPerson.map(function(v){return v.name}) : data[i].toPerson.name;
+
+		var toPersonStr =  data[i].toPerson.length ?
+				 (toPerson.length>2? '('+toPerson.slice(0,2).join(',')+'...)' :  '('+toPerson.join(',')+')' ) :
+				 toPerson.name;
+
 		var flowName = '('+data[i].flowName+'-'+fromPerson.join(',')+ ')';
 
 		if(files.length) {

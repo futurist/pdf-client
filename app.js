@@ -68,6 +68,34 @@ function safeEval (str) {
 }
 
 
+// helpers
+var futurist = {};
+
+futurist.array_unique = function(array) {
+  var a = [], i, j, l, o = {};
+  for(i = 0, l = array.length; i < l; i++) {
+    if(o[JSON.stringify(array[i])] === undefined) {
+      a.push(array[i]);
+      o[JSON.stringify(array[i])] = true;
+    }
+  }
+  return a;
+};
+// remove item from array
+futurist.array_remove = function(array, from, to) {
+  var rest = array.slice((to || from) + 1 || array.length);
+  array.length = from < 0 ? array.length + from : from;
+  array.push.apply(array, rest);
+  return array;
+};
+// remove item from array
+futurist.array_remove_item = function(array, item) {
+  var tmp = array.indexOf(item)>-1;
+  return tmp !== -1 ? futurist.array_remove(array, tmp) : array;
+};
+
+
+
 function qiniu_getUpToken() {
 	var responseBody =
 	{
@@ -1465,7 +1493,7 @@ app.post("/applyTemplate", function (req, res) {
 
 function pickUser(user){ return _.pick( user, 'userid', 'name', 'depart', 'id', 'pId', 'parentid', 'placeholder' ) }
 
-function placerholderToUser (fromUserId, placeholder) {
+function placerholderToUser (fromUserId, placeholder, getFullInfo) {
 
   var thePerson = null;
   var fromPerson = _.find( COMPANY_TREE, function(v){ return v.userid== fromUserId } );
@@ -1504,10 +1532,12 @@ function placerholderToUser (fromUserId, placeholder) {
     thePerson = _.find( COMPANY_TREE, function(v){ return v.userid== placeholder } );
 
   }
+
   if(!thePerson) return thePerson;
 
   thePerson.placeholder = placeholder;
-  return thePerson;
+
+  return getFullInfo? thePerson : pickUser(thePerson);
 
 }
 
@@ -1570,14 +1600,14 @@ app.post("/applyTemplate2", function (req, res) {
       data.flowSteps = doc.flowSteps;
 
       var toPerson = doc.flowSteps[0].person.map(function(s){
-        return pickUser( placerholderToUser(userid, s) );
+        return placerholderToUser(userid, s);
       } );
 
       data.fromPerson = [ pickUser(fromPerson) ];
       data.toPerson  = [toPerson];
 
       data.selectRange =  doc.flowSteps.filter(function(v){return v.mainPerson}).map(function  (v) {
-        return pickUser(placerholderToUser(userid, v.mainPerson));
+        return placerholderToUser(userid, v.mainPerson);
       });
 
       insertShareData( data, res, true );
@@ -2070,12 +2100,16 @@ app.post("/getShareTo", function (req, res) {
     timeout = true;
     return res.send('');
   }, 15000);
-  col.find( { 'toPerson.userid': person, role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
+  //col.aggregate([ {$match:{role:'share'}}, {$unwind:'$toPerson'}, { $match: {'toPerson.userid': person} } ] ).sort({shareID:-1}).toArray(function(err, docs){
+  //col.find( { 'toPerson.userid': person, role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
+  col.find( { $or:[ {'toPerson.userid':person}, { 'toPerson':{$elemMatch: {$elemMatch:{'userid': person } } } } ], role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
       if(err || !docs) {
         return res.send('error');
       }
       var count = docs.length;
+      docs.forEach(function(v){ v.toPerson = futurist.array_unique( _.flatten(v.toPerson) ) });
+
       res.send( JSON.stringify(docs) );
   });
 });
@@ -2307,11 +2341,9 @@ app.post("/finishSign", function (req, res) {
 
         var lastStep = colShare.flowSteps.slice(colShare.selectRange.length).shift();
 
-        console.log(lastStep);
-
         if( lastStep ) {
           var lastPersons = lastStep.person.map(function(x){
-            return pickUser( placerholderToUser( colShare.fromPerson[0].userid, x ) );
+            return placerholderToUser( colShare.fromPerson[0].userid, x );
           });
 
           updateObj['$push'] = { toPerson: lastPersons };
