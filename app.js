@@ -2161,7 +2161,7 @@ app.post("/getShareMsg", function (req, res) {
   }
 
   if(toPerson){
-    col.find( { 'toPerson.userid': toPerson, role:'share' }, {shareID:1, _id:0} , {limit:500} ).sort({shareID:1}).toArray(function(err, docs){
+    col.find( { $or:[ {'toPerson.userid':toPerson}, { 'toPerson':{$elemMatch: {$elemMatch:{'userid': toPerson } } } } ], role:'share' }, {shareID:1, _id:0} , {limit:500} ).sort({shareID:1}).toArray(function(err, docs){
         if(err || !docs) {
           return res.send('error');
         }
@@ -2747,7 +2747,7 @@ app.post("/getAllShareID", function (req, res) {
   var data = req.body;
   var person = data.person;
 
-  col.find( {role:'share', isSign:{$in:[null,'',false]}, isFinish:{$in:[null,'',false]}, $or:[ {'toPerson.userid':person}, {'fromPerson.userid':person } ]  }
+  col.find( {role:'share', isSign:{$in:[null,'',false]}, isFinish:{$in:[null,'',false]}, $or:[ {'fromPerson.userid':person}, {'toPerson.userid':person}, { 'toPerson':{$elemMatch: {$elemMatch:{'userid': person } } } } ]  }
       , { limit: 1000, sort:{ shareID:-1 }, fields: {shareID:1, msg:1, fromPerson:1, toPerson:1 } }).toArray(function(err, result) {
       if(err) return res.send('');
       res.send(result);
