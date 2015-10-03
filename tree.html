@@ -1452,9 +1452,11 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 			treeObj = treeObj1;
 
 
-			var sel = treeObj.getNodes()[0].children[0];
+			//var sel = treeObj.getNodes()[0].children[0];
 
-			treeObj.selectNode(sel);
+			//treeObj.selectNode(sel);
+
+			treeObj.expandNode(treeObj.getNodes()[0]);
 
 			rMenu = $("#rMenu");
 
@@ -1464,7 +1466,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 
 			showTab(0);
 
-			updateMenu(sel);
+			updateMenu();
 
 
 		}
@@ -1534,6 +1536,7 @@ function breakIntoPath(path){
 function getFileKeys(node){
 	var obj = fileKeys.reduce(function(o, key, idx) {
 		//console.log(key, $.type( node[key]), node[key])
+		if(!node[key])return o;
 		if( $.type( node[key] ).match(/array|object/i) ) {
 			// deep copy: o[key] = JSON.parse( JSON.stringify(node[key]) );
 			o[key] = node[key];
@@ -1559,6 +1562,7 @@ function getFileKeys(node){
 				v.path = getPath(v);
 				if(!v.hash) v.hash = +new Date()+Math.random();
 				var obj = fileKeys.reduce(function(o, key, idx) {
+				  if(!v[key])return o;
 				  o[key] = v[key];
 				  return o;
 				}, {});
@@ -2088,6 +2092,7 @@ function shareNode (){
 		var fileArr = [];
 		$.each(files, function  (i,v) {
 			var obj = fileKeys.reduce(function(o, key, idx) {
+			  if(!v[key])return o;
 			  o[key] = v[key];
 			  return o;
 			}, {});

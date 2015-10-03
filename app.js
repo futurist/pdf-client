@@ -1655,7 +1655,7 @@ app.post("/getfile", function (req, res) {
     return res.send('');
   }, 5000);
 
-  col.find( { person: person, role:'upfile', status:{$ne:-1} } , {limit:2000, timeout:true} ).sort({order:-1, title:1}).toArray(function(err, docs){
+  col.find( { person: person, role:'upfile', status:{$ne:-1} } , {limit:2000, fields:{drawData:0,inputData:0,signIDS:0}, timeout:true} ).sort({order:-1, title:1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
     if(err) {
       return res.send('');
@@ -1764,7 +1764,7 @@ app.post("/updatefile", function (req, res) {
     newV.role = 'upfile';
     console.log('updatefile:', v.hash,  newV.order);
     delete newV._id;
-    col.update({hash: v.hash}, newV, {upsert:true, w:1}, function  (err, result) {
+    col.update({hash: v.hash}, {$set:newV}, {upsert:true, w:1}, function  (err, result) {
       if(err) {
       	console.log(err);
         return isErr=true;
@@ -1986,14 +1986,21 @@ app.post("/getSavedSign", function (req, res) {
     if(shareID){
 
         col.findOne( {role:'share', shareID:shareID, 'files.key':filename },  { },  function(err, doc){
-        	//return console.log(err, doc);
-        	if(err ||!doc) return res.send('');
-          var file = doc.files.shift();
-        	if(!file) return res.send('');
+          	//return console.log(err, doc);
+          	if(err ||!doc) return res.send('');
 
-            var curFlowPos = doc.curFlowPos||0;
+            var file = doc.files.shift();
+          	if(!file) return res.send('');
 
-            getSignData(err, file.signIDS.slice(0, curFlowPos+1) , doc.fromPerson.shift().userid );
+            if(doc.isSign){
+              var curFlowPos = doc.curFlowPos||0;
+
+              if(file.signIDS) getSignData(err, file.signIDS.slice(0, curFlowPos+1) , doc.fromPerson.shift().userid );
+              else res.send(doc);
+
+            }else{
+              res.send(doc);
+            }
 
           } );
 
@@ -2006,7 +2013,8 @@ app.post("/getSavedSign", function (req, res) {
         var signIDS = result.signIDS;
         if(!signIDS ) return res.send('');
 
-        getSignData(err, signIDS );
+        if(file.signIDS) getSignData(err, signIDS );
+        else res.send(doc);
 
       });
 
@@ -2083,7 +2091,7 @@ app.post("/getShareFrom", function (req, res) {
     timeout = true;
     return res.send('');
   }, 15000);
-  col.find( { 'fromPerson.userid': person, role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
+  col.find( { 'fromPerson.userid': person, role:'share' } , {limit:500, fields:{'files.drawData':0,'files.inputData':0,'files.signIDS':0}, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
       if(err || !docs) {
         return res.send('error');
@@ -2102,7 +2110,7 @@ app.post("/getShareTo", function (req, res) {
   }, 15000);
   //col.aggregate([ {$match:{role:'share'}}, {$unwind:'$toPerson'}, { $match: {'toPerson.userid': person} } ] ).sort({shareID:-1}).toArray(function(err, docs){
   //col.find( { 'toPerson.userid': person, role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
-  col.find( { $or:[ {'toPerson.userid':person}, { 'toPerson':{$elemMatch: {$elemMatch:{'userid': person } } } } ], role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
+  col.find( { $or:[ {'toPerson.userid':person}, { 'toPerson':{$elemMatch: {$elemMatch:{'userid': person } } } } ], role:'share' } , {limit:500, fields:{'files.drawData':0,'files.inputData':0,'files.signIDS':0},  timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
       if(err || !docs) {
         return res.send('error');
