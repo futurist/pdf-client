@@ -318,7 +318,7 @@ function applyTemplate (){
 		var treeObjTemplate = null;
 		var treeObjPrint = null;
 
-		var zNodes, zNodes2, zNodes3;
+		var zNodes, zNodes2, zNodes3, zNodesTemplate, zNodesPrint;
 
 		var curTree = treeObj;
 		var rMenu;
@@ -620,6 +620,11 @@ function initTemplateFileTree (data) {
 		pathToObj( v );
 		root[root.length-1].isTemplate = v.isTemplate;
 	});
+
+	zNodesTemplate.children = root;
+
+	$.fn.zTree.init($("#fileTreeTemplate"), setting, zNodesTemplate);
+	treeObjTemplate = $.fn.zTree.getZTreeObj("fileTreeTemplate");
 
 	var rootNode = treeObjTemplate.getNodes()[0];
 	treeObjTemplate.addNodes( rootNode , root );
@@ -1132,6 +1137,17 @@ function getFilesData () {
 	*
 	***/
 
+
+	zNodes = [{userid:rootPerson.userid, name:'['+rootPerson.name+']的文件柜',  title: rootPerson.depart+ "-"+rootPerson.name+'的文件柜', isParent:true, children: []}];
+	zNodes2 =  [{userid:rootPerson.userid, name:'发件柜', title:'发件柜', isSend:true, isParent:true, children: []}] ;
+    zNodes3 = [{userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: []}] ;
+    zNodesTemplate = {userid:rootPerson.userid, name:'模板文件柜', title:'模板文件柜', isTemplate:true, isParent:true, children: []} ;
+    zNodesPrint = {userid:rootPerson.userid, name:'打印机列表', title:'打印机列表', isPrint:true, isParent:true, children: []} ;
+
+	fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "order", "imageWidth", "imageHeight", 'isTemplate', 'drawData', 'inputData', 'server', 'signIDS'];
+
+
+
 	$.post(host+'/getfile', {person:rootPerson.userid}, function  (data) {
 		if(!data){
 			setTimeout(getFilesData, 1000);
@@ -1144,8 +1160,6 @@ function getFilesData () {
 		if(!urlQuery.shareID){
 			locateNode( treeObj.getNodes()[0], urlQuery.path, null, true );
 		}
-
-		reloadTree2(null, null, true);
 
 		$.post(host+'/getTemplateFiles', { depart:rootPerson.depart }, function  (data) {
 			if(!data) return;
@@ -1160,6 +1174,7 @@ function getFilesData () {
 
 	});
 
+	reloadTree2(null, null, 'auto');
 
 }
 
@@ -1389,30 +1404,42 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 	$.post(host+'/getShareFrom', {person:rootPerson.userid}, function  (data) {
 		if(!data) window.location.reload();
 
+		var curTab = $('.currTab').data('idx');
+		if(switchTo=='auto'){
+			switchTo = curTab>0?false:true;
+		}
+
 		initShareFrom(JSON.parse(data));
 		treeObj2.expandNode(sendRoot, true);
 		if(shareID) {
 			locateNode(sendRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, switchTo );
 		}
-		$.post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
-			if(!data) window.location.reload();
-			initShareTo(JSON.parse(data));
-			treeObj3.expandNode(receiveRoot, true);
-			if(shareID) {
-				locateNode(receiveRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, switchTo );
-			}
-			if(openShare){
-				shareFile();
-			}else if(openMessage==1){
-				viewDetail();
-			}else if(openMessage==2){
-				openPrintCon();
-			} else if(urlQuery.tab) {
-				showTab( urlQuery.tab );
-			}
-
-		});
 	});
+
+	$.post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
+		if(!data) window.location.reload();
+
+		var curTab = $('.currTab').data('idx');
+		if(switchTo=='auto'){
+			switchTo = curTab>0?false:true;
+		}
+
+		initShareTo(JSON.parse(data));
+		treeObj3.expandNode(receiveRoot, true);
+		if(shareID) {
+			locateNode(receiveRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, switchTo );
+		}
+		if(openShare){
+			shareFile();
+		}else if(openMessage==1){
+			viewDetail();
+		}else if(openMessage==2){
+			openPrintCon();
+		} else if(urlQuery.tab) {
+			showTab( urlQuery.tab );
+		}
+	});
+
 }
 
 
@@ -1421,36 +1448,18 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 
 			fileData = data;
 			root = [];
+
 			data.forEach(function(v){
 				pathToObj( v );
 				fileKeys = Object.keys(v);
 			});
-			zNodes = [{userid:rootPerson.userid, name:'['+rootPerson.name+']的文件柜',  title: rootPerson.depart+ "-"+rootPerson.name+'的文件柜', isParent:true, children: root}];
-		    var zNodesTemplate = {userid:rootPerson.userid, name:'模板文件柜', title:'模板文件柜', isTemplate:true, isParent:true, children: []} ;
-		    var zNodesPrint = {userid:rootPerson.userid, name:'打印机列表', title:'打印机列表', isPrint:true, isParent:true, children: []} ;
 
-			fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "order", "imageWidth", "imageHeight", 'isTemplate', 'drawData', 'inputData', 'server', 'signIDS'];
-			//fileKeys = fileKeys.concat( ['path', 'hash'].filter(function (item) { return fileKeys.indexOf(item) < 0 }) );
-			//fileKeys.splice( fileKeys.indexOf('_id'), 1 );
+			zNodes[0].children = root;
 
 			$.fn.zTree.init($("#fileTree"), setting, zNodes);
 			treeObj1 = $.fn.zTree.getZTreeObj("fileTree");
 
-			zNodes2 =  [{userid:rootPerson.userid, name:'发件柜', title:'发件柜', isSend:true, isParent:true, children: []}] ;
-		    zNodes3 = [{userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: []}] ;
-
-			$.fn.zTree.init($("#fileTree2"), setting, zNodes2);
-			treeObj2 = $.fn.zTree.getZTreeObj("fileTree2");
-
-			$.fn.zTree.init($("#fileTree3"), setting, zNodes3);
-			treeObj3 = $.fn.zTree.getZTreeObj("fileTree3");
-
-			$.fn.zTree.init($("#fileTreeTemplate"), setting, zNodesTemplate);
-			treeObjTemplate = $.fn.zTree.getZTreeObj("fileTreeTemplate");
-
-
 			treeObj = treeObj1;
-
 
 			//var sel = treeObj.getNodes()[0].children[0];
 
@@ -1467,7 +1476,6 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 			showTab(0);
 
 			updateMenu();
-
 
 		}
 

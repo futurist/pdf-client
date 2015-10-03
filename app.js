@@ -1655,7 +1655,7 @@ app.post("/getfile", function (req, res) {
     return res.send('');
   }, 5000);
 
-  col.find( { person: person, role:'upfile', status:{$ne:-1} } , {limit:2000, fields:{drawData:0,inputData:0,signIDS:0}, timeout:true} ).sort({order:-1, title:1}).toArray(function(err, docs){
+  col.find( { person: person, role:'upfile', status:{$ne:-1} } , {limit:50, fields:{drawData:0,inputData:0,signIDS:0}, timeout:true} ).sort({order:-1, title:1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
     if(err) {
       return res.send('');
@@ -2091,7 +2091,7 @@ app.post("/getShareFrom", function (req, res) {
     timeout = true;
     return res.send('');
   }, 15000);
-  col.find( { 'fromPerson.userid': person, role:'share' } , {limit:500, fields:{'files.drawData':0,'files.inputData':0,'files.signIDS':0}, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
+  col.find( { 'fromPerson.userid': person, role:'share' } , {limit:50, fields:{ fileIDS:0, filePathS:0, selectRange:0, 'files.drawData':0,'files.inputData':0,'files.signIDS':0}, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
       if(err || !docs) {
         return res.send('error');
@@ -2110,7 +2110,7 @@ app.post("/getShareTo", function (req, res) {
   }, 15000);
   //col.aggregate([ {$match:{role:'share'}}, {$unwind:'$toPerson'}, { $match: {'toPerson.userid': person} } ] ).sort({shareID:-1}).toArray(function(err, docs){
   //col.find( { 'toPerson.userid': person, role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
-  col.find( { $or:[ {'toPerson.userid':person}, { 'toPerson':{$elemMatch: {$elemMatch:{'userid': person } } } } ], role:'share' } , {limit:500, fields:{'files.drawData':0,'files.inputData':0,'files.signIDS':0},  timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
+  col.find( { $or:[ {'toPerson.userid':person}, { 'toPerson':{$elemMatch: {$elemMatch:{'userid': person } } } } ], role:'share' } , {limit:50, fields:{fileIDS:0, filePathS:0, selectRange:0, 'files.drawData':0,'files.inputData':0,'files.signIDS':0},  timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
       if(err || !docs) {
         return res.send('error');
