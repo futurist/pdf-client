@@ -1624,7 +1624,7 @@ app.post("/applyTemplate2", function (req, res) {
 
 app.post("/getTemplateFiles", function (req, res) {
 
-  col.find( { role:'upfile', isTemplate:true } , {limit:2000} ).sort({title:1,date:-1}).toArray(function(err, docs){
+  col.find( { role:'upfile', isTemplate:true } , {limit:2000,fields:{drawData:0,inputData:0,signIDS:0} } ).sort({title:1,date:-1}).toArray(function(err, docs){
     if(err) {
       return res.send('error');
     }
