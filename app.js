@@ -925,7 +925,7 @@ app.post("/getJSConfig", function (req, res) {
   function getJsConfig(){
   	api.getLatestToken(function () {
   		api.getJsConfig(param, function(err, result){
-        console.log('getJSConfig: ', err, result);
+        if(err) console.log('getJSConfig: ', err, result);
   		  if(err && tryCount++<3){
   		    getJsConfig();
   		  }else{
@@ -3311,7 +3311,26 @@ wechat(config, wechat
 
 var CompanyName = 'lianrun';
 var API = require('wechat-enterprise-api');
-var api = new API("wx59d46493c123d365", "5dyRsI3Wa5gS2PIOTIhJ6jISHwkN68cryFJdW_c9jWDiOn2D7XkDRYUgHUy1w3Hd", 1);
+
+var api = new API("wx59d46493c123d365", "5dyRsI3Wa5gS2PIOTIhJ6jISHwkN68cryFJdW_c9jWDiOn2D7XkDRYUgHUy1w3Hd", 1, function (callback) {
+  // 传入一个获取全局token的方法
+
+  var rkey = 'wx:js:accessToken';
+  redisClient.get( rkey, function (err, txt) {
+    if (err) {return callback(err);}
+    callback(null, JSON.parse(txt));
+  });
+
+}, function (token, callback) {
+  // 请将token存储到全局，跨进程、跨机器级别的全局，比如写到数据库、redis等
+  // 这样才能在cluster模式及多机情况下使用，以下为写入到文件的示例
+  // fs.writeFile('access_token.txt', JSON.stringify(token), callback);
+
+  var rkey = 'wx:js:accessToken';
+  redisClient.set( rkey, JSON.stringify(token), 'ex', 7200, callback);
+
+});
+
 api.setOpts({timeout: 60000});
 
 // get accessToken for first time to cache it.
@@ -3356,6 +3375,7 @@ function updateCompanyTree () {
   var companyTree = [];
   var stuffList = [];
   api.getDepartments(function  (err, result) {
+    if(err) console.log(err);
     var i=0;
     var departs = result.department;
 

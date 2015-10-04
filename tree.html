@@ -2512,7 +2512,6 @@ var wxInitTryCount = 0;
 function initWX() {
 	$.post(host+'/getJSConfig', { url:window.location.href.split('#')[0] }, function(data){
 		if(!data){
-
 			if(wxInitTryCount++<3){
 				initWX();
 			}else{
@@ -2522,15 +2521,15 @@ function initWX() {
 			return;
 		}
 		data = JSON.parse(data);
-		wx.config(data);
+
 		wx.ready(function(){
 			window.wxReady = true;
 			//wxConfigMenu();
 			return;
 		});
 		wx.error(function(res){
-			alert('身份验证失败:'+ res.errMsg);
-			wx.closeWindow();
+			alert('身份验证失败:'+ JSON.stringify(res));
+			//wx.closeWindow();
 		});
 
 	});
@@ -2770,7 +2769,7 @@ $(function  () {
 
 
 <!-- load fonts -->
-<script type="text/javascript" src="js/glyphicon.js"></script>
+<script type="text/javascript" src="js/glyphicon.js?t=4545"></script>
 
 
 
@@ -2802,13 +2801,13 @@ $(function  () {
 
 
 /*@font-face{
-	font-family:'Glyphicons Halflings';
+	font-family:'FontAwesome';
 	src:url(fonts/glyphicons-halflings-regular.eot);
 	src:url(fonts/glyphicons-halflings-regular.eot?#iefix) format('embedded-opentype'),url(fonts/glyphicons-halflings-regular.woff2) format('woff2'),url(fonts/glyphicons-halflings-regular.woff) format('woff'),url(fonts/glyphicons-halflings-regular.ttf) format('truetype'),url(fonts/glyphicons-halflings-regular.svg#glyphicons_halflingsregular) format('svg')
 }*/
 
 /*@font-face{
-	font-family:'Glyphicons Halflings';
+	font-family:'FontAwesome';
 	src:url(fonts/glyphicons-halflings-regular.woff) format('woff')
 }*/
 
@@ -2818,7 +2817,7 @@ $(function  () {
     position: relative;
     top: 1px;
     display: inline-block;
-    font-family: 'Glyphicons Halflings';
+    font-family: 'FontAwesome';
     font-style: normal;
     font-weight: 400;
     line-height: 1;
@@ -2850,7 +2849,7 @@ $(function  () {
     margin-right: 4px;
     color: #3296A2;
     display: inline-block;
-    font-family: 'Glyphicons Halflings';
+    font-family: 'FontAwesome';
     font-style: normal;
     font-weight: 400;
     line-height: 1;
@@ -2865,27 +2864,31 @@ $(function  () {
 }
 
 .ztree li span.button.ico_open:before{
-    content: "\e118";
+    content: "\f07c";
+    /*content: "\f115";*/
 }
 .ztree li span.button.ico_close:before{
-    content: "\e117";
+    content: "\f07b";
+    /*content: "\f114";*/
 }
 
 .ztree li span.button.ico_docu:before {
-    content: "\e142";
+    /*content: "\f016";*/
+    content: "\f15b";
 }
 #companyTree.ztree li span.button.ico_docu:before {
-    content: "\e008";
+    content: "\f007";
 }
 
 .ztree li span.button.image_ico_docu:before {
-    content: "\e060";
+    content: "\f1c5";
 }
 .ztree li span.button.canBeConverted_ico_docu:before {
-    content: "\e224";
+    /*content: "\f0f6";*/
+    content: "\f15c";
 }
 .ztree li span.button.pdf_ico_docu:before {
-    content: "\e022";
+    content: "\f1c1";
 }
 
 
@@ -2959,7 +2962,8 @@ $(function  () {
     margin-top: 0px;
 }
 .ztree .glyphicon-download-alt:before {
-    content: "\e025";
+    /*content: "\f0ed";*/
+    content: "\f019";
 }
 
 	div#rMenu {position:absolute; z-index: 9999; visibility:hidden; top:0; background-color: #555;text-align: left;padding: 2px;}
@@ -3080,7 +3084,7 @@ $(function  () {
 	}
 
 	.msgTitle.expend:after {
-		font-family: "Glyphicons Halflings";
+		font-family: "FontAwesome";
 		font-size:10px;
 		display: block;
 		margin:0 auto;
@@ -3344,13 +3348,13 @@ $(function  () {
 }
 
 .msgTitleMenuPop li.addMember:before {
-	font-family:'Glyphicons Halflings';
+	font-family:'FontAwesome';
     content: "\2b";
     font-size: 13px;
     padding-right: 4px;
 }
 .msgTitleMenuPop li.exitMember:before {
-	font-family:'Glyphicons Halflings';
+	font-family:'FontAwesome';
     content: "\e014";
     font-size: 14px;
     padding-right: 4px;
@@ -3397,7 +3401,7 @@ $(function  () {
   border-bottom: 1px solid #ccc;
 }
 .topMenu:before {
-	content: "\e010";
+	content: "\f007";
 	font-size: 30px;
 	padding-left: 14px;
 	line-height: 36px;
