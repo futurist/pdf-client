@@ -925,10 +925,10 @@ app.post("/getJSConfig", function (req, res) {
   function getJsConfig(){
   	api.getLatestToken(function () {
   		api.getJsConfig(param, function(err, result){
+        console.log('getJSConfig: ', err, result);
   		  if(err && tryCount++<3){
   		    getJsConfig();
   		  }else{
-  		    // console.log('wx:', result);
   		    redisClient.set( rkey, JSON.stringify(result), 'ex', 30);
   		    res.send( JSON.stringify(result) );
   		  }

@@ -823,25 +823,34 @@ function hidePrintCon() {
 		}
 
 		function removeTreeNode () {
-			if( !confirm('确定要删除吗？此操作不可恢复！') ) return;
-			hideRMenu();
-			var nodes = treeObj.getSelectedNodes();
-			console.log(nodes[0]);
-			var shareID = getShareID(nodes[0]);
 
-			if (nodes && nodes.length>0) {
-				if (nodes[0].children && nodes[0].children.length > 0) {
-					var msg = "要删除的节点是目录，如果删除将连同内部的文件一起删掉。\n\n请确认！";
-					if (confirm(msg)==true){
-						$.post(host+'/removeFolder', { path: getPath(nodes[0]), deleteAll: true}, function  () {} );
+			function whenCnfm(){
+				hideRMenu();
+				var nodes = treeObj.getSelectedNodes();
+				console.log(nodes[0]);
+				var shareID = getShareID(nodes[0]);
+
+				if (nodes && nodes.length>0) {
+					if (nodes[0].children && nodes[0].children.length > 0) {
+						var msg = "要删除的节点是目录，如果删除将连同内部的文件一起删掉。\n\n请确认！";
+						window.confirm(msg, function(ok){
+							if (ok==true){
+								$.post(host+'/removeFolder', { path: getPath(nodes[0]), deleteAll: true}, function  () {} );
+								treeObj.removeNode(nodes[0]);
+							}
+						});
+					} else {
+						$.post(host+'/removeFile', { hash:nodes[0].hash, key:nodes[0].key, shareID: shareID }, function  () {} );
 						treeObj.removeNode(nodes[0]);
 					}
-				} else {
-					$.post(host+'/removeFile', { hash:nodes[0].hash, key:nodes[0].key, shareID: shareID }, function  () {} );
-					treeObj.removeNode(nodes[0]);
 				}
+				updateMenu();
 			}
-			updateMenu();
+
+			window.confirm('确定要删除吗？此操作不可恢复！', function(ok){
+				ok? whenCnfm() : '';
+			});
+
 		}
 		function renameTreeNode() {
 			var nodes = treeObj.getSelectedNodes();
@@ -1055,7 +1064,9 @@ function hidePrintCon() {
 			} else if( treeNode.key.match(regex_preview) ) {
 				previewImage();
 			} else if( treeNode.key.match(regex_can_be_convert) ) {
-				if(window.confirm('此文件可转为PDF进行预，现在转换为PDF吗?')) convertPDF();
+				window.confirm('此文件可转为PDF进行预，现在转换为PDF吗?', function(ok){
+					if(ok)convertPDF();
+				});
 			}else {
 				eve( $('#'+ treeNode.tId+'').find('.downloadIcon') );
 			}
@@ -2570,45 +2581,51 @@ function pcUploadImage(){
 
 function wxUploadImage(){
 	if(!window.wxReady) return;
-	var sourceType = window.confirm('压缩图片吗？(上传较快)') ? 'compressed' : 'original';
 
-	//选择微信照片
-	wx.chooseImage({
-	    count: 1, // 默认9
-	    sizeType: [sourceType], // 可以指定是原图还是压缩图，默认二者都有 ['original', 'compressed']
-	    sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
-	    success: function (res) {
-	        var localIds = res.localIds; // 返回选定照片的本地ID列表，localId可以作为img标签的src属性显示图片
-	        localIds.forEach(function(v){
+	window.confirm('压缩图片吗？(上传较快)', function(ok){
 
-	        	//开始上传图片
-	        	wx.uploadImage({
-	        	    localId: v, // 需要上传的图片的本地ID，由chooseImage接口获得
-	        	    isShowProgressTips: 1, // 默认为1，显示进度提示
-	        	    success: function (res) {
-	        	        var serverId = res.serverId; // 返回图片的服务器端ID
-	        	        var path = getPath( treeObj.getSelectedNodes().shift() );
+		var sourceType = ok ? 'compressed' : 'original';
 
-	        	        var shareID = getShareID(  treeObj.getSelectedNodes().shift() );
-	        	        if(shareID) path = path.replace( /^\/[^/]+/, '' );
-	        	        $.get(host+'/uploadWXImage', {mediaID:serverId, person:rootPerson.userid, path: path, shareID:shareID }, function(data){
+		//选择微信照片
+		wx.chooseImage({
+		    count: 1, // 默认9
+		    sizeType: [sourceType], // 可以指定是原图还是压缩图，默认二者都有 ['original', 'compressed']
+		    sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
+		    success: function (res) {
+		        var localIds = res.localIds; // 返回选定照片的本地ID列表，localId可以作为img标签的src属性显示图片
+		        localIds.forEach(function(v){
 
-	        	        	if(!data) return alert('上传图片错误');
-	        	        	//appendTree1(data);
+		        	//开始上传图片
+		        	wx.uploadImage({
+		        	    localId: v, // 需要上传的图片的本地ID，由chooseImage接口获得
+		        	    isShowProgressTips: 1, // 默认为1，显示进度提示
+		        	    success: function (res) {
+		        	        var serverId = res.serverId; // 返回图片的服务器端ID
+		        	        var path = getPath( treeObj.getSelectedNodes().shift() );
 
-	        	        });
-	        	    }
-	        	});
-	        });
+		        	        var shareID = getShareID(  treeObj.getSelectedNodes().shift() );
+		        	        if(shareID) path = path.replace( /^\/[^/]+/, '' );
+		        	        $.get(host+'/uploadWXImage', {mediaID:serverId, person:rootPerson.userid, path: path, shareID:shareID }, function(data){
 
-	    },
-	    fail:function(res){
+		        	        	if(!data) return alert('上传图片错误');
+		        	        	//appendTree1(data);
 
-	    },
-	    cancel:function(res){
+		        	        });
+		        	    }
+		        	});
+		        });
 
-	    }
+		    },
+		    fail:function(res){
+
+		    },
+		    cancel:function(res){
+
+		    }
+		});
+
 	});
+
 }
 
 
@@ -3769,23 +3786,26 @@ $(function initPage () {
 
 	$('.exitMember').click(function(){
 		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
-		if(! window.confirm('确定要退出吗？(以后可以由其它成员邀请加入)') ){
-			return;
-		}
-		var sel = treeObj.getSelectedNodes().shift();
-		var shareID = getShareID( sel );
-		var shareName = '/'+getShareName(sel)+'/';
-		$.post(host+'/exitMember', { shareID:shareID, shareName:shareName, person:rootPerson.userid, personName:rootPerson.name }, function(ret){
 
-			if(!ret) return alert('退出成员错误');
-			var delNode = treeObj.getNodesByFilter( function(node){ return node.shareID==shareID && node.level==1 } ).shift();
+		window.confirm('确定要退出吗？(以后可以由其它成员邀请加入)', function(ok){
 
-			if(delNode) treeObj.removeNode(delNode);
+			if(!ok)return;
 
-			return closeViewDetail();
+			var sel = treeObj.getSelectedNodes().shift();
+			var shareID = getShareID( sel );
+			var shareName = '/'+getShareName(sel)+'/';
+			$.post(host+'/exitMember', { shareID:shareID, shareName:shareName, person:rootPerson.userid, personName:rootPerson.name }, function(ret){
 
-		} );
+				if(!ret) return alert('退出成员错误');
+				var delNode = treeObj.getNodesByFilter( function(node){ return node.shareID==shareID && node.level==1 } ).shift();
 
+				if(delNode) treeObj.removeNode(delNode);
+
+				return closeViewDetail();
+
+			} );
+
+		});
 
 	});
 
@@ -3958,6 +3978,16 @@ function alert (msg) {
 	$("#alert").trigger("dialog-open");
 }
 
+function confirm (msg, callback) {
+	$("#confirm .shareMsg").html(msg);
+	$("#confirm").trigger("dialog-open");
+	$("#confirm p.button a").off().on('click', function(){
+		$("#confirm").trigger("dialog-close");
+		callback( $(this).data('confirm')==1 );
+	});
+}
+
+
 </script>
 
 <style type="text/css">
@@ -4016,6 +4046,19 @@ dl, dd, dt{
   color: #333;
 }
 
+#confirm .shareMsg {
+	margin: 20px;
+	text-align: center;
+	color: #888;
+}
+
+#confirm p.button {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  color: #333;
+}
+
 
 </style>
 <div class="bg_mask"></div>
@@ -4064,6 +4107,16 @@ dl, dd, dt{
     <a href="javascript:;" class="dialog-close2" onclick='$("#alert").trigger("dialog-close")'>确定</a>
 
 </div>
+
+<div class="dialog" id="confirm">
+
+    <div class="shareMsg"></div>
+    <p class="button">
+	    <a href="javascript:;" class="dialog-close2">取消</a> &nbsp;&nbsp;
+	    <a href="javascript:;" class="dialog-close2" data-confirm="1">确定</a>
+    </p>
+</div>
+
 
 
 <div id="rMenu">
