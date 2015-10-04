@@ -3974,17 +3974,35 @@ function moveUploaderButton (el) {
 
 
 function alert (msg) {
-	$("#alert .shareMsg").html(msg);
-	$("#alert").trigger("dialog-open");
+  var args =Array.prototype.slice.call(arguments);
+  args.splice(1,0,false);
+  confirm.apply( this, args );
 }
 
-function confirm (msg, callback) {
-	$("#confirm .shareMsg").html(msg);
-	$("#confirm").trigger("dialog-open");
-	$("#confirm p.button a").off().on('click', function(){
-		$("#confirm").trigger("dialog-close");
-		callback( $(this).data('confirm')==1 );
-	});
+function confirm (msg) {
+
+  var arglen = arguments.length;
+  var arg1 = arguments[1];
+  var arg2 = arguments[2];
+  var lastArg = arguments[arglen-1];
+  var callback = typeof lastArg=='function' ? lastArg : function(){};
+  var text1 = typeof arg1=='string' ? arg1 : '取消';
+  var text2 = typeof arg2=='string' ? arg2 : '确定';
+
+  if(arg1===false)  $("#confirm p.button a:first, #confirm p.button span").hide();
+  if(arg2===false)  $("#confirm p.button a:last, #confirm p.button span").hide();
+
+  if(text1) $("#confirm p.button a").first().html(text1);
+  if(text2) $("#confirm p.button a").last().html(text2);
+
+  $("#confirm .shareMsg").html(msg);
+  $("#confirm").trigger("dialog-open");
+
+  $("#confirm p.button a").off().on('click', function(){
+    $("#confirm").trigger("dialog-close");
+    callback( $(this).data('confirm')==1 );
+  });
+
 }
 
 
@@ -4033,18 +4051,6 @@ dl, dd, dt{
 	border-radius: 4px;
 }
 
-#alert .shareMsg{
-	margin: 20px;
-	text-align: center;
-	color: #888;
-}
-
-#alert a {
-  display: block;
-  text-align: center;
-  text-decoration: none;
-  color: #333;
-}
 
 #confirm .shareMsg {
 	margin: 20px;
@@ -4052,11 +4058,14 @@ dl, dd, dt{
 	color: #888;
 }
 
+#confirm p.button>a,
 #confirm p.button {
-  display: block;
   text-align: center;
   text-decoration: none;
   color: #333;
+}
+#confirm p.button span{
+  padding:0 10px;
 }
 
 
@@ -4101,19 +4110,13 @@ dl, dd, dt{
 </div>
 
 
-<div class="dialog" id="alert">
-
-    <div class="shareMsg"></div>
-    <a href="javascript:;" class="dialog-close2" onclick='$("#alert").trigger("dialog-close")'>确定</a>
-
-</div>
-
 <div class="dialog" id="confirm">
 
     <div class="shareMsg"></div>
     <p class="button">
-	    <a href="javascript:;" class="dialog-close2">取消</a> &nbsp;&nbsp;
-	    <a href="javascript:;" class="dialog-close2" data-confirm="1">确定</a>
+	    <a href="javascript:;" class="dialog-close2">取消</a>
+	    <span>&nbsp;&nbsp;</span>
+	    <a href="javascript:;" class="dialog-confirm" data-confirm="1">确定</a>
     </p>
 </div>
 
