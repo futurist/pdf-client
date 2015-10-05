@@ -3201,10 +3201,10 @@ $(function  () {
 		z-index: 2;
 		background: white;
 	}
-	.header ul{
+	.topCon ul{
 		width: 100%;
 	}
-	.header ul li{
+	.topCon ul li{
 		display: table-cell;
 		position: relative;
 		width: 2%;
@@ -3215,7 +3215,7 @@ $(function  () {
 		text-align:center;
 		cursor: pointer;
 	}
-	.header ul li.currTab{
+	.topCon ul li.currTab{
 		background: #eee;
 	}
 
@@ -3349,21 +3349,40 @@ $(function  () {
 
 .msgTitleMenuPop li.addMember:before {
 	font-family:'FontAwesome';
-    content: "\2b";
+    content: "\f067";
     font-size: 13px;
     padding-right: 4px;
 }
 .msgTitleMenuPop li.exitMember:before {
 	font-family:'FontAwesome';
-    content: "\e014";
+    content: "\f00d";
     font-size: 14px;
     padding-right: 4px;
     position: relative;
     top: 1px;
 }
 
+.msgTitleMenuPop li.showContact:before {
+	font-family:'FontAwesome';
+    content: "\f0c0";
+    font-size: 14px;
+    padding-right: 4px;
+    position: relative;
+    top: 1px;
+}
+
+.msgTitleMenuPop li.refreshPage:before {
+	font-family:'FontAwesome';
+    content: "\f021";
+    font-size: 14px;
+    padding-right: 4px;
+    position: relative;
+    top: 1px;
+}
+
+
 .msgTitleMenu:before {
-    content: "\e236";
+    content: "\f0c9";
 }
 
 .titleContent{
@@ -3401,7 +3420,7 @@ $(function  () {
   border-bottom: 1px solid #ccc;
 }
 .topMenu:before {
-	content: "\f007";
+	content: "\f009";
 	font-size: 30px;
 	padding-left: 14px;
 	line-height: 36px;
@@ -3750,7 +3769,7 @@ $(function initPage () {
 
 
 
-	$(document).click(function hideMenu (e) {
+	$(document).mouseup(function hideMenu (e) {
 
 		if( $(e.target).hasClass('popBtn') ) return;
 		$('.menuPopup').addClass('hidden');
@@ -3833,14 +3852,7 @@ $(function initPage () {
 
 
 	$('.topMenu').click(function(){
-		$('.company_wrap').show().data('role', 'contact');
-		$('.content_wrap').hide();
-		$('.msg_wrap').hide();
-		$('.header').hide();
-		$('.company_wrap .msgTitle').html( '查看联系人' );
-		updateMenu('.contactMenu');
-		curTree = companyTree;
-		treeObj = curTree;
+		$('.msgTitleMenuPop').addClass('active');
 	});
 
 	var msgDateInterval = setInterval(updateMsgTime, 10000);
@@ -3850,8 +3862,9 @@ $(function initPage () {
 		eval($(this).data('click'));
 	});
 
-	$(document).click(function(e){
-		if( $(e.target).hasClass('msgTitleMenu') ) return;
+	$(document).mouseup(function(e){
+
+		if( $(e.target).hasClass('msgTitleMenu') || $(e.target).hasClass('topMenu') ) return;
 
 		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
 	});
@@ -3866,6 +3879,20 @@ $(function initPage () {
 	$(window).resize();
 });
 
+function showContact () {
+	$('.company_wrap').show().data('role', 'contact');
+	$('.content_wrap').hide();
+	$('.msg_wrap').hide();
+	$('.header').hide();
+	$('.company_wrap .msgTitle').html( '查看联系人' );
+	updateMenu('.contactMenu');
+	curTree = companyTree;
+	treeObj = curTree;
+}
+
+function refreshPage () {
+	window.location.reload();
+}
 
 function hideCompanyTree (){
 	$('.company_wrap').hide().data('role', '');
@@ -4033,16 +4060,19 @@ dl, dd, dt{
 .searchDIV select{
 	font:16px Arial;
 	position: relative;
-	top:-2px;
+	top:-1px;
 	border: 1px solid #ccc;
-	height: 24px;
+	height: 26px;
+	margin: 0 10px;
+	background: #fff;
+	border-radius: 4px;
 }
 .searchDIV input{
 	border:1px solid #ccc;
 	border-radius: 4px;
 	font: 16px/1 Arial;
 	position: relative;
-	top:-1px;
+	top:0px;
 	width: 130px;
 	padding: 4px;
 }
@@ -4065,6 +4095,7 @@ dl, dd, dt{
 	border-radius: 2px;
 	height: 26px;
 	background: #fff;
+	width: 66px;
 }
 
 .popcon.treeCompanyCon{
@@ -4183,6 +4214,13 @@ dl, dd, dt{
 		<select><option>名称</option><option>内容</option><option>消息</option></select>
 		<button class="searchBtn">搜索</button>
 	</div>
+	<div class="msgTitleMenuPop">
+		<ul>
+			<li class="showContact" onclick="showContact()">员工列表</li>
+			<li class="refreshPage" onclick="refreshPage()">刷新页面</li>
+		</ul>
+	</div>
+
 </div>
 
 <div class="content_wrap">
