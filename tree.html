@@ -1947,7 +1947,7 @@ function showTab (idx) {
 		$(window).scrollTop(0);
 	}
 
-	searchByName( $('.searchTxt').val() );
+	searchByName( $('.searchTxt:visible').val() );
 
 	if(typeof prevIdx=='undefined') return;
 
@@ -3910,28 +3910,41 @@ function searchByName (keyword) {
 
 	if(treeObj.prevKeyword == keyword) return;
 
-	var nodes = treeObj.getNodesByFilter( function(v){return true} );
-	treeObj.showNodes(nodes);
+	var allNodes = treeObj.getNodesByFilter( function(v){return true} );
 
 	// keyword = $.trim(keyword);
-	if(!keyword) return;
-	treeObj.prevKeyword = keyword;
+	if(!keyword){
+		return treeObj.showNodes(allNodes);
+	} else{
+		treeObj.hideNodes(allNodes);
+	}
 
+	treeObj.prevKeyword = keyword;
 	keyword = escapeRe(keyword);
 
+	var nodes2 = [];
 	var nodes = treeObj.getNodesByFilter( function(p){
 		if(p.level==0) return false;
-		while( p.level>0 && !(p.title||p.name).match( new RegExp(keyword, 'i')) ) {
-			p = p.getParentNode();
+
+		if( (p.title||p.name).match( new RegExp(keyword, 'i')) ){
+
+			nodes2 = nodes2.concat( treeObj.transformToArray(p) );
+
+			while( p ) {
+				nodes2.push(p);
+				p = p.getParentNode();
+				if(p&&!p.open) treeObj.expandNode(p, true);
+			}
 		}
-		return p.level===0;
+
 	} );
+
+	treeObj.showNodes(nodes2);
 
 	// var nodes2 = $.grep(nodes, function(v, i){
 	// 	return nodes.indexOf( v.getParentNode() )==-1;
 	// });
 
-	treeObj.hideNodes(nodes);
 
 	// var nodes = treeObj.getNodesByFilter( function  (node) {
 	// 	return true;
@@ -4042,6 +4055,16 @@ dl, dd, dt{
 }
 .searchDIV dl dd{
 	float: left;
+}
+
+.searchBtn {
+	font:16px Arial;
+	position: relative;
+	top:-1px;
+	border: 1px solid #ccc;
+	border-radius: 2px;
+	height: 26px;
+	background: #fff;
 }
 
 .popcon.treeCompanyCon{
@@ -4155,7 +4178,11 @@ dl, dd, dt{
 		</ul>
 		<div class="topMenu glyphicon"></div>
 	</div>
-	<div class="searchDIV"> 搜索关键词: <input type="search" class="searchTxt"> <select><option>名称</option><option>内容</option><option>消息</option></select> </div>
+	<div class="searchDIV">
+		搜索关键词: <input type="search" class="searchTxt" data-role="files">
+		<select><option>名称</option><option>内容</option><option>消息</option></select>
+		<button class="searchBtn">搜索</button>
+	</div>
 </div>
 
 <div class="content_wrap">
@@ -4184,7 +4211,7 @@ dl, dd, dt{
 
 <div class="popupWin company_wrap">
 	<div class="msgTitle"></div>
-	<div class="searchDIV"> 搜索联系人: <input type="search" class="searchTxt"> </div>
+	<div class="searchDIV"> 搜索联系人: <input type="search" class="searchTxt" data-role="companyTree"> </div>
 	<div class="popcon treeCompanyCon">
 		<ul id="companyTree" class="ztree ztreeCompany"></ul>
 	</div>
