@@ -1964,7 +1964,10 @@ function beforeClick2(treeId, treeNode, clickFlag) {
 
 function onClick2(event, treeId, treeNode, clickFlag) {
 
-	if( !treeNode.isParent ) companyTree.checkNode(treeNode, null, true);
+	var isContact = $('.company_wrap').data('role')=='contact';
+	$('.button.chk').css('visibility', isContact? 'hidden': 'visible' );
+
+	if( !isContact && !treeNode.isParent ) companyTree.checkNode(treeNode, null, true);
 
 }
 
@@ -2263,6 +2266,10 @@ function shareFile (){
 
 	$( "#mydialog" ).trigger( "dialog-close" );
 	$('.company_wrap').show().data('role', 'share');
+
+	var isContact = $('.company_wrap').data('role')=='contact';
+	$('.button.chk').css('visibility', isContact? 'hidden': 'visible' );
+
 	hideContentWrap();
 	$('.header').hide();
 	$('.msgTitle').html( "分享 "+  title +' 给:' );
@@ -2680,6 +2687,8 @@ function sortCompanyNode (data) {
 
 
 $(function  () {
+
+	$('.header .searchDIV input.searchTxt').width( Math.min( $(window).width()-230, 240 ) );
 
 	$.post(host+ (wxUserInfo? '/getUserInfo' : '/getLoginUserInfo') , { userid: wxUserInfo? wxUserInfo.UserId:'' }, function  (userinfo) {
 
@@ -3881,17 +3890,53 @@ $(function initPage () {
 
 function showContact () {
 	$('.company_wrap').show().data('role', 'contact');
+
+	var isContact = $('.company_wrap').data('role')=='contact';
+	$('.button.chk').css('visibility', isContact? 'hidden': 'visible' );
+
 	$('.content_wrap').hide();
 	$('.msg_wrap').hide();
 	$('.header').hide();
 	$('.company_wrap .msgTitle').html( '查看联系人' );
 	updateMenu('.contactMenu');
+	if(!isNWJS){
+		$('.fClient').hide();
+	}
 	curTree = companyTree;
 	treeObj = curTree;
 }
 
 function refreshPage () {
 	window.location.reload();
+}
+
+function openClient (address) {
+	if(!isNWJS) return;
+	if(!address){
+		var sel = companyTree.getSelectedNodes().shift();
+		address = sel.ip&&sel.ip.address || sel.client;
+	}
+	if(!address) return;
+	//var address='192.168.8.116';
+
+	var exec = require('child_process').exec;
+	var cmd = '';
+	switch (process.platform) {
+		case 'darwin':
+			cmd='open smb://'+address;
+			break;
+		case 'win32':
+			cmd='explorer \\\\'+address;
+			break;
+		default:
+			return;
+			break;
+	}
+
+	exec(cmd, function(err,stdout,stderr){
+
+	});
+
 }
 
 function hideCompanyTree (){
@@ -3902,12 +3947,13 @@ function hideCompanyTree (){
 	treeObj = eval( 'treeObj'+ ($('.currTab').data('idx')+1) );
 };
 
-function viewContact  () {
+function viewContact () {
 	var sel = companyTree.getSelectedNodes().shift();
 	if(!sel) return;
 	var str = '';
-	str += '<p>'+ sel.name +'</p>';
-	str += '<p>'+ sel.userid +'</p>';
+	str += '<p>'+ sel.name + '('+sel.userid  +')</p>';
+	if(sel.client) str += '<p><a href="javascript:openClient(\''+ sel.client +'\')">'+ sel.client +'</a></p>';
+	if(sel.ip) str += '<p><a href="javascript:openClient(\''+ sel.ip.address +'\')">'+ sel.ip.address +'</a></p>';
 	str += '<p><a href="tel:'+sel.mobile+'">'+ sel.mobile +'</a></p>';
 	str += '<p><a href="tel:'+ sel.shortPhone +'">'+ sel.shortPhone +'</a></p>';
 	alert(str);
@@ -4063,7 +4109,7 @@ dl, dd, dt{
 	top:-1px;
 	border: 1px solid #ccc;
 	height: 26px;
-	margin: 0 10px;
+	margin: 0 0px;
 	background: #fff;
 	border-radius: 4px;
 }
@@ -4210,13 +4256,13 @@ dl, dd, dt{
 		<div class="topMenu glyphicon"></div>
 	</div>
 	<div class="searchDIV">
-		搜索关键词: <input type="search" class="searchTxt" data-role="files">
+		关键词: <input type="search" class="searchTxt" data-role="files">
 		<select><option>名称</option><option>内容</option><option>消息</option></select>
 		<button class="searchBtn">搜索</button>
 	</div>
 	<div class="msgTitleMenuPop">
 		<ul>
-			<li class="showContact" onclick="showContact()">员工列表</li>
+			<li class="showContact" onclick="showContact()">员工目录</li>
 			<li class="refreshPage" onclick="refreshPage()">刷新页面</li>
 		</ul>
 	</div>
@@ -4347,6 +4393,7 @@ dl, dd, dt{
 	<div class="contactMenu">
 		<a class="fBackCab" href="javascript:;" onclick="hideCompanyTree()">关闭</a>
 		<a class="fContact" href="javascript:;" onclick="viewContact()">查看</a>
+		<a class="fClient" href="javascript:;" onclick="openClient()">打开共享</a>
 	</div>
 
 	<div class="sendMenu">
