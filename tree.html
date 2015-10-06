@@ -282,7 +282,7 @@ function applyTemplate (){
 				break;
 
 			case 'upfile':
-				init(msg, true, true);				
+				init(msg, true, true);
 				break;
 
 			case 'share':
@@ -470,7 +470,7 @@ function pathToObj (v, isOnTop, isOpen) {
 		if(!name) continue;
 		for(var j=0; j<p.length; j++){
 			if( p[j].name == name ){
-				// found exist folder 
+				// found exist folder
 				if(isOpen) p[j].open = true;
 				if( !p[j].children ) p[j].children = [];
 				p = p[j].children;
@@ -2526,7 +2526,10 @@ function initWX() {
 			}
 			return;
 		}
+
 		data = JSON.parse(data);
+
+		wx.config(data);
 
 		wx.ready(function(){
 			window.wxReady = true;
@@ -2585,8 +2588,8 @@ function pcUploadImage(){
 
 
 function wxUploadImage(){
-	if(!window.wxReady) return;
 
+	// if(!window.wxReady) return;
 	window.confirm('压缩图片吗？(上传较快)', function(ok){
 
 		var sourceType = ok ? 'compressed' : 'original';
@@ -2702,7 +2705,7 @@ function setupWayPoint (container) {
 				try{
 					data=JSON.parse(data);
 				}catch(e){
-					return alert('获取文件错误') 
+					return alert('获取文件错误')
 				}
 
 				if(!data.length){
@@ -3817,7 +3820,7 @@ $(function initPage () {
 
 
 
-	$(document).mouseup(function hideMenu (e) {
+	$(document).click(function hideMenu (e) {
 
 		if( $(e.target).hasClass('popBtn') ) return;
 		$('.menuPopup').addClass('hidden');
@@ -3910,7 +3913,7 @@ $(function initPage () {
 		eval($(this).data('click'));
 	});
 
-	$(document).mouseup(function(e){
+	$(document).click(function(e){
 
 		if( $(e.target).hasClass('msgTitleMenu') || $(e.target).hasClass('topMenu') ) return;
 
@@ -4104,7 +4107,7 @@ function moveUploaderButton (el) {
 
 function alert (msg) {
   var args =Array.prototype.slice.call(arguments);
-  args.splice(1,0,false);
+  args.splice(1,0,null);
   confirm.apply( this, args );
 }
 
@@ -4118,8 +4121,9 @@ function confirm (msg) {
   var text1 = typeof arg1=='string' ? arg1 : '取消';
   var text2 = typeof arg2=='string' ? arg2 : '确定';
 
-  if(arg1===false)  $("#confirm p.button a:first, #confirm p.button span").hide();
-  if(arg2===false)  $("#confirm p.button a:last, #confirm p.button span").hide();
+  $("#confirm p.button a:first").css('display', arg1===null?'none':'inline');
+  $("#confirm p.button a:last").css('display', arg2===null?'none':'inline');
+  $("#confirm p.button span").css('display', arg1===null||arg2===null ?'none':'inline');
 
   if(text1) $("#confirm p.button a").first().html(text1);
   if(text2) $("#confirm p.button a").last().html(text2);
