@@ -1455,7 +1455,13 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 
 			data = isSingleNode?[data]:data;
 
-			root = zNodes[0].children;
+			root = [];
+			var sel= null;
+
+			if(treeObj1){
+				sel = treeObj1.getSelectedNodes().shift();
+				root = treeObj1.getNodes()[0].children;
+			}
 
 			data.forEach(function(v){
 				pathToObj( v, isOnTop, isOpen );
@@ -1467,11 +1473,9 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 			treeObj1 = $.fn.zTree.getZTreeObj("fileTree");
 
 			treeObj = treeObj1;
-
-			//var sel = treeObj.getNodes()[0].children[0];
-			//treeObj.selectNode(sel);
-
 			treeObj.expandNode(treeObj.getNodes()[0], true);
+
+			if(sel) treeObj.selectNode(sel);
 
 			rMenu = $("#rMenu");
 
@@ -1483,6 +1487,9 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 
 			showTab(0);
 
+			if(sel){
+				treeObj.cancelSelectedNode();
+			}
 			updateMenu();
 
 		}
@@ -1957,6 +1964,9 @@ function beforeClick2(treeId, treeNode, clickFlag) {
 	if (treeNode.isParent && treeNode.click!==false) {
 		companyTree.expandNode(treeNode);
 	}
+	$('.fContact').css('display', treeNode.isParent ? 'none' : 'table-cell');
+	$('.botmenu').show();
+
 	return (treeNode.click != false);
 }
 
@@ -2549,7 +2559,7 @@ function previewImage (  ){
 	if(!sel) return;
 
 	var pNode = sel.getParentNode();
-	if(!pNode || pNode.level<1) return;
+	if(!pNode) return;
 
 	imgArray = pNode.children.filter(function(v){ return v.key && v.key.match(regex_image) }).map( function(v){ return FILE_HOST+ encodeURIComponent(v.key) } );
 
@@ -2828,7 +2838,11 @@ $(function  () {
 
 <style type="text/css">
 
-*:focus:not(select), *:active {
+body,html{
+	height: 100%;
+}
+
+*:focus:not(select,input), *:active {
     border:none;
     outline: none;
     -webkit-tap-highlight-color: rgba(0,0,0,0);
@@ -3944,6 +3958,7 @@ function showContact () {
 	if(!isNWJS){
 		$('.fClient').hide();
 	}
+
 	curTree = companyTree;
 	treeObj = curTree;
 }
@@ -4321,7 +4336,7 @@ dl, dd, dt{
 <div class="content_wrap">
 	<div class="tree1">
 		<ul id="fileTree" class="ztree ztreeFile"></ul>
-		<div class="loadMore"><i class="fa fa-refresh fa-spin"></i>&nbsp;&nbsp;加载更多中...</div>
+		<div class="loadMore"><i class="fa fa-refresh fa-spin"></i>&nbsp;&nbsp;加载中...</div>
 	</div>
 
 	<div class="tree2">
