@@ -1270,15 +1270,20 @@ function init (data, isOnTop, isOpen){
 
 	if(!tree1WayPoint) setupWayPoint1();
 
-	if( urlQuery.shareID || urlQuery.tab>0 ) return $('.tree1>.ztree').hide();
+	if( (!treeObj2||!treeObj3) && (urlQuery.shareID || urlQuery.tab>0) ) return $('.tree1>.ztree').hide();
 
 	showTab(0);
 
 	if(sel){
 		treeObj.cancelSelectedNode();
+		sel = treeObj.getNodeByParam('key', sel.key );
+	} else {
+		$(window).scrollTop(0);
 	}
-	updateMenu();
-
+	updateMenu(sel);
+	if(sel){
+		treeObj.selectNode(sel);
+	}
 }
 
 function initShareFrom (data) {
@@ -2720,11 +2725,11 @@ function setupWayPoint1 () {
 	  element: el.get(0),
 	  handler: function(direction) {
 	  	if( !el.is(':visible') ) return;
+		$('.tree1 .ztree').show();
 	    if(direction=='down'){
 	    	var lastItem = fileData.pop();
 	    	if(!lastItem || $(el).data('order')==lastItem.order ) return;
 			$(el).data('order', lastItem.order);
-
 			$.post(host+'/getfile', {person:rootPerson.userid, startOrder: lastItem.order  }, function  (data) {
 				try{
 					data=JSON.parse(data);
@@ -2762,11 +2767,11 @@ function setupWayPoint2 () {
 	  element: el.get(0),
 	  handler: function(direction) {
 	  	if( !el.is(':visible') ) return;
+		$('.tree2 .ztree').show();
 	    if(direction=='down'){
 	    	var lastItem = futurist.array_last_item(treeObj2.getNodes()[0].children) ;
 	    	if(!lastItem || $(el).data('shareID')==lastItem.shareID ) return;
 			$(el).data('shareID', lastItem.shareID);
-
 
 			$.post(host+'/getShareFrom', {person:rootPerson.userid, startShareID: lastItem.shareID}, function  (data) {
 				try{
@@ -2804,11 +2809,11 @@ function setupWayPoint3 () {
 	  element: el.get(0),
 	  handler: function(direction) {
 	  	if( !el.is(':visible') ) return;
+		$('.tree3 .ztree').show();
 	    if(direction=='down'){
 	    	var lastItem = futurist.array_last_item(treeObj3.getNodes()[0].children) ;
 	    	if(!lastItem || $(el).data('shareID')==lastItem.shareID ) return;
 			$(el).data('shareID', lastItem.shareID);
-
 
 			$.post(host+'/getShareTo', {person:rootPerson.userid, startShareID: lastItem.shareID}, function  (data) {
 				try{
@@ -2840,7 +2845,13 @@ function setupWayPoint3 () {
 
 $(function  () {
 
-	$('.header .searchDIV input.searchTxt').width( Math.min( $(window).width()-230, 240 ) );
+	var inputWidth = Math.min( $(window).width()-230, 240 );
+	$('.searchDIV input.searchTxt').width( inputWidth );
+	$('.searchDIV .clearInput').css( 'left', inputWidth+58+'px' );
+
+	$('.clearInput').on('click', function  () {
+		$(this).hide().prev().val('');
+	});
 
 	$.post(host+ (wxUserInfo? '/getUserInfo' : '/getLoginUserInfo') , { userid: wxUserInfo? wxUserInfo.UserId:'' }, function  (userinfo) {
 
@@ -4060,7 +4071,18 @@ $(function initPage () {
 	});
 
 	$('.searchTxt').on('blur keydown change search', debounce(function(){
-		searchByName( $('.searchTxt:visible').val() );
+		var el = $('.searchTxt:visible');
+		var val = el.val();
+		searchByName( val );
+		$(el).closest('.searchDIV').find('.clearInput').css('display', val!=''?'block':'none' );
+
+		var idx = $('.currTab').data('idx')+1;
+		var loadMore = $('.tree'+idx).find('.loadMore');
+		if(val!=''){
+			loadMore.hide();
+		} else {
+			loadMore.show();
+		}
 	}, 500) );
 
 	$(window).resize(function(){
@@ -4070,12 +4092,16 @@ $(function initPage () {
 });
 
 function showContact () {
+
 	$('.company_wrap').show().data('role', 'contact');
+	
+	var prevPos = $(window).scrollTop();
+	$(window).scrollTop(0);
 
 	var isContact = $('.company_wrap').data('role')=='contact';
 	$('.button.chk').css('visibility', isContact? 'hidden': 'visible' );
 
-	$('.content_wrap').hide();
+	$('.content_wrap').data('prevPos', prevPos  ).hide();
 	$('.msg_wrap').hide();
 	$('.header').hide();
 	$('.company_wrap .msgTitle').html( '查看联系人' );
@@ -4123,10 +4149,12 @@ function openClient (address) {
 
 function hideCompanyTree (){
 	$('.company_wrap').hide().data('role', '');
+	var prevPos = $('.content_wrap').data('prevPos');
 	$('.content_wrap').show();
 	$('.header').show();
 	updateMenu();
 	treeObj = eval( 'treeObj'+ ($('.currTab').data('idx')+1) );
+	$(window).scrollTop(prevPos);
 };
 
 function viewContact () {
@@ -4305,9 +4333,18 @@ dl, dd, dt{
 	width: 130px;
 	padding: 4px;
 }
+.searchDIV .clearInput{
+	position: absolute;
+    top: 12px;
+    left: -265px;
+    font-size: 12px;
+    opacity: 0.3;
+    display: none;
+}
 .searchDIV{
 	padding: 10px;
 	border-bottom: 1px dashed #ccc;
+	position: relative;
 }
 .searchDIV dl{
 	display: inline-block;
@@ -4330,9 +4367,20 @@ dl, dd, dt{
 .popcon.treeCompanyCon{
 	margin-top:0;
 }
+
 .company_wrap .searchDIV{
 	margin-top: 42px;
+	position: fixed;
+	top:0;
+	width: 100%;
+	background: #fff;
+	z-index: 99999;
 }
+
+#companyTree{
+	margin-top: 88px;
+}
+
 .dialog-content {
 	width: auto;
 	border-radius: 4px;
@@ -4360,7 +4408,10 @@ dl, dd, dt{
 	/*text-align: center;*/
 	color:#666;
 	padding-left: 45px;
+	display: none;
+	margin-bottom: 50px;
 }
+
 
 </style>
 <div class="bg_mask"></div>
@@ -4445,7 +4496,11 @@ dl, dd, dt{
 		<div class="topMenu glyphicon"></div>
 	</div>
 	<div class="searchDIV">
-		关键词: <input type="search" class="searchTxt" data-role="files">
+		关键词: <input type="text" class="searchTxt" data-role="files">
+		<span class="fa-stack fa-lg clearInput">
+		  <i class="fa fa-circle fa-stack-2x"></i>
+		  <i class="fa fa-times fa-stack-1x fa-inverse"></i>
+		</span>
 		<select><option>名称</option><option>内容</option><option>消息</option></select>
 		<button class="searchBtn">搜索</button>
 	</div>
@@ -4487,7 +4542,13 @@ dl, dd, dt{
 
 <div class="popupWin company_wrap">
 	<div class="msgTitle"></div>
-	<div class="searchDIV"> 搜索联系人: <input type="search" class="searchTxt" data-role="companyTree"> </div>
+	<div class="searchDIV"> 联系人: 
+		<input type="text" class="searchTxt" data-role="companyTree"> 
+		<span class="fa-stack fa-lg clearInput">
+		  <i class="fa fa-circle fa-stack-2x"></i>
+		  <i class="fa fa-times fa-stack-1x fa-inverse"></i>
+		</span>
+	</div>
 	<div class="popcon treeCompanyCon">
 		<ul id="companyTree" class="ztree ztreeCompany"></ul>
 	</div>
