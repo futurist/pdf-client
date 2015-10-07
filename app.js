@@ -1647,6 +1647,7 @@ app.post("/setFileTemplate", function (req, res) {
 app.post("/getfile", function (req, res) {
   var data = req.body;
   var person = data.person;
+  var startOrder = safeEval(data.startOrder);
 
 
   var timeout = false;
@@ -1655,7 +1656,10 @@ app.post("/getfile", function (req, res) {
     return res.send('');
   }, 5000);
 
-  col.find( { person: person, role:'upfile', status:{$ne:-1} } , {limit:50, fields:{drawData:0,inputData:0,signIDS:0}, timeout:true} ).sort({order:-1, title:1}).toArray(function(err, docs){
+  var condition = { person: person, role:'upfile', status:{$ne:-1} };
+  if(startOrder)  condition.order = {$lt: startOrder }; 
+  
+  col.find(  condition , {limit:50, fields:{drawData:0,inputData:0,signIDS:0}, timeout:true} ).sort({order:-1, title:1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
     if(err) {
       return res.send('');
@@ -2086,12 +2090,17 @@ app.post("/getShareData", function (req, res) {
 
 app.post("/getShareFrom", function (req, res) {
   var person = req.body.person;
+  var startShareID = safeEval(req.body.startShareID);
   var timeout = false;
   var connInter = setTimeout(function(){
     timeout = true;
     return res.send('');
   }, 15000);
-  col.find( { 'fromPerson.userid': person, role:'share' } , {limit:50, fields:{ fileIDS:0, filePathS:0, selectRange:0, 'files.drawData':0,'files.inputData':0,'files.signIDS':0}, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
+
+  var condition = { 'fromPerson.userid': person, role:'share' };
+  if(startShareID) condition.shareID = {$lt: startShareID }; 
+
+  col.find( condition , {limit:50, fields:{ fileIDS:0, filePathS:0, selectRange:0, 'files.drawData':0,'files.inputData':0,'files.signIDS':0}, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
       if(err || !docs) {
         return res.send('error');
@@ -2103,6 +2112,7 @@ app.post("/getShareFrom", function (req, res) {
 
 app.post("/getShareTo", function (req, res) {
   var person = req.body.person;
+  var startShareID = safeEval(req.body.startShareID);
   var timeout = false;
   var connInter = setTimeout(function(){
     timeout = true;
@@ -2110,7 +2120,10 @@ app.post("/getShareTo", function (req, res) {
   }, 15000);
   //col.aggregate([ {$match:{role:'share'}}, {$unwind:'$toPerson'}, { $match: {'toPerson.userid': person} } ] ).sort({shareID:-1}).toArray(function(err, docs){
   //col.find( { 'toPerson.userid': person, role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
-  col.find( { $or:[ {'toPerson.userid':person}, { 'toPerson':{$elemMatch: {$elemMatch:{'userid': person } } } } ], role:'share' } , {limit:50, fields:{fileIDS:0, filePathS:0, selectRange:0, 'files.drawData':0,'files.inputData':0,'files.signIDS':0},  timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
+  var condition = { $or:[ {'toPerson.userid':person}, { 'toPerson':{$elemMatch: {$elemMatch:{'userid': person } } } } ], role:'share' };
+  if(startShareID) condition.shareID = {$lt: startShareID }; 
+
+  col.find( condition , {limit:50, fields:{fileIDS:0, filePathS:0, selectRange:0, 'files.drawData':0,'files.inputData':0,'files.signIDS':0},  timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
       if(err || !docs) {
         return res.send('error');

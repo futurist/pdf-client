@@ -198,7 +198,7 @@ function humanFileSize(bytes, si) {
     return bytes.toFixed(1)+' '+units[u];
 }
 
-function applyTemplate (){
+function applyTemplate () {
 
 
 	var sel = treeObjTemplate.getSelectedNodes();
@@ -1232,10 +1232,58 @@ function getSubStr (str, len) {
 	return str.length<=len? str : str.substr(0, len)+'...';
 }
 
+
+function init (data, isOnTop, isOpen){
+
+	var isSingleNode = !$.isArray(data);
+
+	data = isSingleNode?[data]:data;
+
+	root = [];
+	var sel= null;
+
+	if(treeObj1){
+		sel = treeObj1.getSelectedNodes().shift();
+		root = treeObj1.getNodes()[0].children;
+	}
+
+	data.forEach(function(v){
+		pathToObj( v, isOnTop, isOpen );
+	});
+
+	if(1 || !treeObj1){
+		zNodes[0].children = root;
+		$.fn.zTree.init($("#fileTree"), setting, zNodes);
+		treeObj1 = $.fn.zTree.getZTreeObj("fileTree");
+	} else {
+		treeObj1.addNodes( treeObj1.getNodes()[0], root );
+	}
+
+	treeObj = treeObj1;
+	treeObj.expandNode(treeObj.getNodes()[0], true);
+
+	if(sel) treeObj.selectNode(sel);
+
+	rMenu = $("#rMenu");
+
+	curTree = treeObj;
+
+	if(!tree1WayPoint) setupWayPoint1();
+
+	if( urlQuery.shareID || urlQuery.tab>0 ) return $('.tree1>.ztree').hide();
+
+	showTab(0);
+
+	if(sel){
+		treeObj.cancelSelectedNode();
+	}
+	updateMenu();
+
+}
+
 function initShareFrom (data) {
 
-	root= zNodes2[0].children;
-
+	root= treeObj2? treeObj2.getNodes()[0].children : [];
 
 	for(var i=0; i<data.length; i++){
 		var shareID = data[i].shareID;
@@ -1277,6 +1325,8 @@ function initShareFrom (data) {
 	$.fn.zTree.init($("#fileTree2"), setting, zNodes2);
 	treeObj2 = $.fn.zTree.getZTreeObj("fileTree2");
 	sendRoot = treeObj2.getNodes()[0];
+	treeObj2.expandNode(sendRoot);
+
 	// if(!sendRoot){
 	// 	sendRoot = treeObj2.addNodes( null,  {userid:rootPerson.userid, name:'发件柜', title:'发件柜', isSend:true, isParent:true, children: root} );
 	// 	if(sendRoot) sendRoot = sendRoot[0];
@@ -1287,7 +1337,9 @@ function initShareFrom (data) {
 }
 
 function initShareTo (data) {
-	root= zNodes3[0].children;
+
+	root= treeObj3? treeObj3.getNodes()[0].children : [];
+
 	$('.bg_mask').hide();
 
 	for(var i=0; i<data.length; i++){
@@ -1329,23 +1381,23 @@ function initShareTo (data) {
 		} else{
 
 			var folderName = isSign? '流程-'+shareID+flowName+ (msg) : '共享-'+shareID+fromPersonStr+ (msg);
-			var v = {};
+			var v = {shareID: shareID};
 			v.name = v.title = folderName;
 			v.isSign = isSign;
 			v.isFinish = isFinish;
-			v.shareID = shareID;
 			v.isParent = true;
-			if(isFinish) v.font = {color:'blue'};
+			if(v.isFinish) v.font = {color:'blue'};
 			root.push(v);
 		}
 	}
 
 
-		    zNodes3[0].children = root;
+    zNodes3[0].children = root;
 
-			$.fn.zTree.init($("#fileTree3"), setting, zNodes3);
-			treeObj3 = $.fn.zTree.getZTreeObj("fileTree3");
-			receiveRoot = treeObj3.getNodes()[0];
+	$.fn.zTree.init($("#fileTree3"), setting, zNodes3);
+	treeObj3 = $.fn.zTree.getZTreeObj("fileTree3");
+	receiveRoot = treeObj3.getNodes()[0];
+	treeObj3.expandNode(receiveRoot);
 
 	// if(!receiveRoot){
 	// 	receiveRoot = treeObj3.addNodes( null,  {userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: root} );
@@ -1416,6 +1468,8 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 
 		initShareFrom(JSON.parse(data));
 		treeObj2.expandNode(sendRoot, true);
+		if(!tree2WayPoint) setupWayPoint2();
+
 		if(shareID) {
 			locateNode(sendRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, switchTo );
 		}
@@ -1431,6 +1485,8 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 
 		initShareTo(JSON.parse(data));
 		treeObj3.expandNode(receiveRoot, true);
+		if(!tree3WayPoint) setupWayPoint3();
+
 		if(shareID) {
 			locateNode(receiveRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, switchTo );
 		}
@@ -1448,51 +1504,6 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 }
 
 
-
-		function init (data, isOnTop, isOpen){
-
-			var isSingleNode = !$.isArray(data);
-
-			data = isSingleNode?[data]:data;
-
-			root = [];
-			var sel= null;
-
-			if(treeObj1){
-				sel = treeObj1.getSelectedNodes().shift();
-				root = treeObj1.getNodes()[0].children;
-			}
-
-			data.forEach(function(v){
-				pathToObj( v, isOnTop, isOpen );
-			});
-
-			zNodes[0].children = root;
-
-			$.fn.zTree.init($("#fileTree"), setting, zNodes);
-			treeObj1 = $.fn.zTree.getZTreeObj("fileTree");
-
-			treeObj = treeObj1;
-			treeObj.expandNode(treeObj.getNodes()[0], true);
-
-			if(sel) treeObj.selectNode(sel);
-
-			rMenu = $("#rMenu");
-
-			curTree = treeObj;
-
-			if(!tree1WayPoint) setupWayPoint('.tree1');
-
-			if( urlQuery.shareID || urlQuery.tab>0 ) return $('.tree1>.ztree').hide();
-
-			showTab(0);
-
-			if(sel){
-				treeObj.cancelSelectedNode();
-			}
-			updateMenu();
-
-		}
 
 		function getPath (node, includeSelf) {
 			if(!node) return node;
@@ -1954,6 +1965,9 @@ function showTab (idx) {
 	}
 
 	searchByName( $('.searchTxt:visible').val() );
+
+	var waypoint = eval('tree'+ (idx+1) +'WayPoint');
+	if(waypoint) waypoint.context.refresh();
 
 	if(typeof prevIdx=='undefined') return;
 
@@ -2697,15 +2711,15 @@ function sortCompanyNode (data) {
 }
 
 
-function setupWayPoint (container) {
-	if(container) container += ' ';
-	else container = '';
-	var el = $(container + '.loadMore');
+function setupWayPoint1 () {
+
+	var el = $('.tree1 .loadMore');
 	if(!el.length) return;
 
 	tree1WayPoint = new Waypoint({
 	  element: el.get(0),
 	  handler: function(direction) {
+	  	if( !el.is(':visible') ) return;
 	    if(direction=='down'){
 	    	var lastItem = fileData.pop();
 	    	if(!lastItem || $(el).data('order')==lastItem.order ) return;
@@ -2729,7 +2743,91 @@ function setupWayPoint (container) {
 					tree1WayPoint.context.refresh();
 				}
 
-			});
+			}).fail(function(res) { $(el).removeData('order'); alert('服务器连接错误,稍候重试'); });
+	    }
+	  },
+	  offset: function() {
+	  	var off = this.context.innerHeight() - this.adapter.outerHeight();
+	      return off;
+	    }
+	});
+}
+
+function setupWayPoint2 () {
+
+	var el = $('.tree2 .loadMore');
+	if(!el.length) return;
+
+	tree2WayPoint = new Waypoint({
+	  element: el.get(0),
+	  handler: function(direction) {
+	  	if( !el.is(':visible') ) return;
+	    if(direction=='down'){
+	    	var lastItem = futurist.array_last_item(treeObj2.getNodes()[0].children) ;
+	    	if(!lastItem || $(el).data('shareID')==lastItem.shareID ) return;
+			$(el).data('shareID', lastItem.shareID);
+
+
+			$.post(host+'/getShareFrom', {person:rootPerson.userid, startShareID: lastItem.shareID}, function  (data) {
+				try{
+					data=JSON.parse(data);
+				}catch(e){
+					return alert('获取文件错误')
+				}
+
+				if(!data.length){
+					tree2WayPoint.disable();
+					$(el).css('visibility', 'hidden');
+				} else {
+					var pos = $(window).scrollTop();
+					initShareFrom(data);
+					$(window).scrollTop(pos);
+					tree2WayPoint.context.refresh();
+				}
+			}).fail(function(res) { $(el).removeData('shareID'); alert('服务器连接错误,稍候重试'); });
+
+	    }
+	  },
+	  offset: function() {
+	  	var off = this.context.innerHeight() - this.adapter.outerHeight();
+	      return off;
+	    }
+	});
+}
+
+function setupWayPoint3 () {
+
+	var el = $('.tree3 .loadMore');
+	if(!el.length) return;
+
+	tree3WayPoint = new Waypoint({
+	  element: el.get(0),
+	  handler: function(direction) {
+	  	if( !el.is(':visible') ) return;
+	    if(direction=='down'){
+	    	var lastItem = futurist.array_last_item(treeObj3.getNodes()[0].children) ;
+	    	if(!lastItem || $(el).data('shareID')==lastItem.shareID ) return;
+			$(el).data('shareID', lastItem.shareID);
+
+
+			$.post(host+'/getShareTo', {person:rootPerson.userid, startShareID: lastItem.shareID}, function  (data) {
+				try{
+					data=JSON.parse(data);
+				}catch(e){
+					return alert('获取文件错误')
+				}
+
+				if(!data.length){
+					tree3WayPoint.disable();
+					$(el).css('visibility', 'hidden');
+				} else {
+					var pos = $(window).scrollTop();
+					initShareTo(data);
+					$(window).scrollTop(pos);
+					tree3WayPoint.context.refresh();
+				}
+			}).fail(function(res) { $(el).removeData('shareID'); alert('服务器连接错误,稍候重试'); });
+
 	    }
 	  },
 	  offset: function() {
@@ -2822,8 +2920,35 @@ $(function  () {
 
 
 
+// helpers
+var futurist = {};
 
-
+futurist.array_unique = function(array) {
+  var a = [], i, j, l, o = {};
+  for(i = 0, l = array.length; i < l; i++) {
+    if(o[JSON.stringify(array[i])] === undefined) {
+      a.push(array[i]);
+      o[JSON.stringify(array[i])] = true;
+    }
+  }
+  return a;
+};
+// remove item from array
+futurist.array_remove = function(array, from, to) {
+  var rest = array.slice((to || from) + 1 || array.length);
+  array.length = from < 0 ? array.length + from : from;
+  array.push.apply(array, rest);
+  return array;
+};
+// remove item from array
+futurist.array_remove_item = function(array, item) {
+  var tmp = array.indexOf(item)>-1;
+  return tmp !== -1 ? futurist.array_remove(array, tmp) : array;
+};
+// last array element
+futurist.array_last_item = function(array) {
+  return array.length ? array[array.length-1] : null;
+};
 
 </script>
 
@@ -4341,10 +4466,12 @@ dl, dd, dt{
 
 	<div class="tree2">
 		<ul id="fileTree2" class="ztree ztreeFile"></ul>
+		<div class="loadMore"><i class="fa fa-refresh fa-spin"></i>&nbsp;&nbsp;加载中...</div>
 	</div>
 
 	<div class="tree3">
 		<ul id="fileTree3" class="ztree ztreeFile"></ul>
+		<div class="loadMore"><i class="fa fa-refresh fa-spin"></i>&nbsp;&nbsp;加载中...</div>
 	</div>
 
 </div>
