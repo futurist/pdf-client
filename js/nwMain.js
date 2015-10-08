@@ -293,7 +293,9 @@ var nwMain = (function(gui) {
 			return alert('不在局域网登录，PDF打印机不可用');
 		}
 
-		$.post(host+'/updateHost', {person:person, hostname:global.HOSTNAME, ip:global.IP  }, function  (ret) {
+		var ip = global.IP.address;
+
+		$.post(host+'/updateHost', {person:person, hostname:global.HOSTNAME, ip:ip  }, function  (ret) {
 
 		});
 	}

@@ -772,6 +772,8 @@ function hidePrintCon() {
 
 		function beforeRename(treeId, treeNode, newName, isCancel)
 		{
+			treeObj = $.fn.zTree.getZTreeObj(treeId);
+
 			var valid = true;
 			$('#'+ treeNode.tId ).find('input.rename').width(600);
 			if(newName==""){
@@ -799,6 +801,8 @@ function hidePrintCon() {
 
 		function onRename(event, treeId, treeNode, isCancel)
 		{
+			treeObj = $.fn.zTree.getZTreeObj(treeId);
+
 			treeNode.title = treeNode.name;
 
 			if(treeNode.key){
@@ -1045,6 +1049,7 @@ function hidePrintCon() {
 			return false;
 		}
 		function onDblClick (event, treeId, treeNode) {
+
 			if(!treeNode || !treeNode.key ) return;
 
 			if( ! $('.content_wrap').is(':visible') ) return;
@@ -1068,6 +1073,8 @@ function hidePrintCon() {
 
 
 		function beforeClick (treeId, treeNode, clickFlag) {
+			treeObj = $.fn.zTree.getZTreeObj(treeId);
+
 			if(treeNode.isCur) return false;
 			var nodes = treeObj.getSelectedNodes();
 			className = (className === "dark" ? "":"dark");
@@ -1082,6 +1089,7 @@ function hidePrintCon() {
 			return (treeNode.click != false);
 		}
 		function onClick (event, treeId, treeNode, clickFlag) {
+
 			showLog("[ "+getTime()+" onClick ]&nbsp;&nbsp;clickFlag = " + clickFlag + " (" + (clickFlag===1 ? "普通选中": (clickFlag===0 ? "<b>取消选中</b>" : "<b>追加选中</b>")) + ")");
 
 			if(curSrcNode) return;
@@ -1259,14 +1267,13 @@ function init (data, isOnTop, isOpen){
 		treeObj1.addNodes( treeObj1.getNodes()[0], root );
 	}
 
-	treeObj = treeObj1;
-	treeObj.expandNode(treeObj.getNodes()[0], true);
+	treeObj1.expandNode(treeObj1.getNodes()[0], true);
 
-	if(sel) treeObj.selectNode(sel);
+	if(sel) treeObj1.selectNode(sel);
 
 	rMenu = $("#rMenu");
 
-	curTree = treeObj;
+	curTree = treeObj1;
 
 	if(!tree1WayPoint) setupWayPoint1();
 
@@ -1275,14 +1282,14 @@ function init (data, isOnTop, isOpen){
 	showTab(0);
 
 	if(sel){
-		treeObj.cancelSelectedNode();
-		sel = treeObj.getNodeByParam('key', sel.key );
+		treeObj1.cancelSelectedNode();
+		sel = treeObj1.getNodeByParam('key', sel.key );
 	} else {
 		$(window).scrollTop(0);
 	}
 	updateMenu(sel);
 	if(sel){
-		treeObj.selectNode(sel);
+		treeObj1.selectNode(sel);
 	}
 }
 
@@ -2665,6 +2672,17 @@ function wxUploadImage(){
 
 }
 
+function addNodes2 (zTree, parent, newNode, isLast) {
+    // var zTree = $.fn.zTree.getZTreeObj(tree);
+    if(!zTree) return;
+    var n = zTree.addNodes(parent, newNode);
+    if (!isLast && parent.children[0] != n[0]) {
+        while(n.length) zTree.moveNode(parent.children[0], n.pop(), 'prev');
+    }
+}
+// TEST:
+// r = treeObj1.getNodes()[0]
+// addNodes2(treeObj1, r, [{name:'oisdjfo1'}, {name:'oisdjfo2'}, {name:'oisdjfo3'}])
 
 function markFinish (isFinish) {
 	var sel = getSelectFiles().shift();
@@ -2784,10 +2802,15 @@ function setupWayPoint2 () {
 					tree2WayPoint.disable();
 					$(el).css('visibility', 'hidden');
 				} else {
+					var sel = treeObj2.getSelectedNodes().shift();
 					var pos = $(window).scrollTop();
 					initShareFrom(data);
 					$(window).scrollTop(pos);
 					tree2WayPoint.context.refresh();
+
+					if(sel){
+						treeObj2.selectNode(sel);
+					}
 				}
 			}).fail(function(res) { $(el).removeData('shareID'); alert('服务器连接错误,稍候重试'); });
 
@@ -2826,10 +2849,15 @@ function setupWayPoint3 () {
 					tree3WayPoint.disable();
 					$(el).css('visibility', 'hidden');
 				} else {
+					var sel = treeObj3.getSelectedNodes().shift();
 					var pos = $(window).scrollTop();
 					initShareTo(data);
 					$(window).scrollTop(pos);
 					tree3WayPoint.context.refresh();
+
+					if(sel){
+						treeObj3.selectNode(sel);
+					}
 				}
 			}).fail(function(res) { $(el).removeData('shareID'); alert('服务器连接错误,稍候重试'); });
 
@@ -4122,7 +4150,7 @@ function openClient (address) {
 	if(!isNWJS) return;
 	if(!address){
 		var sel = companyTree.getSelectedNodes().shift();
-		address = sel.ip&&sel.ip.address || sel.client;
+		address = sel.ip || sel.client;
 	}
 	if(!address) return;
 	//var address='192.168.8.116';
@@ -4163,7 +4191,7 @@ function viewContact () {
 	var str = '';
 	str += '<p>'+ sel.name + '('+sel.userid  +')</p>';
 	if(sel.client) str += '<p><a href="javascript:openClient(\''+ sel.client +'\')">'+ sel.client +'</a></p>';
-	if(sel.ip) str += '<p><a href="javascript:openClient(\''+ sel.ip.address +'\')">'+ sel.ip.address +'</a></p>';
+	if(sel.ip) str += '<p><a href="javascript:openClient(\''+ sel.ip +'\')">'+ sel.ip +'</a></p>';
 	str += '<p><a href="tel:'+sel.mobile+'">'+ sel.mobile +'</a></p>';
 	str += '<p><a href="tel:'+ sel.shortPhone +'">'+ sel.shortPhone +'</a></p>';
 	alert(str);

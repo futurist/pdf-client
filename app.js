@@ -1058,7 +1058,10 @@ app.post("/upfile", function (req, res) {
     var client = data.client.replace(/\\/g,'').toLowerCase();
 
     col.findOne({role:'stuff', 'stuffList.client': client }, {fields: {'stuffList': {$elemMatch: { client: client } }  } }, function(err, ret){
-      if(err|| !ret) return res.send('');
+      if(err|| !ret) {
+        console.log('No client found:', client);
+        return res.sendStatus(404);
+      }
       var stuff = ret.stuffList.shift();
       data.person = stuff.userid;
       upfileFunc(data, upFun);
@@ -1071,13 +1074,14 @@ app.post("/upfile", function (req, res) {
 
 app.post("/updateHost", function (req, res) {
   var person = req.body.person;
-  var hostname = req.body.hostname;
+  var hostname = req.body.hostname.toLowerCase();
   var ip = req.body.ip;
   col.update({role:'stuff', 'stuffList.userid': person }, { $set:{ role:'stuff', 'stuffList.$.userid': person, 'stuffList.$.client': hostname,  'stuffList.$.ip': ip } }, {upsert:1}, function(err, ret){
     if(err) {
       console.log('ERROR update host:', person, hostname);
       return res.send('');
     }
+
     console.log('updated host:', person, hostname, ip);
     res.send('OK');
   });
