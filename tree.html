@@ -38,6 +38,7 @@
 
 	<SCRIPT type="text/javascript">
 
+COMPANY_NAME = 'lianrun';
 
 moment.locale('zh-cn');
 
@@ -1179,7 +1180,7 @@ function getFilesData () {
 			initTemplateFileTree(data);
 		});
 
-		$.post(host+'/getPrintList', { company:'lianrun' }, function  (data) {
+		$.post(host+'/getPrintList', { company:COMPANY_NAME }, function  (data) {
 			if(!data) return;
 			initPrintTree(data);
 		});
@@ -2903,7 +2904,7 @@ $(function  () {
 		$('.bg_mask').show();
 		getFilesData();
 
-		$.post(host+'/getCompanyTree', { company:'lianrun' }, function  (data) {
+		$.post(host+'/getCompanyTree', { company:COMPANY_NAME }, function  (data) {
 			data = JSON.parse( data );
 			companyNode = sortCompanyNode(data);
 			companyTree = $.fn.zTree.init($("#companyTree"), companySetting, companyNode);
@@ -3609,6 +3610,19 @@ body,html{
     top: 1px;
 }
 
+.msgTitleMenuPop li.commonFunc {
+	display: none;
+}
+
+.msgTitleMenuPop li.commonFunc:before {
+	font-family:'FontAwesome';
+    content: "\f0e7";
+    font-size: 14px;
+    padding-right: 4px;
+    position: relative;
+    top: 1px;
+}
+
 .msgTitleMenuPop li.refreshPage:before {
 	font-family:'FontAwesome';
     content: "\f021";
@@ -3982,6 +3996,7 @@ function handleShortKey (evt) {
 
 $(function initPage () {
 
+	if(isNWJS) $('.commonFunc').show();
 
 	$('.addFileBtn').click(function  () {
 
@@ -4154,7 +4169,22 @@ function refreshPage () {
 	window.location.reload();
 }
 
+function commonFunc () {
+	$.post(host+'/getCommonFunc', {company: COMPANY_NAME }, function(data){
+		if(!data) return alert('获取命令错误');
+		var str = '';
+		data.commandList.forEach(function(v){
+			if(v.role=='JS') {
+				str += '<p><a href="javascript:'+ v.function +'.apply(this, '+ JSON.stringify(v.param).replace(/"/g,'&quot;') +'); hideDialog(); ">'+ v.name +'</a></p>';
+			}
+		});
+		alert(str);
+	});
+}
+
+
 function openClient (address) {
+
 	if(!isNWJS) return;
 	if(!address){
 		var sel = companyTree.getSelectedNodes().shift();
@@ -4342,6 +4372,9 @@ function confirm (msg) {
 
 }
 
+function hideDialog () {
+	$("#confirm").trigger("dialog-close");
+}
 
 </script>
 
@@ -4540,9 +4573,10 @@ dl, dd, dt{
 		<select><option>名称</option><option>内容</option><option>消息</option></select>
 		<button class="searchBtn">搜索</button>
 	</div>
-	<div class="msgTitleMenuPop">
+	<div class="msgTitleMenuPop topMenuPop">
 		<ul>
 			<li class="showContact" onclick="showContact()">员工目录</li>
+			<li class="commonFunc" onclick="commonFunc()">常用命令</li>
 			<li class="refreshPage" onclick="refreshPage()">刷新页面</li>
 		</ul>
 	</div>

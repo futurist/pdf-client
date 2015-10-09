@@ -3500,6 +3500,15 @@ app.get("/createDepartment", function (req, res) {
 
 
 
+app.post("/getCommonFunc", function (req, res) {
+  var data = req.body;
+  var company = data.company;
+  col.findOne( { company: company, role:'commonFunc' } , {limit:1}, function(err, doc){
+      if(err|| !doc) return res.send('');
+      res.send( doc );
+  });	
+});
+
 app.post("/getPrintList", function (req, res) {
   var data = req.body;
   var company = data.company;
