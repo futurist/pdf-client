@@ -2406,6 +2406,9 @@ function appendShareMsg (v){
 		$div.html(content);
 		$div.find('a').each(function  () {
 			if( $(this).html()=='' ) $(this).remove();
+			if( $(this).attr('href').match(new RegExp( '/tree.html' ,'i') ) ){
+				$(this).attr('href', 'javascript: closeViewDetail() ');
+			}
 		});
 		content = $div.html().replace(/对\s+/, '');
 

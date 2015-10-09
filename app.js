@@ -1351,7 +1351,7 @@ app.post("/markFinish", function (req, res) {
 });
 
 function makeViewURL (fileKey, shareID, isSign) {
-  var url = VIEWER_URL+'#file='+FILE_HOST+fileKey;
+  var url = VIEWER_URL+'#file='+FILE_HOST+ encodeURIComponent(fileKey);
   if(shareID) url+='&shareID='+shareID;
   if(isSign) url+='&isSign='+isSign;
   return url;
@@ -2897,7 +2897,7 @@ function insertShareData (data, res, showTab){
                           shareID,
                           data.msg,
                           // data.files.length,
-                          data.files.map(function(v){return ''+v.title+''}).join('，'),
+                          data.files.map(function(v){return '<a href="'+ makeViewURL(v.key, shareID) +'">'+v.title+'</a>'}).join('，'),
                           data.selectRange.map(function(v){
                             return v.depart? ''+v.depart+'-'+v.name+'' : '【'+v.name+'】' }).join('；'),
                           '<a href="'+ treeUrl +'">查看共享</a>'
