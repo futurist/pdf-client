@@ -4174,14 +4174,28 @@ function commonFunc () {
 		if(!data) return alert('获取命令错误');
 		var str = '';
 		data.commandList.forEach(function(v){
+			if(!v.param) v.param=[];
+			if( !$.isArray(v.param) ) v.param = [v.param];
 			if(v.role=='JS') {
 				str += '<p><a href="javascript:'+ v.function +'.apply(this, '+ JSON.stringify(v.param).replace(/"/g,'&quot;') +'); hideDialog(); ">'+ v.name +'</a></p>';
 			}
+			if(v.role=='EXE') {
+				str += '<p><a href="javascript:runCommand.apply(this, '+ JSON.stringify( [v.function].concat(v.param) ).replace(/"/g,'&quot;') +'); hideDialog(); ">'+ v.name +'</a></p>';
+			}
+
 		});
 		alert(str);
 	});
 }
 
+
+function runCommand (cmd) {
+	if(!isNWJS) return;
+	var exec = require('child_process').exec;
+	exec(cmd, function(err,stdout,stderr){
+
+	});
+}
 
 function openClient (address) {
 
