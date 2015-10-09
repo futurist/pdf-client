@@ -621,7 +621,7 @@ function initTemplateFileTree (data) {
 	treeObjTemplate = $.fn.zTree.getZTreeObj("fileTreeTemplate");
 
 	var rootNode = treeObjTemplate.getNodes()[0];
-	treeObjTemplate.addNodes( rootNode , root );
+
 	treeObjTemplate.expandNode( rootNode, true );
 	treeObjTemplate.selectNode( rootNode );
 	addAttrToNode( treeObjTemplate, {isTemplate:true} );
@@ -1229,8 +1229,11 @@ function locateNode (rootNode, path, shareID, switchTo){
 		updateMenu(targetNode);
 		if(targetNode.isParent) treeObj.expandNode(targetNode, true);
 		setTimeout(function(){
-			//$('#'+targetNode.tId).get(0).scrollIntoView();
-		}, 1000);
+			var p = targetNode.isParent ? targetNode : targetNode.getParentNode();
+			if(!p) p = targetNode;
+			var offset = $('#'+p.tId).offset();
+			$(window).scrollTop( offset.top-100 );
+		}, 0);
 
 	}
 }
@@ -1293,9 +1296,10 @@ function init (data, isOnTop, isOpen){
 	}
 }
 
-function initShareFrom (data) {
+function initShareFrom (data, bForceUpdate) {
 
 	root= treeObj2? treeObj2.getNodes()[0].children : [];
+	if(bForceUpdate) root = [];
 
 	for(var i=0; i<data.length; i++){
 		var shareID = data[i].shareID;
@@ -1348,9 +1352,10 @@ function initShareFrom (data) {
 	addAttrToNode( sendRoot, {isSend:true} );
 }
 
-function initShareTo (data) {
+function initShareTo (data, bForceUpdate) {
 
 	root= treeObj3? treeObj3.getNodes()[0].children : [];
+	if(bForceUpdate) root = [];
 
 	$('.bg_mask').hide();
 
@@ -1478,7 +1483,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 			switchTo = curTab>0?false:true;
 		}
 
-		initShareFrom(JSON.parse(data));
+		initShareFrom(JSON.parse(data), true);
 		treeObj2.expandNode(sendRoot, true);
 		if(!tree2WayPoint) setupWayPoint2();
 
@@ -1495,7 +1500,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 			switchTo = curTab>0?false:true;
 		}
 
-		initShareTo(JSON.parse(data));
+		initShareTo(JSON.parse(data), true);
 		treeObj3.expandNode(receiveRoot, true);
 		if(!tree3WayPoint) setupWayPoint3();
 

@@ -1574,22 +1574,23 @@ app.post("/applyTemplate2", function (req, res) {
   			role:'share',
   			person:userid,
   			client:'',
-  			title: info.title+'_'+moment().format('YYYYMMDD'),
+  			title: doc.title+'_'+moment().format('YYYYMMDD'),
   			path: '/',
   			date: new Date(),
   			key: newKey,
   			fname:newKey,
-  			fsize:info.fsize,
-  			type:info.type,
-  			drawData:info.drawData,
-  			signIDS:info.signIDS,
+  			fsize:doc.fsize,
+  			type:doc.type,
+  			drawData:doc.drawData,
+  			signIDS:doc.signIDS,
+  			inputData:doc.inputData,
   			hash: +new Date()+Math.random().toString().slice(2,5)+'',
   			order:0
   		};
 
   		var data = {};
       data.role = 'share';
-      data.flowName = info.title;
+      data.flowName = doc.title;
       data.msg = '';
       data.isSign = true;
       data.date = new Date();
@@ -1628,7 +1629,7 @@ app.post("/applyTemplate2", function (req, res) {
 
 app.post("/getTemplateFiles", function (req, res) {
 
-  col.find( { role:'upfile', isTemplate:true } , {limit:2000,fields:{drawData:0,inputData:0,signIDS:0} } ).sort({title:1,date:-1}).toArray(function(err, docs){
+  col.find( { role:'upfile', isTemplate:true, status:{$ne:-1} } , {limit:2000,fields:{drawData:0,inputData:0,signIDS:0} } ).sort({title:1,date:-1}).toArray(function(err, docs){
     if(err) {
       return res.send('error');
     }
@@ -2021,8 +2022,7 @@ app.post("/getSavedSign", function (req, res) {
         var signIDS = result.signIDS;
         if(!signIDS ) return res.send('');
 
-        if(file.signIDS) getSignData(err, signIDS );
-        else res.send(doc);
+        getSignData(err, signIDS );
 
       });
 
