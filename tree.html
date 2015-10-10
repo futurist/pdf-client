@@ -15,13 +15,18 @@
 <!-- weinre.cmd -->
 <!-- <script src="http://192.168.1.135:8080/target/target-script-min.js#anonymous"></script>
  -->
-<script type="text/javascript" src="http://res.wx.qq.com/open/js/jweixin-1.0.0.js"></script>
-<script type="text/javascript" src="/js/cookies.js"></script>
 
 	<link rel="stylesheet" href="./css/font-awesome.min.css" type="text/css">
+
+
 	<link rel="stylesheet" href="./css/zTreeStyle/zTreeStyle.css" type="text/css">
 	<link rel="stylesheet" href="./js/dialog.css" type="text/css">
 	<!--script type="text/javascript" src="./js/jquery-1.4.4.min.js"></script-->
+
+
+<script type="text/javascript" src="http://res.wx.qq.com/open/js/jweixin-1.0.0.js"></script>
+<script type="text/javascript" src="/js/cookies.js"></script>
+
 	<script type="text/javascript" src="http://1111hui.com/js/jquery.js"></script>
 	<script type="text/javascript" src="./js/jquery.ztree.all-3.5.js"></script>
 	<script type="text/javascript" src="./js/dialog.build.js"></script>
@@ -34,6 +39,10 @@
 	  <script type="text/javascript" src="js/fingerprint2.min.js"></script>
 	  <script type="text/javascript" src="js/reconnecting-websocket.js"></script>
 	  <script type="text/javascript" src="js/ws.js"></script>
+
+
+<link href="js/selectivity-full.css" rel="stylesheet" />
+<script src="js/selectivity-full.js"></script>
 
 
 	<SCRIPT type="text/javascript">
@@ -60,6 +69,7 @@ var isiOS = /iPhone/i.test(navigator.userAgent) || /iPod/i.test(navigator.userAg
 var isMobile = isAndroid||isWeiXin||isiOS;
 
 var clickE = isMobile?'ontouchstart':'click';
+var downE = isMobile?'ontouchstart':'mousedown';
 
 var wxUserInfo;
 var DEBUG= eval(urlQuery.debug||0);
@@ -165,7 +175,7 @@ if(isNWJS) {
 
 FILE_HOST = 'http://7xkeim.com1.z0.glb.clouddn.com/';
 VIEWER_URL = 'http://1111hui.com/pdf/webpdf/viewer.html';
-
+window.savedSignData = [];
 
 function eve (el, type){
     el= ('get' in el)? el.get(0) : el ;	//(typeof el['jquery']!='undefined')
@@ -197,6 +207,198 @@ function humanFileSize(bytes, si) {
         ++u;
     } while(Math.abs(bytes) >= thresh && u < units.length - 1);
     return bytes.toFixed(1)+' '+units[u];
+}
+
+
+function sortCompanyNode (data) {
+  data = data.sort(function(a,b){
+
+    if(a.pId != b.pId)
+      return a.pId-b.pId;
+    var apid = a.parentid===undefined? -1 : a.parentid;
+    var bpid = b.parentid===undefined? -1 : b.parentid;
+    return apid-bpid;
+
+  });
+
+
+  var depart = data.filter(function(v){ return v.pId>=0 && v.parentid>=0 });
+  var opData = [];
+  depart.forEach(function(v){
+    opData.push(v);
+    opData = opData.concat(
+      data.filter(function(x){ return x.pId==v.id && x.parentid===undefined })
+      .sort(function(a,b){return a.userid>b.userid } )
+     );
+  });
+  return opData;
+}
+
+function applyTemplatePre () {
+	var sel = treeObjTemplate.getSelectedNodes().shift();
+	if(!sel) return;
+
+	function finishTemplate(){
+
+		var totalSign = $('.steps').length;
+		if(!totalSign) return;
+
+		var orders = $('.steps[data-order]').map(function(v){
+			return $(this).data('order');
+		})
+		.sort(function(a,b){ return a-b});
+
+		var signLength = $('.steps[data-person]').length;
+		var mainLength = $('.steps[data-person]').filter(function(){
+			return $(this).data('order') < orders[orders.length-1];
+		}).filter('[data-main-person]').length;
+
+		if(signLength < totalSign || mainLength<totalSign-1  ) {
+			$('#confirm .info').html('请指定每步人员，并变红(签署人)，最后一步可不变红');
+			console.log(signLength , mainLength, totalSign);
+			return false;
+		}
+
+		console.log(savedSignData);
+		return false;
+
+		$.post(host+'/saveSignFlow', {key: sel.key, signIDS:savedSignData}, function(ret){
+			alert('流程保存成功');
+		});
+	}
+
+
+	$.post( host + '/getSavedSign', { file:sel.key, person:rootPerson.userid }, function(data){
+	  	if(data && data.map) savedSignData = data;
+
+	    if(!data || !companyNode) return;
+
+	    if(!savedSignData.length) return;
+
+	    var str = '<h2>确认流程:</h2><div class="stepsCon">';
+	    savedSignData.forEach(function  (v, i) {
+	    	var person = v&&v.realPerson ? ' data-person="'+ v.realPerson.map(function(x){return x.userid}).join('|') +'" ' : '';
+	    	var mainPerson = v&&v.realMainPerson ? 'data-main-person="'+v.realMainPerson.userid+'"' : '';
+	    	str+= '<div class="steps" data-idx="'+i+'" data-order="'+v.order+'" '+ person +' '+ mainPerson +'><div class="stepTitle"><i class="fa fa-circle"></i><p>'+v.order+'</p></div><div class="selStep step'+v.order+'"></div></div>'
+	    });
+	    str += '</div>';
+	    str += '<div class="info"></div>';
+
+	    window.confirm(str, function  (ok) {
+	    	if(ok) return finishTemplate();
+	    });
+
+	    var html = [
+	    	{id:'_self', text:'员工本人'},
+	    	{id:'_parent', text:'部门主管'},
+	    	{id:'_boss', text:'公司总管'}
+	    ];
+	    html=[];
+
+	    var preObj = html;
+	    companyNode.forEach(function(v){
+	      if(v.parentid>=0){
+	        var obj = {text:v.name, children:[]};
+	        html.push(obj);
+	        preObj = obj.children;
+	      } else {
+	        preObj.push({id:v.userid, text:v.name });
+	      }
+	    });
+
+    	$('.selStep').selectivity({
+	      allowClear: true,
+	      language: "zh-CN",
+	      multiple:true,
+	      items: html,
+	      placeholder:'选择流程人..',
+	      positionDropdown: function  ($dropEl, $selEl) {
+	        $dropEl.css({top:'auto'});
+	      }
+	    });
+
+    	savedSignData.forEach(function  (v, i) {
+    		var stepEl = $('.step'+v.order);
+    		var targetEl = stepEl.parent();
+    		v.person = $(targetEl).data('person')||'';
+    		v.mainPerson = $(targetEl).data('main-person')||'';
+    		var person = (v.person).split('|');
+    		var mainPerson = v.mainPerson;
+
+    		if(person.length) stepEl.selectivity('val', [].concat(person) );
+    		else stepEl.selectivity('val', '');
+
+    		if(mainPerson){
+    			stepEl.selectivity('_highlightItem', mainPerson)
+    		}else{
+    			stepEl.selectivity('_highlightItem', null)
+    		}
+
+    	});
+
+    	$('.selStep').on("selectivity-opening", function (e) {
+    		hideSelStuff();
+    	});
+
+    	$('.selStep').on(clickE, '.selectivity-multiple-selected-item', function (e) {
+
+    		var targetEl = $(this).closest('.steps');
+    	  	var v = savedSignData[ targetEl.data('idx') ];
+
+    		var itemID = $(this).data('item-id');
+
+    		$(targetEl).attr('data-main-person', itemID );
+    	  	v.mainPerson = itemID;
+
+    		$('.selStep').selectivity('close');
+
+    	});
+
+    	$('.dialog-content').off(downE).on(downE, function  (e) {
+    		if( $(e.target).closest('.selectivity-dropdown').length ) return;
+    		hideSelStuff();
+    	});
+
+    	$('.selStep').on("change", function (e) {
+
+    	  var targetEl = $(this).parent();
+    	  e.value = e.value.filter(function(v){ return v!=''});
+    	  var val = e.value.join('|');
+
+    	  var idx = targetEl.data('idx');
+    	  var v = savedSignData[idx];
+
+    	  if(val){
+    	    $(targetEl).attr('data-person', val );
+    	    if(v) v.person = val;
+    	  }else{
+    	    $(targetEl).removeAttr('data-person' );
+    	    if(v) delete v.person;
+    	  }
+
+    	  if( e.value.indexOf(targetEl.data('main-person'))==-1 ){
+    	  	targetEl.removeAttr('data-main-person');
+    	    delete v.mainPerson;
+    	  }
+
+    	});
+
+    	$('.selStep').on("selectivity-open", function (e) {
+
+    	  var val = $('.selStep').selectivity('val');
+    	  $('.selectivity-result-item').removeClass('highlight');
+    	  $('.selectivity-result-item[data-item-id="' + val + '"]').addClass('highlight');
+
+    	});
+
+
+	});
+
+}
+
+function hideSelStuff (order) {
+	var orderStr = order? ':eq('+order+')' : '';
+  	if( $('.selectivity-dropdown'+orderStr).length ) $('.selStep'+orderStr).selectivity('close');
 }
 
 function applyTemplate () {
@@ -2718,31 +2920,6 @@ if(isWeiXin) initWX();
 
 
 
-function sortCompanyNode (data) {
-  data = data.sort(function(a,b){
-
-    if(a.pId != b.pId)
-      return a.pId-b.pId;
-    var apid = a.parentid===undefined? -1 : a.parentid;
-    var bpid = b.parentid===undefined? -1 : b.parentid;
-    return apid-bpid;
-
-  });
-
-
-  var depart = data.filter(function(v){ return v.pId>=0 && v.parentid>=0 });
-  var opData = [];
-  depart.forEach(function(v){
-    opData.push(v);
-    opData = opData.concat(
-      data.filter(function(x){ return x.pId==v.id && x.parentid===undefined })
-      .sort(function(a,b){return a.userid>b.userid } )
-     );
-  });
-  return opData;
-}
-
-
 function setupWayPoint1 () {
 
 	var el = $('.tree1 .loadMore');
@@ -3678,6 +3855,46 @@ body,html{
 	line-height: 36px;
 }
 
+.stepsCon{
+	display: table;
+}
+.steps{
+	display: table-row;
+}
+.steps .stepTitle{
+	display: table-cell;
+}
+.steps .selStep{
+	display: table-cell;
+	padding-bottom: 10px;
+}
+
+div.selectivity-dropdown{
+  min-width:154px;
+  text-align: left;
+  text-indent: 15px;
+}
+
+.steps .stepTitle p{
+	position: absolute;
+    padding: 2px 5px;
+}
+.steps .stepTitle .fa{
+	position: absolute;
+	top: 0;
+	left: 0;
+    font-size: 36px;
+    color: #C14A4A;
+}
+.steps .stepTitle{
+    color: white;
+    padding: 7px;
+    vertical-align: top;
+    position: relative;
+    font-size: 16px;
+    width: 18px;
+}
+
 
 @media screen and (max-width: 400px) {
 
@@ -4145,7 +4362,7 @@ $(function initPage () {
 function showContact () {
 
 	$('.company_wrap').show().data('role', 'contact');
-	
+
 	var prevPos = $(window).scrollTop();
 	$(window).scrollTop(0);
 
@@ -4380,8 +4597,8 @@ function confirm (msg) {
   $("#confirm").trigger("dialog-open");
 
   $("#confirm p.button a").off().on('click', function(){
-    $("#confirm").trigger("dialog-close");
-    callback( $(this).data('confirm')==1 );
+    var ret = callback( $(this).data('confirm')==1 );
+    if(ret!==false) $("#confirm").trigger("dialog-close");
   });
 
 }
@@ -4626,8 +4843,8 @@ dl, dd, dt{
 
 <div class="popupWin company_wrap">
 	<div class="msgTitle"></div>
-	<div class="searchDIV"> 联系人: 
-		<input type="text" class="searchTxt" data-role="companyTree"> 
+	<div class="searchDIV"> 联系人:
+		<input type="text" class="searchTxt" data-role="companyTree">
 		<span class="fa-stack fa-lg clearInput">
 		  <i class="fa fa-circle fa-stack-2x"></i>
 		  <i class="fa fa-times fa-stack-1x fa-inverse"></i>
@@ -4761,7 +4978,7 @@ dl, dd, dt{
 
 	<div class="templateMenu">
 		<a class="fBackTemplate" href="javascript:;" onclick="hideTemplateCon()">返回</a>
-		<a class="fConfirmTemplate" href="javascript:;" data-click="applyTemplate()">确定选择</a>
+		<a class="fConfirmTemplate" href="javascript:;" data-click="applyTemplatePre()">确定选择</a>
 	</div>
 
 	<div class="printMenu">

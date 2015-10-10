@@ -1662,8 +1662,8 @@ app.post("/getfile", function (req, res) {
   }, 5000);
 
   var condition = { person: person, role:'upfile', status:{$ne:-1} };
-  if(startOrder)  condition.order = {$lt: startOrder }; 
-  
+  if(startOrder)  condition.order = {$lt: startOrder };
+
   col.find(  condition , {limit:50, fields:{drawData:0,inputData:0,signIDS:0}, timeout:true} ).sort({order:-1, title:1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
     if(err) {
@@ -1950,6 +1950,7 @@ app.post("/getInputData", function (req, res) {
 
 app.post("/getSavedSign", function (req, res) {
   var file = req.body.file;
+  var person = req.body.person;
   var shareID = parseInt( req.body.shareID );
   try{
     var filename = file.replace(FILE_HOST, '');
@@ -2022,7 +2023,7 @@ app.post("/getSavedSign", function (req, res) {
         var signIDS = result.signIDS;
         if(!signIDS ) return res.send('');
 
-        getSignData(err, signIDS );
+        getSignData(err, signIDS, person );
 
       });
 
@@ -2102,7 +2103,7 @@ app.post("/getShareFrom", function (req, res) {
   }, 15000);
 
   var condition = { 'fromPerson.userid': person, role:'share' };
-  if(startShareID) condition.shareID = {$lt: startShareID }; 
+  if(startShareID) condition.shareID = {$lt: startShareID };
 
   col.find( condition , {limit:50, fields:{ fileIDS:0, filePathS:0, selectRange:0, 'files.drawData':0,'files.inputData':0,'files.signIDS':0}, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
@@ -2125,7 +2126,7 @@ app.post("/getShareTo", function (req, res) {
   //col.aggregate([ {$match:{role:'share'}}, {$unwind:'$toPerson'}, { $match: {'toPerson.userid': person} } ] ).sort({shareID:-1}).toArray(function(err, docs){
   //col.find( { 'toPerson.userid': person, role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
   var condition = { $or:[ {'toPerson.userid':person}, { 'toPerson':{$elemMatch: {$elemMatch:{'userid': person } } } } ], role:'share' };
-  if(startShareID) condition.shareID = {$lt: startShareID }; 
+  if(startShareID) condition.shareID = {$lt: startShareID };
 
   col.find( condition , {limit:50, fields:{fileIDS:0, filePathS:0, selectRange:0, 'files.drawData':0,'files.inputData':0,'files.signIDS':0},  timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
@@ -3506,7 +3507,7 @@ app.post("/getCommonFunc", function (req, res) {
   col.findOne( { company: company, role:'commonFunc' } , {limit:1}, function(err, doc){
       if(err|| !doc) return res.send('');
       res.send( doc );
-  });	
+  });
 });
 
 app.post("/getPrintList", function (req, res) {

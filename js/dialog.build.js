@@ -155,20 +155,33 @@ window.jQuery = window.Zepto || window.jQuery || window.shoestring;
 				}
 			});
 
+				// close on escape key
+				$( doc ).off().on( "keydown", function( e ){
 
-			// close on escape key
-			$( doc ).bind( "keyup", function( e ){
-				if( e.which === 27 ){
-					dialog.close();
-				}
-				if( e.which === 13 ){
-					if(dialog.$el.is(':visible')){
-						dialog.$el.find('a:last').click();
+					var isInput = false;
+					var curElement = document.activeElement || document.querySelector(':focus');
+					var curElementTagName = curElement && curElement.tagName.toUpperCase();
+					if (curElementTagName === 'INPUT' ||
+					    curElementTagName === 'TEXTAREA' ||
+					    curElementTagName === 'SELECT') {
+
+					  isInput = true;
 					}
-					dialog.close();
-				}
 
-			});
+					if(isInput) return;
+
+					if( e.which === 27 ){
+						dialog.close();
+					}
+					if( e.which === 13 ){
+						if(dialog.$el.is(':visible')){
+							dialog.$el.find('a:last').click();
+						}
+						dialog.close();
+					}
+
+				});
+
 
 			return;
 			// open on matching a[href=#id] click
