@@ -1368,7 +1368,6 @@ app.post("/signInWeiXin", function (req, res) {
                         { },
                         function(err, result){
 
-
       		if(err || !result) return res.send('');
 
             var colShare = result;
@@ -1378,6 +1377,7 @@ app.post("/signInWeiXin", function (req, res) {
 
             var curFlowPos = colShare.curFlowPos;
             var mainPerson = colShare.flowSteps[curFlowPos].mainPerson;
+
             if(!mainPerson) return res.send('');
 
             var realMainPerson =  placerholderToUser(colShare.fromPerson[0].userid, mainPerson);
@@ -1396,7 +1396,7 @@ app.post("/signInWeiXin", function (req, res) {
 
             } else {
               var touser = person;
-              var touserName = '';
+              var touserName = person;
               var content =
               colShare.isSign ?
               util.format('流程%d %s (%s-%s)需要您签署，<a href="%s">点此签署</a>',
@@ -1553,6 +1553,7 @@ app.post("/applyTemplate2", function (req, res) {
 	var path = data.path;
   	var userid = data.userid;
   var info = data.info;
+  var signIDS = data.signIDS;
 
   	try{
 	  	info = JSON.parse(info);
@@ -1582,8 +1583,8 @@ app.post("/applyTemplate2", function (req, res) {
   			fsize:doc.fsize,
   			type:doc.type,
   			drawData:doc.drawData,
-  			signIDS:doc.signIDS,
-  			inputData:doc.inputData,
+  			signIDS: signIDS || doc.signIDS,
+  			inputData:doc.inputData|| {} ,
   			hash: +new Date()+Math.random().toString().slice(2,5)+'',
   			order:0
   		};
@@ -1602,16 +1603,35 @@ app.post("/applyTemplate2", function (req, res) {
       var fromPerson = COMPANY_TREE.filter(function(v){ return v.userid== userid  }).shift();
 
       data.curFlowPos = 0;
-      data.flowSteps = doc.flowSteps;
 
-      var toPerson = doc.flowSteps[0].person.map(function(s){
+      if(signIDS){
+
+          var selectRange = signIDS.map(function(v){
+            var obj = _.pick(v, '_id', 'person', 'mainPerson', 'order' );
+            obj.person = obj.person.split('|').filter(function(v){ return v!='' });
+            obj.order = safeEval(obj.order);
+            return obj;
+          }).sort(function(a,b){
+            return a.order-b.order;
+          });
+
+          data.flowSteps = selectRange;
+
+      } else {
+
+          data.flowSteps = doc.flowSteps;
+
+      }
+
+
+      var toPerson = data.flowSteps[0].person.map(function(s){
         return placerholderToUser(userid, s);
       } );
 
       data.fromPerson = [ pickUser(fromPerson) ];
       data.toPerson  = [toPerson];
 
-      data.selectRange =  doc.flowSteps.filter(function(v){return v.mainPerson}).map(function  (v) {
+      data.selectRange =  data.flowSteps.filter(function(v){return v.mainPerson}).map(function  (v) {
         return placerholderToUser(userid, v.mainPerson);
       });
 
@@ -2317,9 +2337,15 @@ function getSubStr (str, len) {
 app.post("/getSignStatus", function (req, res) {
   var shareID = safeEval(req.body.shareID);
   var person =  req.body.person;
+  var curFlowPos =  safeEval(req.body.curFlowPos);
   col.findOne({role:'share', shareID:shareID }, function  (err, ret) {
     if(err||!ret) return res.send('');
-    res.send( ''+ (ret.selectRange[ret.curFlowPos].isSigned?1:0) );
+    if(person){
+      res.send( ''+ (ret.selectRange[ret.curFlowPos].isSigned?1:0) );
+    } else {
+      res.send( ''+ (ret.selectRange[curFlowPos].isSigned?1:0) );
+    }
+
   }  );
 });
 
@@ -2378,8 +2404,9 @@ app.post("/finishSign", function (req, res) {
                       colShare.shareID,
                       msg,
                       colShare.flowName,
-                      colShare.fromPerson[0].name ),
+                      colShare.fromPerson[0].name,
                       lastPersons.map(function(x){ return x.depart+'-'+x.name }).join(',')
+                      )
                        );
 
           var wxmsg = {
@@ -2609,7 +2636,7 @@ app.post("/saveSign", function (req, res) {
   var width =  safeEval(req.body.width);
   var height =  safeEval(req.body.height);
   var person =  req.body.signPerson;
-
+  var curFlowPos = safeEval(req.body.curFlowPos);
 
       function insertHis(id){
       	if(shareID){
@@ -2620,24 +2647,24 @@ app.post("/saveSign", function (req, res) {
       		setObj[key1] =  new ObjectID(id);
       		setObj[key2] =  person;
 
+          var condition = {role:'share', shareID:shareID, 'files.key':fileKey };
+          condition['selectRange.'+curFlowPos+'.isSigned'] = {$ne: true };
 
       		// http://stackoverflow.com/questions/18986505/mongodb-array-element-projection-with-findoneandupdate-doesnt-work
-			col.findOneAndUpdate( {role:'share', shareID:shareID, 'files.key':fileKey },
-				{ $set: setObj }, { projection:{ key:1, 'files': {$elemMatch: {key: fileKey} } } } , function(err, result) {
+  			   col.findOneAndUpdate( condition, { $set: setObj }, { projection:{ key:1, 'files': {$elemMatch: {key: fileKey} } } } , function(err, result) {
 
-					if(err){
-						console.log(err);
-						return res.send('');
-					}
-					try{var ret=result.value.files.shift().signIDS[ signIDX ]; }
-					catch(e){
-						console.log(e);
-						return res.send('');
-					}
-	          	res.send( ret );
+                if(err || !result ) {
+      						return res.send('');
+      					}
+
+      					try{var ret=result.value.files.shift().signIDS[ signIDX ]; }
+      					catch(e){
+      						return res.send('');
+      					}
+  	          	res.send( ret );
 
 
-	        });
+  	        });
       	} else {
       		col.findOneAndUpdate( {role:'upfile', 'key':fileKey, 'signIDS._id': signID },
 				{ $set:{'signIDS.$.signData': new ObjectID(id), 'signIDS.$.signPerson': person } }, { projection:{ key:1, 'signIDS':1} }, function(err, result) {

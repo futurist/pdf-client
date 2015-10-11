@@ -259,12 +259,16 @@ function applyTemplatePre () {
 			return false;
 		}
 
-		console.log(savedSignData);
+		savedSignData.forEach(function  (v) {
+			delete v.realPerson;
+			delete v.realMainPerson;
+		});
+
+
+		applyTemplate();
+
 		return false;
 
-		$.post(host+'/saveSignFlow', {key: sel.key, signIDS:savedSignData}, function(ret){
-			alert('流程保存成功');
-		});
 	}
 
 
@@ -302,9 +306,28 @@ function applyTemplatePre () {
 	        html.push(obj);
 	        preObj = obj.children;
 	      } else {
-	        preObj.push({id:v.userid, text:v.name });
+	        preObj.push({id:v.userid, depart:v.depart, text:v.name });
 	      }
 	    });
+
+
+	    function matcher (item, term) {
+
+	          var result = null;
+	          if (item.text.indexOf(term) > -1 || item.id&&item.id.indexOf(term)>-1 ) {
+	              result = item;
+	          } else if (item.children) {
+	              var matchingChildren = item.children.map(function(child) {
+	                  return matcher(child, term);
+	              }).filter(function(child) {
+	                  return !!child;
+	              });
+	              if (matchingChildren.length) {
+	                  result = { id: item.id, text: item.text, children: matchingChildren };
+	              }
+	          }
+	          return result;
+	      }
 
     	$('.selStep').selectivity({
 	      allowClear: true,
@@ -314,7 +337,9 @@ function applyTemplatePre () {
 	      placeholder:'选择流程人..',
 	      positionDropdown: function  ($dropEl, $selEl) {
 	        $dropEl.css({top:'auto'});
-	      }
+	      },
+	      matcher: matcher
+
 	    });
 
     	savedSignData.forEach(function  (v, i) {
@@ -354,7 +379,13 @@ function applyTemplatePre () {
 
     	});
 
-    	$('.dialog-content').off(downE).on(downE, function  (e) {
+    	$('#confirm').off(downE).on(downE, function  (e) {
+    		if( !$(e.target).closest('p.button').length ){
+    			setTimeout( function(){
+    				$('#confirm .info').html('');
+    			}, 0);
+    		}
+
     		if( $(e.target).closest('.selectivity-dropdown').length ) return;
     		hideSelStuff();
     	});
@@ -404,9 +435,8 @@ function hideSelStuff (order) {
 function applyTemplate () {
 
 
-	var sel = treeObjTemplate.getSelectedNodes();
-	if(!sel.length) return;
-	sel=sel[0];
+	var sel = treeObjTemplate.getSelectedNodes().shift();
+	if(!sel) return;
 
 	var info = getFileKeys(sel);
 
@@ -414,15 +444,18 @@ function applyTemplate () {
 
 	if(!path) path='/';
 
+	hideDialog();
+
 	$('.bg_mask').show();
 
-	$.post(host+'/applyTemplate2', { info: JSON.stringify(info), userid: rootPerson.userid, path:path }, function  (data) {
+	$.post(host+'/applyTemplate2', { info: JSON.stringify(info), userid: rootPerson.userid, path:path, signIDS:savedSignData }, function  (data) {
 		$('.bg_mask').hide();
 		hideTemplateCon();
 	});
 
 
 	return;
+
 	$.post(host+'/applyTemplate', { info: JSON.stringify(info), userid: rootPerson.userid, path:path }, function  (data) {
 		$('.bg_mask').hide();
 		hideTemplateCon();
