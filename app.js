@@ -99,8 +99,8 @@ futurist.array_remove_item = function(array, item) {
 function qiniu_getUpToken() {
 	var responseBody =
 	{
-    "shareID":"$(x:shareID)",
-    "srcPath":"$(x:path)",
+	    "shareID":"$(x:shareID)",
+	    "srcPath":"$(x:path)",
 		"key":"$(key)",
 		"hash":"$(hash)",
 		"imageWidth":"$(imageInfo.width)",
@@ -126,29 +126,39 @@ function qiniu_getUpToken() {
 
 
 function safeEvalQiniu (ret) {
+	var obj = {};
   for(var i in ret){
-    ret[i] = safeEval(ret[i]);
+  	var val = safeEval(ret[i]);
+    if(val) obj[i] = val;
   }
-  return ret;
+  return obj;
 }
 
 
-function qiniu_uploadFile(file, callback ) {
+function qiniu_uploadFile(file, fileKey, callback ) {
+
+	if(typeof fileKey=='function') {
+		callback = fileKey;
+		fileKey = null;
+	}
 
 	var ext = path.extname(file);
-	var saveFile = path.basename(file); //formatDate('yyyymmdd-hhiiss') + Math.random().toString().slice(1,5) + ext;
+	var saveFile = fileKey || path.basename(file); //formatDate('yyyymmdd-hhiiss') + Math.random().toString().slice(1,5) + ext;
 
 	var uptoken = qiniu_getUpToken();
 
 	//console.log( uptoken,saveFile, file );
 
 	qiniu.io.putFile(uptoken, saveFile, file, null, function(err, ret) {
-	  console.log(err, ret);
+	  if(err) return console.log(err, ret);
 
 	  // ret.person = "yangjiming";
 	  // ret.savePath = savePath;
 	  //ret.path = "/abc/";
-	  if(callback) callback( safeEvalQiniu(ret) );
+	  ret = safeEvalQiniu(ret);
+	  console.log(ret);
+
+	  if(callback) callback( ret );
 
 	});
 
@@ -2570,25 +2580,26 @@ app.post("/saveSignFlow", function (req, res) {
     return a.order-b.order;
   });
 
-  col.findOneAndUpdate( {role:'upfile', key:key}, {$set: { signIDS: signIDS, flowSteps:selectRange } }, {projection:{title:1, key:1}},  function(err, result){
+  col.findOneAndUpdate( {role:'upfile', key:key}, {$set: { signIDS: signIDS, flowSteps:selectRange, templateImage:null } }, {projection:{title:1, key:1}},  function(err, result){
     // console.log(err, result);
     if(err||!result) return res.send('');
-    
+
     res.send('ok');
 
-	var cmd = 'phantomjs --config=client/config client/template.js '+ FILE_HOST + key + ' ' + pageWidth + ' ' + pageHeight;
+    var token = +new Date();
+    var filename = key.split('/').pop();
+	var cmd = 'phantomjs --config=client/config client/template.js '+ FILE_HOST + key + ' ' + pageWidth + ' ' + pageHeight ;
 
 	var child = exec(cmd, function(err, stdout, stderr) {
 
-    if(err) return console.log(cmd, err, stdout, stderr);
+	    if(err) return console.log(cmd, err, stdout, stderr);
 
-    var filename = key.split('/').pop();
-    qiniu_uploadFile( 'uploads/'+ filename +'.jpg', function(ret){
+	    qiniu_uploadFile( 'uploads/'+ filename +'.jpg', token +'/'+ filename +'.jpg', function(ret) {
 
-        col.updateOne( {role:'upfile', key:key}, {$set: { templateImage: ret.key } }, function(err, result){
-        });
+	        col.updateOne( {role:'upfile', key:key}, {$set: { templateImage: ret.key } }, function(err, result){
+	        });
 
-    } );
+	    } );
 
 
 	});

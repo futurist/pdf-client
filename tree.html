@@ -234,6 +234,13 @@ function sortCompanyNode (data) {
   return opData;
 }
 
+function viewTemplateImage (imgFile) {
+	if(imgFile) {
+		previewImage( FILE_HOST+imgFile );
+	} else {
+
+	}
+}
 
 function applyTemplatePre () {
 	var sel = treeObjTemplate.getSelectedNodes().shift();
@@ -280,7 +287,7 @@ function applyTemplatePre () {
 	    if(!savedSignData.length) return;
 
 	    var str = '<h2 style="text-align:left;">确认流程:';
-	    str += '<span class="viewTemplateImage"><a href="javascript:previewImage(&quot;'+ FILE_HOST+sel.templateImage +'&quot;);">'+sel.title+'</a></span>';
+	    str += '<span class="viewTemplateImage"><a href="javascript:viewTemplateImage(&quot;'+ (sel.templateImage||'') +'&quot;);">'+sel.title+'</a></span>';
 	    str += '</h2><div class="stepsCon">';
 
 	    savedSignData.forEach(function  (v, i) {
@@ -381,7 +388,7 @@ function applyTemplatePre () {
     	  	setTimeout(function  () {
     	  		$('.selStep').selectivity('close');
     	  	},0);
-    		
+
 
     	});
 
@@ -2847,7 +2854,7 @@ function previewImage ( imgArray, curIndex ){
 		if( !$.isArray(imgArray) ) imgArray = [imgArray];
 		curIndex = curIndex || 0;
 	}
-	
+
 	if(isWeiXin) {
 		wx.previewImage({
 		    current: imgArray[curIndex], // 当前显示图片的http链接
