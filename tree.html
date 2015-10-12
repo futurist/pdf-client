@@ -234,6 +234,7 @@ function sortCompanyNode (data) {
   return opData;
 }
 
+
 function applyTemplatePre () {
 	var sel = treeObjTemplate.getSelectedNodes().shift();
 	if(!sel) return;
@@ -255,7 +256,6 @@ function applyTemplatePre () {
 
 		if(signLength < totalSign || mainLength<totalSign-1  ) {
 			$('#confirm .info').html('请指定每步人员，并变红(签署人)，最后一步可不变红');
-			console.log(signLength , mainLength, totalSign);
 			return false;
 		}
 
@@ -279,7 +279,10 @@ function applyTemplatePre () {
 
 	    if(!savedSignData.length) return;
 
-	    var str = '<h2>确认流程:</h2><div class="stepsCon">';
+	    var str = '<h2 style="text-align:left;">确认流程:';
+	    str += '<span class="viewTemplateImage"><a href="javascript:previewImage(&quot;'+ FILE_HOST+sel.templateImage +'&quot;);">'+sel.title+'</a></span>';
+	    str += '</h2><div class="stepsCon">';
+
 	    savedSignData.forEach(function  (v, i) {
 	    	var person = v&&v.realPerson ? ' data-person="'+ v.realPerson.map(function(x){return x.userid}).join('|') +'" ' : '';
 	    	var mainPerson = v&&v.realMainPerson ? 'data-main-person="'+v.realMainPerson.userid+'"' : '';
@@ -365,7 +368,7 @@ function applyTemplatePre () {
     		hideSelStuff();
     	});
 
-    	$('.selStep').on(clickE, '.selectivity-multiple-selected-item', function (e) {
+    	$('.selStep').on('click', '.selectivity-multiple-selected-item', function (e) {
 
     		var targetEl = $(this).closest('.steps');
     	  	var v = savedSignData[ targetEl.data('idx') ];
@@ -375,11 +378,14 @@ function applyTemplatePre () {
     		$(targetEl).attr('data-main-person', itemID );
     	  	v.mainPerson = itemID;
 
-    		$('.selStep').selectivity('close');
+    	  	setTimeout(function  () {
+    	  		$('.selStep').selectivity('close');
+    	  	},0);
+    		
 
     	});
 
-    	$('#confirm').off(downE).on(downE, function  (e) {
+    	$('#confirm').off('mousedown').on('mousedown', function  (e) {
     		if( !$(e.target).closest('p.button').length ){
     			setTimeout( function(){
     				$('#confirm .info').html('');
@@ -2824,17 +2830,24 @@ function initWX() {
 	});
 }
 
-function previewImage (  ){
-	var sel = treeObj.getSelectedNodes().shift();
-	if(!sel) return;
+function previewImage ( imgArray, curIndex ){
+	if(!imgArray) {
 
-	var pNode = sel.getParentNode();
-	if(!pNode) return;
+		var sel = treeObj.getSelectedNodes().shift();
+		if(!sel) return;
 
-	imgArray = pNode.children.filter(function(v){ return v.key && v.key.match(regex_image) }).map( function(v){ return FILE_HOST+ encodeURIComponent(v.key) } );
+		var pNode = sel.getParentNode();
+		if(!pNode) return;
 
-	var curIndex = imgArray.indexOf( FILE_HOST+ encodeURIComponent(sel.key) );
+		imgArray = pNode.children.filter(function(v){ return v.key && v.key.match(regex_image) }).map( function(v){ return FILE_HOST+ encodeURIComponent(v.key) } );
 
+		curIndex = imgArray.indexOf( FILE_HOST+ encodeURIComponent(sel.key) );
+	} else {
+
+		if( !$.isArray(imgArray) ) imgArray = [imgArray];
+		curIndex = curIndex || 0;
+	}
+	
 	if(isWeiXin) {
 		wx.previewImage({
 		    current: imgArray[curIndex], // 当前显示图片的http链接
@@ -3926,6 +3939,13 @@ div.selectivity-dropdown{
     position: relative;
     font-size: 16px;
     width: 18px;
+}
+
+.viewTemplateImage a{
+	font-size: 16px;
+    padding-bottom: 16px;
+    text-decoration: none;
+    color: #333;
 }
 
 
