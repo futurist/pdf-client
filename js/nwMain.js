@@ -256,6 +256,9 @@ var nwMain = (function(gui) {
 
 	function updateHostName () {
 
+		var person = rootPerson.userid;
+		if( !person || !isNWJS ) return;
+		
 		// http://stackoverflow.com/questions/3653065/get-local-ip-address-in-node-js
 		var os = require('os');
 		var HOSTNAME = os.hostname();
@@ -284,8 +287,6 @@ var nwMain = (function(gui) {
 		global.IP = IPS.shift();
 		global.HOSTNAME = HOSTNAME;
 
-		var person = rootPerson.userid;
-		if( !person || !isNWJS ) return;
 		if( !global.HOSTNAME ){
 			return alert('无法取得主机名称');
 		}

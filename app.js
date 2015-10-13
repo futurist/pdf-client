@@ -57,6 +57,22 @@ var fileStorage = multer.diskStorage({
 
 var fileUploader = multer({ storage: fileStorage })
 
+// https://medium.com/@garychambers108/better-logging-in-node-js-b3cc6fd0dafd
+function replaceConsole () {
+  ["log", "warn", "error"].forEach(function(method) {
+      var oldMethod = console[method].bind(console);
+      console[method] = function() {
+          var arg=[moment().format('YYYY-MM-DD HH:mm:ss.SSS')];
+          // var arg=[new Date().toISOString()];
+          for(var i in arguments){
+            arg.push(arguments[i]);
+          }
+          oldMethod.apply(console, arg );
+      };
+  });
+}
+replaceConsole();
+
 
 function safeEval (str) {
   try{
@@ -275,7 +291,7 @@ wss.on('connection', function connection(ws) {
 
 
   });
-  console.log('new client connected');
+  console.log('new client connected', _.keys(ws.connection)) ;
   ws.send('connected');
 });
 
@@ -321,6 +337,10 @@ function wsSendPrinter (msg, printerName, res) {
 
 
 function wsBroadcast(data) {
+  if( data.role=='upfile' ){
+    return wsSendClient(data.person, data);
+  }
+
   wss.clients.forEach(function each(client) {
     try{
       client.send( JSON.stringify(data)  );
@@ -1012,7 +1032,7 @@ app.post("/upfile", function (req, res) {
 
   function upFun (ret) {
     res.send( JSON.stringify(ret) );
-    wsBroadcast(ret);
+    wsSendClient(ret.person, ret);
 
     // Send WX Message when it's upload images & sound files to share Folder
 
@@ -1067,7 +1087,8 @@ app.post("/upfile", function (req, res) {
 
     var client = data.client.replace(/\\/g,'').toLowerCase();
 
-    col.findOne({role:'stuff', 'stuffList.client': client }, {fields: {'stuffList': {$elemMatch: { client: client } }  } }, function(err, ret){
+    col.findOne({role:'stuff', $or:[ {'stuffList.client': client}, {'stuffList.ip': client} ] }, 
+                {fields: {'stuffList': {$elemMatch: { $or:[ {client: client}, {ip:client} ] } }  } }, function(err, ret){
       if(err|| !ret) {
         console.log('No client found:', client);
         return res.sendStatus(404);
@@ -1183,7 +1204,7 @@ app.post("/rotateFile", function (req, res) {
 
 	        			upfileFunc(ret, function(ret2){
 	        				res.send( JSON.stringify(ret2)  );
-	        				wsBroadcast(ret);
+	        				wsSendClient(ret.person, ret);
 	        			});
 
 		        		return;
@@ -1642,7 +1663,9 @@ app.post("/applyTemplate2", function (req, res) {
       data.toPerson  = [toPerson];
 
       data.selectRange =  data.flowSteps.filter(function(v){return v.mainPerson}).map(function  (v) {
-        return placerholderToUser(userid, v.mainPerson);
+        var P = placerholderToUser(userid, v.mainPerson);
+        P.signID = v._id;
+        return P;
       });
 
       insertShareData( data, res, true );
@@ -2346,7 +2369,42 @@ function getSubStr (str, len) {
 
 app.post("/getSignStatus", function (req, res) {
   var shareID = safeEval(req.body.shareID);
+  var signID =  req.body.signID;
+  
+  if(shareID){
+      col.findOne({role:'share', shareID:shareID, 'selectRange.signID': signID }, 
+        { fields:{ selectRange: { $elemMatch:{ signID:signID } } } }, 
+        function  (err, ret) {
+
+          if(err||!ret) return res.send('');
+          var data = ret.selectRange.shift();
+          res.send( ''+ (data.isSigned?1:0) );
+
+      });
+  }
+
+});
+
+app.post("/getSignStatus3", function (req, res) {
+  var shareID = safeEval(req.body.shareID);
+  var signID =  req.body.signID;
+  
+  if(shareID){
+      col.aggregate( [ {$match:{role:'share', shareID:shareID} }, {$unwind:'$files'}, {$unwind:'$files.signIDS'}, {$match:{ 'files.signIDS._id':signID }}, {$project: {'files.signIDS':1} } ], function(err, ret) {
+
+        if(err||!ret) return res.send('');
+        var data = ret.shift().files.signIDS;
+        res.send( ''+ (data.signData?1:0) );
+
+      });
+  }
+
+});
+
+app.post("/getSignStatus2", function (req, res) {
+  var shareID = safeEval(req.body.shareID);
   var person =  req.body.person;
+  var signID =  req.body.signID;
   var curFlowPos =  safeEval(req.body.curFlowPos);
   col.findOne({role:'share', shareID:shareID }, function  (err, ret) {
     if(err||!ret) return res.send('');

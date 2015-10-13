@@ -71,6 +71,7 @@ var isMobile = isAndroid||isWeiXin||isiOS;
 var clickE = isMobile?'ontouchstart':'click';
 var downE = isMobile?'ontouchstart':'mousedown';
 
+var rootPerson = {};
 var wxUserInfo;
 var DEBUG= eval(urlQuery.debug||0);
 
@@ -78,6 +79,7 @@ if(window.navigator.userAgent == "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4)
 	|| window.navigator.userAgent == "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36"
 	) DEBUG=1;
 
+if(DEBUG) rootPerson = {userid: 'yangjiming', name:"杨吉明", depart:"行政", isAdmin:true };
 if(isWeiXin)
 if(!DEBUG)
 {
@@ -92,10 +94,8 @@ if(!DEBUG)
 	wxUserInfo.UserId = 'yangjiming';
 }
 
-
 var isQT = false;
 var host = "http://1111hui.com:88";
-var rootPerson = {userid: 'yangjiming', name:"杨吉明", depart:"行政", isAdmin:true };
 var root=[];
 var fileData=[];
 var fileKeys=null;
@@ -486,7 +486,7 @@ function applyTemplate () {
 	ws.addEventListener('open', function(){
 		console.log('ws opened');
 		ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
-		if(isNWJS && global.updateHostName) global.updateHostName();
+		if(isNWJS && global.updateHostName && rootPerson.userid) global.updateHostName();
 	});
 
 	ws.addEventListener('message', function(data){
@@ -531,7 +531,7 @@ function applyTemplate () {
 				break;
 
 			case 'upfile':
-				init(msg, true, true);
+				if(msg.person == rootPerson.userid ) init(msg, true, true);
 				break;
 
 			case 'share':
@@ -1677,9 +1677,11 @@ function initShareTo (data, bForceUpdate) {
 	addAttrToNode( receiveRoot, {isReceive:true} );
 }
 
-function updateTreeObj(){
+function updateTreeObj (globalSet){
 	var idx = $('.currTab').data('idx');
-	treeObj = eval( 'treeObj'+ (idx+1) );
+	var tree = eval( 'treeObj'+ (idx+1) );
+	if(globalSet!==null) treeObj = tree;
+	return tree;
 }
 
 
@@ -2379,6 +2381,7 @@ function shareNodePre(){
 
 function shareNode (){
 
+	var treeObj = updateTreeObj(null);
 
 	$( "#mydialog" ).trigger( "dialog-close" );
 	var msg = $('#shareMsg').val();
@@ -3138,9 +3141,12 @@ function setupWayPoint3 () {
 
 $(function  () {
 
-	var inputWidth = Math.min( $(window).width()-230, 240 );
+	var inputWidth = Math.min( $(window).width()-240, 200 );
 	$('.searchDIV input.searchTxt').width( inputWidth );
 	$('.searchDIV .clearInput').css( 'left', inputWidth+58+'px' );
+
+	var el = $('.clearInput');
+	el.css( 'top', el.height()/2 +'px' );
 
 	$('.clearInput').on('click', function  () {
 		delete treeObj.prevKeyword;
