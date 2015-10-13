@@ -575,7 +575,6 @@ function applyTemplate () {
 
 		var zNodes, zNodes2, zNodes3, zNodesTemplate, zNodesPrint;
 
-		var curTree = treeObj;
 		var rMenu;
 		var addCount = 1;
 		var log, className = "dark", curDragNodes, autoExpandNode;
@@ -816,8 +815,7 @@ function onBodyMouseDown(event){
 
 
 function hideTemplateCon() {
-	var idx = $('.currTab').data('idx');
-	treeObj = eval('treeObj'+(idx+1) );
+	updateTreeObj();
 	$('.templateFile_wrap').hide();
 	showContentWrap();
 	updateMenu( treeObj.getSelectedNodes() );
@@ -956,8 +954,7 @@ function openPrintCon (){
 }
 
 function hidePrintCon() {
-	var idx = $('.currTab').data('idx');
-	treeObj = eval('treeObj'+(idx+1) );
+	updateTreeObj();
 	$('.print_wrap').hide();
 	showContentWrap();
 	updateMenu( treeObj.getSelectedNodes() );
@@ -1443,6 +1440,7 @@ function getFilesData () {
 
 
 function locateNode (rootNode, path, shareID, switchTo){
+	console.log('locateNode');
 	if( !rootNode || !path ) return;
 	var targetNode;
 	var treeObj = rootNode.isSend ? treeObj2 : ( rootNode.isReceive? treeObj3 : treeObj1 );
@@ -1524,8 +1522,6 @@ function init (data, isOnTop, isOpen){
 	if(sel) treeObj1.selectNode(sel);
 
 	rMenu = $("#rMenu");
-
-	curTree = treeObj1;
 
 	if(!tree1WayPoint) setupWayPoint1();
 
@@ -1675,6 +1671,11 @@ function initShareTo (data, bForceUpdate) {
 	addAttrToNode( receiveRoot, {isReceive:true} );
 }
 
+function updateTreeObj(){
+	var idx = $('.currTab').data('idx');
+	treeObj = eval( 'treeObj'+ (idx+1) );
+}
+
 
 function addAttrToNode (node, obj) {
 	$.extend(node, obj);
@@ -1807,7 +1808,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 				if(!v || nodes.indexOf(v)>-1 ) return true;
 				if(v.isParent) {
 					if( !v.children || v.children.length==0 ) nodes.push(v);
-					else nodes = nodes.concat( curTree.getNodesByFilter(filter, false, v) );
+					else nodes = nodes.concat( treeObj.getNodesByFilter(filter, false, v) );
 				} else {
 					nodes.push(v);
 				}
@@ -2264,6 +2265,7 @@ function hideShare () {
 	var role = $('.company_wrap').data('role');
 	$('.company_wrap').data('role', null);
 	$('.company_wrap').hide();
+	updateTreeObj();
 
 	if(role=='member'){
 
@@ -2277,7 +2279,7 @@ function hideShare () {
 		$('.header').show();
 		//$('.treeCompanyCon').css({left: $('.company_wrap').width() });
 		updateMenu(sel);
-		curTree = treeObj;
+		console.log(treeObj);
 	}
 
 }
@@ -2316,7 +2318,6 @@ function shareNodePre(){
 	$('#isSign').prop('checked', false);
 	$('.flowCon, .flowPerson').hide();
 
-	curTree = companyTree;
 	var nodes = companyTree.getCheckedNodes();
 	var stuffs =  getAllFiles(nodes);
 
@@ -2384,7 +2385,6 @@ function shareNode (){
 		return;
 	}
 
-	curTree = treeObj;
 	var sel = treeObj.getSelectedNodes().shift();
 	var shareID = getShareID(sel);
 	var filePathS = {};
@@ -2424,7 +2424,6 @@ function shareNode (){
 
 	if(!isSign){
 
-		curTree = companyTree;
 		var nodes = companyTree.getCheckedNodes();
 		var stuffs =  getAllFiles(nodes);
 
@@ -2555,7 +2554,7 @@ function shareFile (){
 
 	$( "#mydialog" ).trigger( "dialog-close" );
 	$('.company_wrap').show().data('role', 'share');
-
+	
 	var isContact = $('.company_wrap').data('role')=='contact';
 	$('.button.chk').css('visibility', isContact? 'hidden': 'visible' );
 
@@ -2564,7 +2563,7 @@ function shareFile (){
 	$('.msgTitle').html( "分享 "+  title +' 给:' );
 	$('.treeCompanyCon').css({}, 300, 'linear');
 	updateMenu('.shareMenu');
-	curTree = companyTree;
+	treeObj = companyTree;
 
 }
 
@@ -4369,7 +4368,6 @@ $(function initPage () {
 		$('.company_wrap .msgTitle').html( '选择成员' );
 		$('.treeCompanyCon').css({}, 300, 'linear');
 		updateMenu('.shareMenu');
-		curTree = companyTree;
 	}
 
 
@@ -4438,8 +4436,7 @@ function showContact () {
 		$('.fClient').hide();
 	}
 
-	curTree = companyTree;
-	treeObj = curTree;
+	treeObj = companyTree;
 }
 
 function refreshPage () {
@@ -4506,11 +4503,13 @@ function openClient (address) {
 
 function hideCompanyTree (){
 	$('.company_wrap').hide().data('role', '');
+	
 	var prevPos = $('.content_wrap').data('prevPos');
 	$('.content_wrap').show();
 	$('.header').show();
 	updateMenu();
-	treeObj = eval( 'treeObj'+ ($('.currTab').data('idx')+1) );
+	updateTreeObj();
+
 	$(window).scrollTop(prevPos);
 };
 
