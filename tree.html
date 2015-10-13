@@ -1292,11 +1292,17 @@ function hidePrintCon() {
 			if( treeNode && treeNode.key) {
 				return true;
 			}
-			return false;
+			return true;
 		}
 		function onDblClick (event, treeId, treeNode) {
 
-			if(!treeNode || !treeNode.key ) return;
+			if(!treeNode ) return;
+
+			if( treeNode.isParent && treeNode.level==1 && treeNode.shareID ){
+				return viewDetail();
+			}
+
+			if( !treeNode.key ) return;
 
 			if( ! $('.content_wrap').is(':visible') ) return;
 			var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
@@ -2199,6 +2205,7 @@ var companySetting = {
 	callback: {
 		beforeClick: beforeClick2,
 		onClick: onClick2,
+		onDblClick: onDblClick2,
 
 	}
 }
@@ -2255,15 +2262,20 @@ function beforeClick2(treeId, treeNode, clickFlag) {
 function onClick2(event, treeId, treeNode, clickFlag) {
 
 	var isContact = $('.company_wrap').data('role')=='contact';
-	$('.button.chk').css('visibility', isContact? 'hidden': 'visible' );
 
 	if( !isContact && !treeNode.isParent ) companyTree.checkNode(treeNode, null, true);
 
 }
+function onDblClick2(event, treeId, treeNode, clickFlag) {
+	var tree = $.fn.zTree.getZTreeObj(treeId);
+	if( $('.fContact').is(':visible') ) viewContact();
+}
+
 
 function hideShare () {
 	var role = $('.company_wrap').data('role');
 	$('.company_wrap').data('role', null);
+	$('.clearInput:visible').click();
 	$('.company_wrap').hide();
 	updateTreeObj();
 
@@ -2556,7 +2568,6 @@ function shareFile (){
 	$('.company_wrap').show().data('role', 'share');
 
 	var isContact = $('.company_wrap').data('role')=='contact';
-	$('.button.chk').css('visibility', isContact? 'hidden': 'visible' );
 
 	hideContentWrap();
 	$('.header').hide();
@@ -2996,6 +3007,7 @@ function setupWayPoint1 () {
 				}catch(e){
 					return alert('获取文件错误')
 				}
+				tree1WayPoint.count++;
 
 				if(!data.length){
 					tree1WayPoint.disable();
@@ -3016,6 +3028,7 @@ function setupWayPoint1 () {
 	      return off;
 	    }
 	});
+	tree1WayPoint.count = 0;
 }
 
 function setupWayPoint2 () {
@@ -3050,12 +3063,13 @@ function setupWayPoint2 () {
 					var sel = treeObj2.getSelectedNodes().shift();
 					var pos = $(window).scrollTop();
 					initShareFrom(data);
-					// $(window).scrollTop(pos);
 					tree2WayPoint.context.refresh();
 
 					if(sel){
-						if(tree2WayPoint.count<2) treeObj2.selectNode(sel);
+						treeObj2.selectNode(sel);
 					}
+					$(window).scrollTop(pos);
+
 				}
 			}).fail(function(res) { $(el).removeData('shareID'); alert('服务器连接错误,稍候重试'); });
 
@@ -3102,12 +3116,12 @@ function setupWayPoint3 () {
 					var sel = treeObj3.getSelectedNodes().shift();
 					var pos = $(window).scrollTop();
 					initShareTo(data);
-					//$(window).scrollTop(pos);
 					tree3WayPoint.context.refresh();
 
 					if(sel){
-						if(tree3WayPoint.count<2) treeObj3.selectNode(sel);
+						treeObj3.selectNode(sel);
 					}
+					$(window).scrollTop(pos);
 				}
 			}).fail(function(res) { $(el).removeData('shareID'); alert('服务器连接错误,稍候重试'); });
 
@@ -4379,6 +4393,7 @@ $(function initPage () {
 
 	function addShareMember(){
 		$('.company_wrap').show().data('role', 'member');
+		treeObj = companyTree;
 		$('.msg_wrap').hide();
 		$('.company_wrap .msgTitle').html( '选择成员' );
 		$('.treeCompanyCon').css({}, 300, 'linear');
@@ -4432,6 +4447,15 @@ $(function initPage () {
 	$(window).resize();
 });
 
+function setCompanyTreeCheck (isCheck) {
+	isCheck = !isCheck;
+	var allNodes = companyTree.getNodesByFilter( function(v){
+		v.nocheck = isCheck;
+		companyTree.updateNode(v);
+	} );
+}
+
+
 function showContact () {
 
 	$('.company_wrap').show().data('role', 'contact');
@@ -4440,7 +4464,7 @@ function showContact () {
 	$(window).scrollTop(0);
 
 	var isContact = $('.company_wrap').data('role')=='contact';
-	$('.button.chk').css('visibility', isContact? 'hidden': 'visible' );
+	setCompanyTreeCheck(isContact ? false : true );
 
 	$('.content_wrap').data('prevPos', prevPos  ).hide();
 	$('.msg_wrap').hide();
@@ -4517,8 +4541,10 @@ function openClient (address) {
 }
 
 function hideCompanyTree (){
+	$('.clearInput:visible').click();
 	$('.company_wrap').hide().data('role', '');
-	
+	setCompanyTreeCheck(true);
+
 	var prevPos = $('.content_wrap').data('prevPos');
 	$('.content_wrap').show();
 	$('.header').show();
@@ -4580,7 +4606,7 @@ function searchByName (keyword) {
 	var nodes = treeObj.getNodesByFilter( function(p){
 		if(p.level==0) return false;
 
-		if( (p.title||p.name).match( new RegExp(keyword, 'i')) ){
+		if( ( (p.title||p.name)+' '+(p.userid||'')+' '+(p.mobile||'') ).match( new RegExp(keyword, 'i')) ){
 
 			nodes2 = nodes2.concat( treeObj.transformToArray(p) );
 
