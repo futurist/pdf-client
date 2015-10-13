@@ -1479,7 +1479,7 @@ function locateNode (rootNode, path, shareID, switchTo){
 			var p = targetNode.isParent ? targetNode : targetNode.getParentNode();
 			if(!p) p = targetNode;
 			var offset = $('#'+p.tId).offset();
-			$(window).scrollTop( offset.top-100 );
+			if(switchTo) $(window).scrollTop( offset.top-100 );
 		}, 0);
 
 	}
@@ -2554,7 +2554,7 @@ function shareFile (){
 
 	$( "#mydialog" ).trigger( "dialog-close" );
 	$('.company_wrap').show().data('role', 'share');
-	
+
 	var isContact = $('.company_wrap').data('role')=='contact';
 	$('.button.chk').css('visibility', isContact? 'hidden': 'visible' );
 
@@ -2974,6 +2974,8 @@ if(isWeiXin) initWX();
 
 function setupWayPoint1 () {
 
+	if( $('input.searchTxt').val() ) return;
+
 	var el = $('.tree1 .loadMore');
 	if(!el.length) return;
 
@@ -2986,7 +2988,9 @@ function setupWayPoint1 () {
 	    	var lastItem = fileData.pop();
 	    	if(!lastItem || $(el).data('order')==lastItem.order ) return;
 			$(el).data('order', lastItem.order);
+			el.next('.loadMoreIndi').show();
 			$.post(host+'/getfile', {person:rootPerson.userid, startOrder: lastItem.order  }, function  (data) {
+				el.next('.loadMoreIndi').hide();
 				try{
 					data=JSON.parse(data);
 				}catch(e){
@@ -3015,6 +3019,7 @@ function setupWayPoint1 () {
 }
 
 function setupWayPoint2 () {
+	if( $('input.searchTxt').val() ) return;
 
 	var el = $('.tree2 .loadMore');
 	if(!el.length) return;
@@ -3028,13 +3033,15 @@ function setupWayPoint2 () {
 	    	var lastItem = futurist.array_last_item(treeObj2.getNodes()[0].children) ;
 	    	if(!lastItem || $(el).data('shareID')==lastItem.shareID ) return;
 			$(el).data('shareID', lastItem.shareID);
-
+			el.next('.loadMoreIndi').show();
 			$.post(host+'/getShareFrom', {person:rootPerson.userid, startShareID: lastItem.shareID}, function  (data) {
+				el.next('.loadMoreIndi').hide();
 				try{
 					data=JSON.parse(data);
 				}catch(e){
 					return alert('获取文件错误')
 				}
+				tree2WayPoint.count++;
 
 				if(!data.length){
 					tree2WayPoint.disable();
@@ -3043,11 +3050,11 @@ function setupWayPoint2 () {
 					var sel = treeObj2.getSelectedNodes().shift();
 					var pos = $(window).scrollTop();
 					initShareFrom(data);
-					$(window).scrollTop(pos);
+					// $(window).scrollTop(pos);
 					tree2WayPoint.context.refresh();
 
 					if(sel){
-						treeObj2.selectNode(sel);
+						if(tree2WayPoint.count<2) treeObj2.selectNode(sel);
 					}
 				}
 			}).fail(function(res) { $(el).removeData('shareID'); alert('服务器连接错误,稍候重试'); });
@@ -3059,9 +3066,11 @@ function setupWayPoint2 () {
 	      return off;
 	    }
 	});
+	tree2WayPoint.count = 0;
 }
 
 function setupWayPoint3 () {
+	if( $('input.searchTxt').val() ) return;
 
 	var el = $('.tree3 .loadMore');
 	if(!el.length) return;
@@ -3075,13 +3084,16 @@ function setupWayPoint3 () {
 	    	var lastItem = futurist.array_last_item(treeObj3.getNodes()[0].children) ;
 	    	if(!lastItem || $(el).data('shareID')==lastItem.shareID ) return;
 			$(el).data('shareID', lastItem.shareID);
-
+			
+			el.next('.loadMoreIndi').show();
 			$.post(host+'/getShareTo', {person:rootPerson.userid, startShareID: lastItem.shareID}, function  (data) {
+				el.next('.loadMoreIndi').hide();
 				try{
 					data=JSON.parse(data);
 				}catch(e){
 					return alert('获取文件错误')
 				}
+				tree3WayPoint.count++;
 
 				if(!data.length){
 					tree3WayPoint.disable();
@@ -3090,11 +3102,11 @@ function setupWayPoint3 () {
 					var sel = treeObj3.getSelectedNodes().shift();
 					var pos = $(window).scrollTop();
 					initShareTo(data);
-					$(window).scrollTop(pos);
+					//$(window).scrollTop(pos);
 					tree3WayPoint.context.refresh();
 
 					if(sel){
-						treeObj3.selectNode(sel);
+						if(tree3WayPoint.count<2) treeObj3.selectNode(sel);
 					}
 				}
 			}).fail(function(res) { $(el).removeData('shareID'); alert('服务器连接错误,稍候重试'); });
@@ -3106,6 +3118,7 @@ function setupWayPoint3 () {
 	      return off;
 	    }
 	});
+	tree3WayPoint.count = 0;
 }
 
 
@@ -3116,7 +3129,9 @@ $(function  () {
 	$('.searchDIV .clearInput').css( 'left', inputWidth+58+'px' );
 
 	$('.clearInput').on('click', function  () {
+		delete treeObj.prevKeyword;
 		$(this).hide().prev().val('');
+		searchByName('');
 	});
 
 	$.post(host+ (wxUserInfo? '/getUserInfo' : '/getLoginUserInfo') , { userid: wxUserInfo? wxUserInfo.UserId:'' }, function  (userinfo) {
@@ -4764,6 +4779,12 @@ dl, dd, dt{
 
 
 .loadMore{
+	height: 1px;
+	overflow: hidden;
+	display: none;
+}
+
+.loadMoreIndi{
 	/*text-align: center;*/
 	color:#666;
 	padding-left: 45px;
@@ -4876,17 +4897,20 @@ dl, dd, dt{
 <div class="content_wrap">
 	<div class="tree1">
 		<ul id="fileTree" class="ztree ztreeFile"></ul>
-		<div class="loadMore"><i class="fa fa-refresh fa-spin"></i>&nbsp;&nbsp;加载中...</div>
+		<div class="loadMore"></div>
+		<div class="loadMoreIndi"><i class="fa fa-refresh fa-spin"></i>&nbsp;&nbsp;加载中...</div>
 	</div>
 
 	<div class="tree2">
 		<ul id="fileTree2" class="ztree ztreeFile"></ul>
-		<div class="loadMore"><i class="fa fa-refresh fa-spin"></i>&nbsp;&nbsp;加载中...</div>
+		<div class="loadMore"></div>
+		<div class="loadMoreIndi"><i class="fa fa-refresh fa-spin"></i>&nbsp;&nbsp;加载中...</div>
 	</div>
 
 	<div class="tree3">
 		<ul id="fileTree3" class="ztree ztreeFile"></ul>
-		<div class="loadMore"><i class="fa fa-refresh fa-spin"></i>&nbsp;&nbsp;加载中...</div>
+		<div class="loadMore"></div>
+		<div class="loadMoreIndi"><i class="fa fa-refresh fa-spin"></i>&nbsp;&nbsp;加载中...</div>
 	</div>
 
 </div>
