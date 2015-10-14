@@ -1087,7 +1087,7 @@ app.post("/upfile", function (req, res) {
 
     var client = data.client.replace(/\\/g,'').toLowerCase();
 
-    col.findOne({role:'stuff', $or:[ {'stuffList.client': client}, {'stuffList.ip': client} ] }, 
+    col.findOne({role:'stuff', $or:[ {'stuffList.client': client}, {'stuffList.ip': client} ] },
                 {fields: {'stuffList': {$elemMatch: { $or:[ {client: client}, {ip:client} ] } }  } }, function(err, ret){
       if(err|| !ret) {
         console.log('No client found:', client);
@@ -2331,28 +2331,39 @@ app.post("/deleteSign", function (req, res) {
 });
 
 app.post("/deleteSignOnly", function (req, res) {
-  var id =  req.body.id;
+  var signID =  req.body.signID;
   var person =  req.body.person;
   var file =  req.body.file;
   var shareID =  safeEval( req.body.shareID);
-  var signIDX =  safeEval( req.body.idx);
-  if(!file || !id.length){
+  if(!file || !signID.length){
     return res.send('');
   }
 
   var fileKey = file.replace(FILE_HOST, '');
 
   	if(shareID){
-  		var unsetObj = {};
-  		unsetObj[ 'files.$.signIDS.'+ signIDX +'.signData' ] = '';
-  		unsetObj[ 'files.$.signIDS.'+ signIDX +'.signPerson' ] = '';
 
-		col.findOneAndUpdate( {role:'share', shareID:shareID, 'files.key':fileKey, 'files.signIDS._id': id },
-			{ $unset:unsetObj }, { projection:{ key:1, 'signIDS':1} }, function(err, result) {
-          res.send( result );
-        });
+
+      getSignIndex(shareID, fileKey, signID, _relay);
+
+      function _relay(err, val) {
+        if(err) return res.end();
+        var fileIdx = val.fileIdx;
+        var signIdx = val.signIdx;
+
+        var unsetObj = {};
+        unsetObj[ 'files.'+ fileIdx +'.signIDS.'+ signIdx +'.signData' ] = '';
+        unsetObj[ 'files.'+ fileIdx +'.signIDS.'+ signIdx +'.signPerson' ] = '';
+
+        col.findOneAndUpdate( {role:'share', shareID:shareID, 'files.key':fileKey, 'files.signIDS._id': signID },
+          { $unset:unsetObj }, { projection:{ key:1, 'signIDS':1} }, function(err, result) {
+              res.send( result );
+            });
+      }
+  		
+
   	} else {
-  		col.findOneAndUpdate( {role:'upfile', 'key':fileKey, 'signIDS._id': id },
+  		col.findOneAndUpdate( {role:'upfile', 'key':fileKey, 'signIDS._id': signID },
 			{ $unset:{'signIDS.$.signData': '', 'signIDS.$.signPerson': '' } }, { projection:{ key:1, 'signIDS':1} }, function(err, result) {
           res.send( result.value );
         });
@@ -2370,10 +2381,10 @@ function getSubStr (str, len) {
 app.post("/getSignStatus", function (req, res) {
   var shareID = safeEval(req.body.shareID);
   var signID =  req.body.signID;
-  
+
   if(shareID){
-      col.findOne({role:'share', shareID:shareID, 'selectRange.signID': signID }, 
-        { fields:{ selectRange: { $elemMatch:{ signID:signID } } } }, 
+      col.findOne({role:'share', shareID:shareID, 'selectRange.signID': signID },
+        { fields:{ selectRange: { $elemMatch:{ signID:signID } } } },
         function  (err, ret) {
 
           if(err||!ret) return res.send('');
@@ -2388,7 +2399,7 @@ app.post("/getSignStatus", function (req, res) {
 app.post("/getSignStatus3", function (req, res) {
   var shareID = safeEval(req.body.shareID);
   var signID =  req.body.signID;
-  
+
   if(shareID){
       col.aggregate( [ {$match:{role:'share', shareID:shareID} }, {$unwind:'$files'}, {$unwind:'$files.signIDS'}, {$match:{ 'files.signIDS._id':signID }}, {$project: {'files.signIDS':1} } ], function(err, ret) {
 
@@ -2420,103 +2431,157 @@ app.post("/getSignStatus2", function (req, res) {
 app.post("/finishSign", function (req, res) {
   var shareID =  safeEval(req.body.shareID);
   var person =  req.body.person;
+  var fileKey =  req.body.fileKey;
+  var signID =  req.body.signID;
 
-  col.findOne({shareID:shareID, role:'share'}, function(err, colShare){
+  getSignIndex( shareID, fileKey, signID, _relay );
 
-    if(colShare.isFinish) return res.send('');
+  function _relay(err, indexVal) {
 
-    var flowName = colShare.flowName;
-    var curFlowPos = colShare.curFlowPos+1;
-    var file = colShare.files[0];
+    if(err) return res.end();
 
-    var fileKey = file.key;
-    var flowName = colShare.flowName;
-    var msg = colShare.msg;
-    var title = getSubStr( '流程-'+shareID+flowName+ (msg), 50);
-    var overAllPath = util.format('%s#file=%s&shareID=%d&isSign=1', VIEWER_URL, FILE_HOST+ encodeURIComponent(fileKey), shareID ) ;
+    var fileIdx = indexVal.fileIdx;
+    var signIdx = indexVal.signIdx;
 
+    col.findOne({shareID:shareID, role:'share'}, function(err, colShare) {
 
+      if(colShare.isFinish) return res.send('');
 
-    var selPosObj = {};
-    var selPos = 'selectRange.'+ (curFlowPos-1) + '.isSigned';
-    selPosObj[selPos] = true;
+      var flowName = colShare.flowName;
+      var curFlowPos = colShare.curFlowPos+1;
+      var file = colShare.files[fileIdx];
 
-
-    var prevPerson = colShare.selectRange.slice(0,curFlowPos);
-    var nextPerson = colShare.selectRange[curFlowPos];
-    var curPerson = _.last(prevPerson);
-
-    var toPerson = colShare.toPerson;
+      var fileKey = file.key;
+      var flowName = colShare.flowName;
+      var msg = colShare.msg;
+      var title = getSubStr( '流程-'+shareID+flowName+ (msg), 50);
+      var overAllPath = util.format('%s#file=%s&shareID=%d&isSign=1', VIEWER_URL, FILE_HOST+ encodeURIComponent(fileKey), shareID ) ;
 
 
-    if(curFlowPos >= colShare.selectRange.length){
+
+      var selPosObj = {};
+      var selPos = 'selectRange.'+ (curFlowPos-1) + '.isSigned';
+      selPosObj[selPos] = true;
+      selPosObj['files.'+fileIdx+'.signIDS.'+signIdx+'.isSigned'] = true;
 
 
-		      wsBroadcast( {role:'share', isFinish:true, key:fileKey, data:colShare } );
+      var prevPerson = colShare.selectRange.slice(0,curFlowPos);
+      var nextPerson = colShare.selectRange[curFlowPos];
+      var curPerson = _.last(prevPerson);
+
+      var toPerson = colShare.toPerson;
 
 
-        selPosObj.isFinish = true;
+      if(curFlowPos >= colShare.selectRange.length){
 
-        var updateObj = { $set: selPosObj, $inc:{curFlowPos:1} };
 
-        var lastStep = colShare.flowSteps.slice(colShare.selectRange.length).shift();
+  		      wsBroadcast( {role:'share', isFinish:true, key:fileKey, data:colShare } );
 
-        if( lastStep ) {
-          var lastPersons = lastStep.person.map(function(x){
-            return placerholderToUser( colShare.fromPerson[0].userid, x );
+
+          selPosObj.isFinish = true;
+
+          var updateObj = { $set: selPosObj, $inc:{curFlowPos:1} };
+
+          var lastStep = colShare.flowSteps.slice(colShare.selectRange.length).shift();
+
+          if( lastStep ) {
+            var lastPersons = lastStep.person.map(function(x){
+              return placerholderToUser( colShare.fromPerson[0].userid, x );
+            });
+
+            updateObj['$push'] = { toPerson: lastPersons };
+
+            res.send( util.format( '流程%d %s (%s-%s)已结束，转交至%s处理',
+                        colShare.shareID,
+                        msg,
+                        colShare.flowName,
+                        colShare.fromPerson[0].name,
+                        lastPersons.map(function(x){ return x.depart+'-'+x.name }).join(',')
+                        )
+                         );
+
+            var wxmsg = {
+             "touser": _.flatten(colShare.toPerson.concat(colShare.fromPerson).concat(lastPersons) ).map(function(v){return v.userid}).join('|'),
+             "touserName": _.flatten(colShare.toPerson.concat(colShare.fromPerson).concat(lastPersons) ).map(function(v){return v.name}).join('|'),
+             "msgtype": "text",
+             "text": {
+               "content":
+               util.format('流程%d %s (%s-%s)已由%s签署,此流程已结束并转交至：%s, <a href="%s">点此预览</a>',
+                  colShare.shareID,
+                  msg,
+                  colShare.flowName,
+                  colShare.fromPerson[0].name,
+                  curPerson.depart+'-'+curPerson.name,
+                  lastPersons.map(function(x){ return x.depart+'-'+x.name }).join(','),
+                  overAllPath  // if we need segmented path:   pathName.join('-'),
+                )
+             },
+             "safe":"0",
+              date : new Date(),
+              role : 'shareMsg',
+              shareID:shareID
+            };
+
+            sendWXMessage(wxmsg);
+
+
+          } else {
+
+
+            var wxmsg = {
+             "touser": _.flatten(colShare.toPerson.concat(colShare.fromPerson)).map(function(v){return v.userid}).join('|'),
+             "touserName": _.flatten(colShare.toPerson.concat(colShare.fromPerson)).map(function(v){return v.name}).join('|'),
+             "msgtype": "text",
+             "text": {
+               "content":
+               util.format('流程%d %s (%s-%s)已由%s签署,此流程已结束 <a href="%s">点此预览</a>',
+                  colShare.shareID,
+                  msg,
+                  colShare.flowName,
+                  colShare.fromPerson[0].name,
+                  curPerson.depart+'-'+curPerson.name,
+                  overAllPath  // if we need segmented path:   pathName.join('-'),
+                )
+             },
+             "safe":"0",
+              date : new Date(),
+              role : 'shareMsg',
+              shareID:shareID
+            };
+
+            sendWXMessage(wxmsg);
+
+
+            res.send( util.format( '流程%d %s (%s-%s)已结束，系统将通知相关人员知悉',
+                        colShare.shareID,
+                        msg,
+                        colShare.flowName,
+                        colShare.fromPerson[0].name ) );
+
+          }
+
+
+          col.update({role:'share', shareID:shareID }, updateObj, function  () {
+
           });
-
-          updateObj['$push'] = { toPerson: lastPersons };
-
-          res.send( util.format( '流程%d %s (%s-%s)已结束，转交至%s处理',
-                      colShare.shareID,
-                      msg,
-                      colShare.flowName,
-                      colShare.fromPerson[0].name,
-                      lastPersons.map(function(x){ return x.depart+'-'+x.name }).join(',')
-                      )
-                       );
-
-          var wxmsg = {
-           "touser": _.flatten(colShare.toPerson.concat(colShare.fromPerson).concat(lastPersons) ).map(function(v){return v.userid}).join('|'),
-           "touserName": _.flatten(colShare.toPerson.concat(colShare.fromPerson).concat(lastPersons) ).map(function(v){return v.name}).join('|'),
-           "msgtype": "text",
-           "text": {
-             "content":
-             util.format('流程%d %s (%s-%s)已由%s签署,此流程已结束并转交至：%s, <a href="%s">点此预览</a>',
-                colShare.shareID,
-                msg,
-                colShare.flowName,
-                colShare.fromPerson[0].name,
-                curPerson.depart+'-'+curPerson.name,
-                lastPersons.map(function(x){ return x.depart+'-'+x.name }).join(','),
-                overAllPath  // if we need segmented path:   pathName.join('-'),
-              )
-           },
-           "safe":"0",
-            date : new Date(),
-            role : 'shareMsg',
-            shareID:shareID
-          };
-
-          sendWXMessage(wxmsg);
 
 
         } else {
 
-
+          //info to all person about the status
           var wxmsg = {
            "touser": _.flatten(colShare.toPerson.concat(colShare.fromPerson)).map(function(v){return v.userid}).join('|'),
            "touserName": _.flatten(colShare.toPerson.concat(colShare.fromPerson)).map(function(v){return v.name}).join('|'),
            "msgtype": "text",
            "text": {
              "content":
-             util.format('流程%d %s (%s-%s)已由%s签署,此流程已结束 <a href="%s">点此预览</a>',
+             util.format('流程%d %s (%s-%s)已由 %s 签署,此流程已转交给下一经办人：%s <a href="%s">点此查看</a>',
                 colShare.shareID,
                 msg,
                 colShare.flowName,
                 colShare.fromPerson[0].name,
                 curPerson.depart+'-'+curPerson.name,
+                nextPerson.name,
                 overAllPath  // if we need segmented path:   pathName.join('-'),
               )
            },
@@ -2529,95 +2594,57 @@ app.post("/finishSign", function (req, res) {
           sendWXMessage(wxmsg);
 
 
-          res.send( util.format( '流程%d %s (%s-%s)已结束，系统将通知相关人员知悉',
-                      colShare.shareID,
-                      msg,
-                      colShare.flowName,
-                      colShare.fromPerson[0].name ) );
+          var nextGroup = colShare.flowSteps[curFlowPos].person.map(function(x){
+            return placerholderToUser( colShare.fromPerson[0].userid, x );
+          });
+          //info to next Person via WX
+          var wxmsg = {
+           "touser": nextGroup.map(function(x){ return x.userid }).join('|'),
+           "touserName": nextGroup.map(function(x){ return x.name }).join('|'),
+           "msgtype": "text",
+           "text": {
+             "content":
+             util.format('流程%d %s (%s-%s)需处理, 本组成员：(%s), 前置签署：%s。<a href="%s">点此查看</a>',
+                colShare.shareID,
+                msg,
+                colShare.flowName,
+                colShare.fromPerson[0].name,
+                nextGroup.map(function(x){ return x.name }).join(','),
+                prevPerson.map(function(x){return x.depart+'-'+x.name}).join(','),
+                overAllPath  // if we need segmented path:   pathName.join('-'),
+              )
+           },
+           "safe":"0",
+            date : new Date(),
+            role : 'shareMsg',
+            privateShareID:shareID
+          };
+
+          _.delay(function  () {
+          	sendWXMessage(wxmsg);
+          }, 3000);
+
+
+          col.update( {_id: colShare._id }, { $push: { toPerson: nextGroup }, $set:selPosObj, $inc:{curFlowPos:1} }, {w:1}, function(){
+            res.send( util.format( '流程%d(%s-%s)已转交给下一经办人：\n%s',
+                    colShare.shareID,
+                    colShare.flowName,
+                    colShare.fromPerson[0].name,
+                    nextPerson.depart+'-'+nextPerson.name ) );
+          });
+
+          // col.update({role:'share', shareID:shareID }, {$set: selPosObj } ) ;
+
 
         }
 
+      // col.findOne({role:'flow', name:flowName }, function(err, colFlow){});
 
-        col.update({role:'share', shareID:shareID }, updateObj, function  () {
-
-        });
-
-
-      } else {
-
-        //info to all person about the status
-        var wxmsg = {
-         "touser": _.flatten(colShare.toPerson.concat(colShare.fromPerson)).map(function(v){return v.userid}).join('|'),
-         "touserName": _.flatten(colShare.toPerson.concat(colShare.fromPerson)).map(function(v){return v.name}).join('|'),
-         "msgtype": "text",
-         "text": {
-           "content":
-           util.format('流程%d %s (%s-%s)已由 %s 签署,此流程已转交给下一经办人：%s <a href="%s">点此查看</a>',
-              colShare.shareID,
-              msg,
-              colShare.flowName,
-              colShare.fromPerson[0].name,
-              curPerson.depart+'-'+curPerson.name,
-              nextPerson.name,
-              overAllPath  // if we need segmented path:   pathName.join('-'),
-            )
-         },
-         "safe":"0",
-          date : new Date(),
-          role : 'shareMsg',
-          shareID:shareID
-        };
-
-        sendWXMessage(wxmsg);
+    } );
+  }
 
 
-        var nextGroup = colShare.flowSteps[curFlowPos].person.map(function(x){
-          return placerholderToUser( colShare.fromPerson[0].userid, x );
-        });
-        //info to next Person via WX
-        var wxmsg = {
-         "touser": nextGroup.map(function(x){ return x.userid }).join('|'),
-         "touserName": nextGroup.map(function(x){ return x.name }).join('|'),
-         "msgtype": "text",
-         "text": {
-           "content":
-           util.format('流程%d %s (%s-%s)需处理, 本组成员：(%s), 前置签署：%s。<a href="%s">点此查看</a>',
-              colShare.shareID,
-              msg,
-              colShare.flowName,
-              colShare.fromPerson[0].name,
-              nextGroup.map(function(x){ return x.name }).join(','),
-              prevPerson.map(function(x){return x.depart+'-'+x.name}).join(','),
-              overAllPath  // if we need segmented path:   pathName.join('-'),
-            )
-         },
-         "safe":"0",
-          date : new Date(),
-          role : 'shareMsg',
-          privateShareID:shareID
-        };
 
-        _.delay(function  () {
-        	sendWXMessage(wxmsg);
-        }, 3000);
-
-
-        col.update( {_id: colShare._id }, { $push: { toPerson: nextGroup }, $set:selPosObj, $inc:{curFlowPos:1} }, {w:1}, function(){
-          res.send( util.format( '流程%d(%s-%s)已转交给下一经办人：\n%s',
-                  colShare.shareID,
-                  colShare.flowName,
-                  colShare.fromPerson[0].name,
-                  nextPerson.depart+'-'+nextPerson.name ) );
-        });
-
-        // col.update({role:'share', shareID:shareID }, {$set: selPosObj } ) ;
-
-
-      }
-
-    // col.findOne({role:'flow', name:flowName }, function(err, colFlow){});
-
-  } );
 
 });
 
@@ -2715,10 +2742,33 @@ app.post("/saveSignFlow2", function (req, res) {
 
 });
 
+
+function getSignIndex (shareID, fileKey, signID, callback) {
+  col.mapReduce(
+            function() {
+              var val, signIdx;
+              this.files.some(function(v,i){ if(v.key==fileKey) return val=i; });
+              this.files[val].signIDS.some(function(v,i){ if(v._id==signID) return signIdx=i; });
+              emit(this._id, {fileIdx:val, signIdx:signIdx} );
+            },
+            function() {},
+            {
+              "out": { "inline": 1 },
+              "query": { shareID:shareID, "files.key": fileKey },
+              "scope": {fileKey:fileKey, signID:signID}
+            },
+            function(err, ret) {
+
+              if(err) return callback(err, null);
+              var val = ret.shift().value;
+              callback(null, val);
+
+            });
+}
+
 app.post("/saveSign", function (req, res) {
   var data =  req.body.data;
   var signID =  req.body.signID;
-  var signIDX =  safeEval(req.body.signIDX);
   var fileKey =  req.body.fileKey;
   var shareID =  safeEval(req.body.shareID);
   var hisID =  req.body.hisID;
@@ -2730,43 +2780,69 @@ app.post("/saveSign", function (req, res) {
       function insertHis(id){
       	if(shareID){
 
-      		var key1 = 'files.$.signIDS.'+ signIDX +'.signData';
-      		var key2 = 'files.$.signIDS.'+ signIDX +'.signPerson';
-      		var setObj = {};
-      		setObj[key1] =  new ObjectID(id);
-      		setObj[key2] =  person;
+          getSignIndex( shareID, fileKey, signID, _relay );
 
-          var condition = {role:'share', shareID:shareID, 'files.key':fileKey };
-          condition['selectRange.'+curFlowPos+'.isSigned'] = {$ne: true };
+      		function _relay (err, val) {
+            if(err) return res.end();
 
-      		// http://stackoverflow.com/questions/18986505/mongodb-array-element-projection-with-findoneandupdate-doesnt-work
-  			   col.findOneAndUpdate( condition, { $set: setObj }, { projection:{ key:1, 'files': {$elemMatch: {key: fileKey} } } } , function(err, result) {
+            var fileIdx = val.fileIdx;
+            var signIdx = val.signIdx;
 
-                if(err || !result ) {
-      						return res.send('');
-      					}
+            var key1 = 'files.'+ fileIdx +'.signIDS.'+signIdx+'.signData';
+            var key2 = 'files.'+ fileIdx +'.signIDS.'+signIdx+'.signPerson';
+            var setObj = {};
+            setObj[key1] =  new ObjectID(id);
+            setObj[key2] =  person;
 
-      					try{var ret=result.value.files.shift().signIDS[ signIDX ]; }
-      					catch(e){
-      						return res.send('');
-      					}
-  	          	res.send( ret );
+            var condition = {role:'share', shareID:shareID, 'files.key':fileKey };
+
+            condition['files.'+fileIdx+'.signIDS._id'] = signID;
+            condition['selectRange.'+curFlowPos+'.isSigned'] = {$ne: true };
+
+            var projection = {  };
+            projection[ 'files' ] = {$elemMatch: {key: fileKey} }
+
+            // console.log(condition, setObj, projection);
+            // BELOW WILL THROW ERROR: exception: Cannot use $elemMatch projection on a nested field (currently unsupported).
+            // projection[ 'files.'+fileIdx+'.signIDS' ] = {$elemMatch: {_id: signID} }
+
+            // http://stackoverflow.com/questions/18986505/mongodb-array-element-projection-with-findoneandupdate-doesnt-work
+             col.findOneAndUpdate( condition, { $set: setObj }, { projection:projection  } , function(err, result) {
+
+                  if(err || !result ) {
+                    console.log(err);
+                    return res.send('');
+                  }
+
+                  try{var ret=result.value.files.shift().signIDS.filter(function(v){ return v._id==signID }).shift() ; }
+                  catch(e){
+                    return res.send('');
+                  }
+
+                  res.send( ret );
 
 
-  	        });
+              });
+            }
+
+
+
+
       	} else {
+
+
       		col.findOneAndUpdate( {role:'upfile', 'key':fileKey, 'signIDS._id': signID },
-				{ $set:{'signIDS.$.signData': new ObjectID(id), 'signIDS.$.signPerson': person } }, { projection:{ key:1, 'signIDS':1} }, function(err, result) {
+  				  { $set:{'signIDS.$.signData': new ObjectID(id), 'signIDS.$.signPerson': person } }, 
+            { projection:{ key:1, 'signIDS':1} }, function(err, result) {
 
-			if(err) return res.send('');
+            if(err) return res.send('');
 
-				try{var ret=result.value.signIDS[signIDX]; }
-				catch(e){
-					return res.send('');
-				}
+            try{var ret=result.value.signIDS.filter(function(v){ return v._id==signID }).shift(); }
+            catch(e){
+            	return res.send('');
+            }
 
 	          res.send( ret );
-
 
 	        });
       	}
