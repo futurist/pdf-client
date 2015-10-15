@@ -53,6 +53,28 @@ moment.locale('zh-cn');
 
 //******* Common Function & Variable part **************
 
+// to make postJSON request, not use $post since it's become all string!
+// http://stackoverflow.com/questions/22236555/accessing-json-string-parsed-by-nodes-express-bodyparser
+function $post (url, data, callback) {
+  if (arguments.length == 2) { // if only two arguments were supplied
+    if ( $.type(data)=='function' ) {
+      callback = data; 
+      data = {};
+    }
+  }
+
+  return $.ajax({
+    url: url,
+    type: "POST",
+    crossDomain: true,
+    data: JSON.stringify(data),
+    contentType : 'application/json',
+    // dataType: "json", // response type
+    success:callback
+  });
+}
+
+
 function searchToObject(search) {
   return search.substring(1).split("&").reduce(function(result, value) {
     var parts = value.split('=');
@@ -279,7 +301,7 @@ function applyTemplatePre () {
 	}
 
 
-	$.post( host + '/getSavedSign', { file:sel.key, person:rootPerson.userid }, function(data){
+	$post( host + '/getSavedSign', { file:sel.key, person:rootPerson.userid }, function(data){
 	  	if(!data) return alert('无法获取流程信息');
 
   	    savedSignData = data.signIDS;
@@ -463,7 +485,7 @@ function applyTemplate () {
 
 	$('.bg_mask').show();
 
-	$.post(host+'/applyTemplate2', { info: JSON.stringify(info), userid: rootPerson.userid, path:path, signIDS:savedSignData }, function  (data) {
+	$post(host+'/applyTemplate2', { info: JSON.stringify(info), userid: rootPerson.userid, path:path, signIDS:savedSignData }, function  (data) {
 		$('.bg_mask').hide();
 		hideTemplateCon();
 	});
@@ -471,7 +493,7 @@ function applyTemplate () {
 
 	return;
 
-	$.post(host+'/applyTemplate', { info: JSON.stringify(info), userid: rootPerson.userid, path:path }, function  (data) {
+	$post(host+'/applyTemplate', { info: JSON.stringify(info), userid: rootPerson.userid, path:path }, function  (data) {
 		$('.bg_mask').hide();
 		hideTemplateCon();
 		reloadTree1(data);
@@ -1081,12 +1103,12 @@ function hidePrintCon() {
 						var msg = "要删除的节点是目录，如果删除将连同内部的文件一起删掉。\n\n请确认！";
 						window.confirm(msg, function(ok){
 							if (ok==true){
-								$.post(host+'/removeFolder', { path: getPath(nodes[0]), deleteAll: true}, function  () {} );
+								$post(host+'/removeFolder', { path: getPath(nodes[0]), deleteAll: true}, function  () {} );
 								treeObj.removeNode(nodes[0]);
 							}
 						});
 					} else {
-						$.post(host+'/removeFile', { hash:nodes[0].hash, key:nodes[0].key, shareID: shareID }, function  () {} );
+						$post(host+'/removeFile', { hash:nodes[0].hash, key:nodes[0].key, shareID: shareID }, function  () {} );
 						treeObj.removeNode(nodes[0]);
 					}
 				}
@@ -1415,7 +1437,7 @@ function getFilesData () {
 
 
 
-	$.post(host+'/getfile', {person:rootPerson.userid}, function  (data) {
+	$post(host+'/getfile', {person:rootPerson.userid}, function  (data) {
 		if(!data){
 			setTimeout(getFilesData, 1000);
 			return;
@@ -1428,12 +1450,12 @@ function getFilesData () {
 			locateNode( treeObj.getNodes()[0], urlQuery.path, null, true );
 		}
 
-		$.post(host+'/getTemplateFiles', { depart:rootPerson.depart }, function  (data) {
+		$post(host+'/getTemplateFiles', { depart:rootPerson.depart }, function  (data) {
 			if(!data) return;
 			initTemplateFileTree(data);
 		});
 
-		$.post(host+'/getPrintList', { company:COMPANY_NAME }, function  (data) {
+		$post(host+'/getPrintList', { company:COMPANY_NAME }, function  (data) {
 			if(!data) return;
 			initPrintTree(data);
 		});
@@ -1704,7 +1726,7 @@ function getNodeByHash(tree, hash, switchTo){
 }
 
 function reloadTree1 (fileObj, switchTo){
-	$.post(host+'/getfile', {person:rootPerson.userid}, function  (data) {
+	$post(host+'/getfile', {person:rootPerson.userid}, function  (data) {
 		data = JSON.parse(data);
 		root = [];
 		data.forEach(function(v) {
@@ -1735,7 +1757,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 	if(shareID && (openShare || openMessage ) ) {
 		//hideContentWrap();
 	}
-	$.post(host+'/getShareFrom', {person:rootPerson.userid}, function  (data) {
+	$post(host+'/getShareFrom', {person:rootPerson.userid}, function  (data) {
 		if(!data) window.location.reload();
 
 		var curTab = $('.currTab').data('idx');
@@ -1752,7 +1774,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 		}
 	});
 
-	$.post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
+	$post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
 		if(!data) window.location.reload();
 
 		var curTab = $('.currTab').data('idx');
@@ -1880,7 +1902,7 @@ function getFileKeys(node){
 				postArr.push(obj);
 				$.merge( partPath, breakIntoPath(v.path) );
 			});
-			$.post( host+'/updatefile', {type:type, data:postArr} );
+			$post( host+'/updatefile', {type:type, data:postArr} );
 
 			//clean up all empty folder with part of the filename
 			partPath = $.unique(partPath);
@@ -2159,7 +2181,7 @@ function setFileTemplate (isSet) {
 	if(!sel.length) return;
 	var hashA = sel.map(function(v){return v.hash});
 
-	$.post( host+'/setFileTemplate', {hashA: hashA, isSet: isSet}, function(err){
+	$post( host+'/setFileTemplate', {hashA: hashA, isSet: isSet}, function(err){
 		if(err) return alert('有错误发生');
 		sel.forEach(function(v){
 			v.isTemplate = isSet;
@@ -2368,7 +2390,7 @@ function shareNodePre(){
 		var shareID = getShareID( sel );
 		var shareName = '/'+getShareName(sel)+'/';
 
-		$.post(host+'/addMember', {shareID:shareID, shareName:shareName, stuffs:stuffs, personName: rootPerson.name }, function  (ret) {
+		$post(host+'/addMember', {shareID:shareID, shareName:shareName, stuffs:stuffs, personName: rootPerson.name }, function  (ret) {
 			if(!ret) return alert('添加成员错误');
 			console.log( ret );
 			$('.memberList').html('<b>'+ ret.map(function(v){return v.name}).join(',') +'</b>');
@@ -2490,7 +2512,7 @@ function shareNode (){
 	}
 
 	//console.log(json);return;
-	$.post(host+'/shareFile', {data: JSON.stringify(json) }, function(data) {
+	$post(host+'/shareFile', {data: JSON.stringify(json) }, function(data) {
 		$( "#mydialog" ).trigger( "dialog-close" );
 		if(existShareID){
 			reloadTree2(files[0].key, data.shareID, true);
@@ -2643,7 +2665,7 @@ function viewDetail () {
 	}
 
 	$('.msgTree ul').empty();
-	$.post(host+'/getShareMsg', condition , function(data){
+	$post(host+'/getShareMsg', condition , function(data){
 		if(!data)return;
 		data = JSON.parse(data);
 		var lastData = data[data.length-1];
@@ -2800,7 +2822,7 @@ function sendShareMsg ( state ) {
 
 	var data = { person: rootPerson.userid, shareID:p.shareID, text:val, hash:hash, fileKey:sel.key, path:path.split('/'), fileName: fileName };
 
-	$.post(host+'/sendShareMsg', data , function(ret){
+	$post(host+'/sendShareMsg', data , function(ret){
 		if(!ret){
 			return alert('消息发送错误，请复试');
 		}
@@ -2824,7 +2846,7 @@ window.wxReady = false;
 
 var wxInitTryCount = 0;
 function initWX() {
-	$.post(host+'/getJSConfig', { url:window.location.href.split('#')[0] }, function(data){
+	$post(host+'/getJSConfig', { url:window.location.href.split('#')[0] }, function(data){
 		if(!data){
 			if(wxInitTryCount++<3){
 				initWX();
@@ -2966,7 +2988,7 @@ function addNodes2 (zTree, parent, newNode, isLast) {
 function markFinish (isFinish) {
 	var sel = getSelectFiles().shift();
 	var shareID = getShareID(sel);
-	$.post(host+'/markFinish', { personName:rootPerson.name, path:getPath(sel), shareID:shareID, isFinish: isFinish }, function  (data) {
+	$post(host+'/markFinish', { personName:rootPerson.name, path:getPath(sel), shareID:shareID, isFinish: isFinish }, function  (data) {
 		//console.log(data);
 	});
 }
@@ -3005,7 +3027,7 @@ function setupWayPoint1 () {
 	    	if(!lastItem || $(el).data('order')==lastItem.order ) return;
 			$(el).data('order', lastItem.order);
 			el.next('.loadMoreIndi').show();
-			$.post(host+'/getfile', {person:rootPerson.userid, startOrder: lastItem.order  }, function  (data) {
+			$post(host+'/getfile', {person:rootPerson.userid, startOrder: lastItem.order  }, function  (data) {
 				el.next('.loadMoreIndi').hide();
 				try{
 					data=JSON.parse(data);
@@ -3052,7 +3074,7 @@ function setupWayPoint2 () {
 	    	if(!lastItem || $(el).data('shareID')==lastItem.shareID ) return;
 			$(el).data('shareID', lastItem.shareID);
 			el.next('.loadMoreIndi').show();
-			$.post(host+'/getShareFrom', {person:rootPerson.userid, startShareID: lastItem.shareID}, function  (data) {
+			$post(host+'/getShareFrom', {person:rootPerson.userid, startShareID: lastItem.shareID}, function  (data) {
 				el.next('.loadMoreIndi').hide();
 				try{
 					data=JSON.parse(data);
@@ -3105,7 +3127,7 @@ function setupWayPoint3 () {
 			$(el).data('shareID', lastItem.shareID);
 			
 			el.next('.loadMoreIndi').show();
-			$.post(host+'/getShareTo', {person:rootPerson.userid, startShareID: lastItem.shareID}, function  (data) {
+			$post(host+'/getShareTo', {person:rootPerson.userid, startShareID: lastItem.shareID}, function  (data) {
 				el.next('.loadMoreIndi').hide();
 				try{
 					data=JSON.parse(data);
@@ -3156,7 +3178,7 @@ $(function  () {
 		searchByName('');
 	});
 
-	$.post(host+ (wxUserInfo? '/getUserInfo' : '/getLoginUserInfo') , { userid: wxUserInfo? wxUserInfo.UserId:'' }, function  (userinfo) {
+	$post(host+ (wxUserInfo? '/getUserInfo' : '/getLoginUserInfo') , { userid: wxUserInfo? wxUserInfo.UserId:'' }, function  (userinfo) {
 
 		if(!DEBUG) {
 			if( !userinfo) {
@@ -3170,14 +3192,14 @@ $(function  () {
 		$('.bg_mask').show();
 		getFilesData();
 
-		$.post(host+'/getCompanyTree', { company:COMPANY_NAME }, function  (data) {
+		$post(host+'/getCompanyTree', { company:COMPANY_NAME }, function  (data) {
 			data = JSON.parse( data );
 			companyNode = sortCompanyNode(data);
 			companyTree = $.fn.zTree.init($("#companyTree"), companySetting, companyNode);
 			companyTree.expandNode( companyTree.getNodes()[0] );
 		});
 
-		$.post(host+'/getFlowList', { }, function  (data) {
+		$post(host+'/getFlowList', { }, function  (data) {
 			if(!data)return;
 			window.flowData = data;
 			var sel = $('.flowSelect');
@@ -4046,7 +4068,7 @@ function convertPDF () {
 
 	if( sel.key.match( regex_image ) ){
 		$('.bg_mask').show();
-		$.post(host+'/uploadPCImage', {person:rootPerson.userid, data: data }, function(ret){
+		$post(host+'/uploadPCImage', {person:rootPerson.userid, data: data }, function(ret){
 			//console.log(ret);
 			showMainWindow();
 			$('.bg_mask').hide();
@@ -4131,7 +4153,7 @@ $(function () {
     				return;
     			}
         		// if it's not images, then we upload using Cloud
-	    		$.post(host+'/getUpToken', function(token){
+	    		$post(host+'/getUpToken', function(token){
 	    			if(!token) return alert('上传错误');
 
 
@@ -4159,7 +4181,7 @@ $(function () {
         	if( data.result.file ) {
 	            $.each(data.result.file, function (index, file) {
 	            	if(file.error) return alert(file.error);
-	            	$.post(host+'/uploadPCImage', {person:rootPerson.userid, filename: encodeURIComponent(file.name) }, function(ret){
+	            	$post(host+'/uploadPCImage', {person:rootPerson.userid, filename: encodeURIComponent(file.name) }, function(ret){
 	            		//console.log(ret);
 	            	}  );
 	            });
@@ -4193,14 +4215,14 @@ $(function () {
 				result.isInMsg = isInMsg;
 
 
-        		$.post(host+'/upfile', result, function(ret){  });
+        		$post(host+'/upfile', result, function(ret){  });
 
 	        	if( data.result.key.match(/(pdf)$/i) ) {
 
 	        	}
 	        	return;
 
-	        	$.post(host+'/generatePDFAtPrinter', data.result, function(ret){
+	        	$post(host+'/generatePDFAtPrinter', data.result, function(ret){
 	        		//console.log(ret);
 	        	}  );
 
@@ -4355,7 +4377,7 @@ $(function initPage () {
 			$('.existShareCon').show();
 			$('#existShareInput option:first').html('等待加载...');
 			$('#existShareInput option:gt(0)').remove();
-			$.post(host+'/getAllShareID', {person:rootPerson.userid}, function(data){
+			$post(host+'/getAllShareID', {person:rootPerson.userid}, function(data){
 				if(!data) return alert('获取共享列表失败');
 				$('#existShareInput option:first').html('请选择共享ID');
 				data.forEach(function(v){
@@ -4382,7 +4404,7 @@ $(function initPage () {
 			var sel = treeObj.getSelectedNodes().shift();
 			var shareID = getShareID( sel );
 			var shareName = '/'+getShareName(sel)+'/';
-			$.post(host+'/exitMember', { shareID:shareID, shareName:shareName, person:rootPerson.userid, personName:rootPerson.name }, function(ret){
+			$post(host+'/exitMember', { shareID:shareID, shareName:shareName, person:rootPerson.userid, personName:rootPerson.name }, function(ret){
 
 				if(!ret) return alert('退出成员错误');
 				var delNode = treeObj.getNodesByFilter( function(node){ return node.shareID==shareID && node.level==1 } ).shift();
@@ -4491,7 +4513,7 @@ function refreshPage () {
 }
 
 function commonFunc () {
-	$.post(host+'/getCommonFunc', {company: COMPANY_NAME }, function(data){
+	$post(host+'/getCommonFunc', {company: COMPANY_NAME }, function(data){
 		if(!data) return alert('获取命令错误');
 		var str = '';
 		data.commandList.forEach(function(v){

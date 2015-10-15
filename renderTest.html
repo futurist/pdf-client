@@ -105,8 +105,15 @@ body.shareMode .userInputText textarea{
 }
 
 .page .textCon .text {
-  position: absolute;
+    position: absolute;
+    -webkit-appearance: none;
+    overflow: hidden;
+    outline: none;
+    border: none;
+    resize: none;
+    border-radius: 0;
 }
+
 .page .textWrap pre {
   white-space: pre-wrap;
   white-space: -moz-pre-wrap;
@@ -263,36 +270,40 @@ function parseTemplate(str, templateEl){
 	var ajaxCount=0;
 
 	$.post( host + '/getCanvas', { file:curFile, shareID:shareID }, function(data){
-		if(data) data = JSON.parse( data );
-		savedCanvasData = data;
 		ajaxCount++;
+		if(!data) return;
+		data = data.replace(/([^-])transform:/g, '$1-webkit-transform:');
+		data = JSON.parse( data );
+		savedCanvasData = data;
 		renderPage();
 
 	} );
 
 	$.post( host + '/getSavedSign', { file:curFile, shareID:shareID }, function(data){
+		ajaxCount++;
 		if(!data) return;
 		savedSignData = data.signIDS;
-		ajaxCount++;
 		renderPage();
 	  
 	} );
 
 	$.post( host + '/getInputData', { file:curFile, shareID:shareID }, function(data){
-
-		if(data) savedInputData = data;
 		ajaxCount++;
+		if(!data) return;
+		savedInputData = data;
 		renderPage();
 
 	} );
 
 
 	function getScale (div) {
+		if(!div.length) return 1;
 		var match = $(div).get(0).style.cssText.match(/scale\(([0-9.]+)\)/i);
 		return match?match.pop():0;
 	}
 
 	function getViewPortWH (svg) {
+	  if(!svg) return {bw:595, bh:842};
 	  var box = $(svg).attr('viewBox').split(/\s+/g).map(function(v){return parseInt(v)});
 	  var bw = box[2];
 	  var bh = box[3];
@@ -359,6 +370,7 @@ function parseTemplate(str, templateEl){
 	function restoreSignature (pageIndex) {
 
 	  savedSignData.forEach(function  (v,i) {
+
 	    if(!v.sign) return true;
 	    var page = pageIndex+1;
 	    if(v.page!=page) return true;
@@ -392,11 +404,10 @@ function parseTemplate(str, templateEl){
 	  		var div = document.createElement('div');
 		    div.id = 'drawerLayer' + i;
 		    div.className = 'page drawerLayer';
-		    div.style.width = Math.round(600) + 'px';
-		    div.style.height = Math.round(800) + 'px';
+		    div.style.width = Math.round(595) + 'px';
+		    div.style.height = Math.round(842) + 'px';
 		    div.setAttribute('data-page-number', i);
 		    this.div = div;
-
 			$drawCon.append(div);
 
 			$(div).html(v);
