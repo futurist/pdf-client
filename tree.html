@@ -21,31 +21,87 @@
 
 	<link rel="stylesheet" href="./css/zTreeStyle/zTreeStyle.css" type="text/css">
 	<link rel="stylesheet" href="./js/dialog.css" type="text/css">
-	<!--script type="text/javascript" src="./js/jquery-1.4.4.min.js"></script-->
+
+	<link href="js/selectivity-full.css" rel="stylesheet" />
 
 
-<script type="text/javascript" src="http://res.wx.qq.com/open/js/jweixin-1.0.0.js"></script>
-<script type="text/javascript" src="/js/cookies.js"></script>
+	<script type="text/javascript" src="/js/basket.full.min.js"></script>
+
+	<script type="text/javascript" src="http://res.wx.qq.com/open/js/jweixin-1.0.0.js"></script>
+	<!-- load fonts -->
+	<script type="text/javascript" src="js/glyphicon.js?t=4545"></script>
+
+
+
+	<!--
+	<script type="text/javascript" src="/js/cookies.js"></script>
+	<script type="text/javascript" src="js/fingerprint2.min.js"></script>
+	<script type="text/javascript" src="js/reconnecting-websocket.js"></script>
+	<script type="text/javascript" src="js/ws.js"></script>
+	<script type="text/javascript" src="js/moment.js"></script>
+
 
 	<script type="text/javascript" src="http://1111hui.com/js/jquery.js"></script>
+
 	<script type="text/javascript" src="./js/jquery.ztree.all-3.5.js"></script>
 	<script type="text/javascript" src="./js/dialog.build.js"></script>
 	<script type="text/javascript" src="./js/draggable.js"></script>
-	<script type="text/javascript" src="./js/moment.js"></script>
 	<script type="text/javascript" src="./js/noframework.waypoints.min.js"></script>
-	<!--  <script type="text/javascript" src="./js/jquery.ztree.excheck-3.5.js"></script>
-	  <script type="text/javascript" src="./js/jquery.ztree.exedit-3.5.js"></script>-->
-
-	  <script type="text/javascript" src="js/fingerprint2.min.js"></script>
-	  <script type="text/javascript" src="js/reconnecting-websocket.js"></script>
-	  <script type="text/javascript" src="js/ws.js"></script>
 
 
-<link href="js/selectivity-full.css" rel="stylesheet" />
-<script src="js/selectivity-full.js"></script>
+	<script src="js/selectivity-full.js"></script>
 
 
-	<SCRIPT type="text/javascript">
+	<script src="js/vendor/jquery.ui.widget.js"></script>
+	<script src="js/jquery.iframe-transport.js"></script>
+	<script src="js/jquery.fileupload.js"></script>
+	<script src="js/jquery.ba-throttle-debounce.min.js"></script>
+	<script src="js/jquery.ztree.exhide-3.5.js"></script>
+
+	-->
+
+
+<script type="text/javascript">
+
+basket.require(
+
+{ url: 'http://1111hui.com/js/cookies.js', unique:'v1.1' },
+{ url: 'js/fingerprint2.min.js', unique:'v1.1' },
+{ url: 'js/reconnecting-websocket.js', unique:'v1.1' },
+{ url: 'js/ws.js', unique:'v1.1' },
+{ url: 'js/moment.js', unique:'v1.1' },
+{ url: 'http://1111hui.com/js/jquery.js', unique:'v1.1' }
+
+
+).then(function(responses) {
+
+	basket.require(
+
+	{ url: 'js/jquery.ztree.all-3.5.js', unique:'v1.1' },
+	{ url: 'js/jquery.ztree.exhide-3.5.js', unique:'v1.1' },
+
+	{ url: 'js/dialog.build.js', unique:'v1.1' },
+	{ url: 'js/draggable.js', unique:'v1.1' },
+	{ url: 'js/noframework.waypoints.min.js', unique:'v1.1' },
+	{ url: 'js/selectivity-full.js', unique:'v1.1' },
+	{ url: 'js/vendor/jquery.ui.widget.js', unique:'v1.1' },
+	{ url: 'js/jquery.iframe-transport.js', unique:'v1.1' },
+	{ url: 'js/jquery.fileupload.js', unique:'v1.1' },
+	{ url: 'js/jquery.ba-throttle-debounce.min.js', unique:'v1.1' }
+
+	).then(function(responses) {
+
+		INIT();
+
+	})
+
+
+});
+
+
+function INIT(){
+// start the INITPAGE
+
 
 COMPANY_NAME = 'lianrun';
 
@@ -58,7 +114,7 @@ moment.locale('zh-cn');
 function $post (url, data, callback) {
   if (arguments.length == 2) { // if only two arguments were supplied
     if ( $.type(data)=='function' ) {
-      callback = data; 
+      callback = data;
       data = {};
     }
   }
@@ -2192,12 +2248,8 @@ function setFileTemplate (isSet) {
 }
 
 
-	</SCRIPT>
 
 
-
-
-<script type="text/javascript">
 
 
 window.flowData = null;
@@ -3127,7 +3179,7 @@ function setupWayPoint3 () {
 	    	var lastItem = futurist.array_last_item(treeObj3.getNodes()[0].children) ;
 	    	if(!lastItem || $(el).data('shareID')==lastItem.shareID ) return;
 			$(el).data('shareID', lastItem.shareID);
-			
+
 			el.next('.loadMoreIndi').show();
 			$post(host+'/getShareTo', {person:rootPerson.userid, startShareID: lastItem.shareID}, function  (data) {
 				el.next('.loadMoreIndi').hide();
@@ -3288,13 +3340,742 @@ futurist.array_last_item = function(array) {
   return array.length ? array[array.length-1] : null;
 };
 
+
+
+
+var regex_image= /(gif|jpe?g|png|bmp)$/i;
+var regex_preview = /(gif|jpe?g|png|bmp|txt)$/i;
+var regex_can_be_convert = /(docx?|xlsx?|pptx?|txt)$/i;
+var UploadNonImage = false;
+var CONVERT_TIMEOUT = 2*60*1000 ; 	//5 mins
+
+function convertPDF () {
+	var sel = getSelectFiles().shift();
+	if(!sel || sel.isParent) return;
+	var shareID = getShareID(sel);
+		var data = getFileKeys(sel);
+		if(shareID){
+			data.shareID = parseInt(shareID);
+			var pathA = data.path.split('/').slice(2);
+			data.path = '/'+pathA.join('/');
+		}
+
+
+	$('.fConvert').hide();
+
+	if( sel.key.match( regex_image ) ){
+		$('.bg_mask').show();
+		$post(host+'/uploadPCImage', {person:rootPerson.userid, data: data }, function(ret){
+			//console.log(ret);
+			showMainWindow();
+			$('.bg_mask').hide();
+			if(!ret) alert('转换文件发生错误');
+		}  );
+	}
+
+	if( sel.key.match( regex_can_be_convert ) ){
+
+		$('.bg_mask').show();
+		$.ajax({
+		  type: 'POST',
+		  url: host+'/generatePDFAtPrinter',
+		  data: data,
+		  // type of data we are expecting in return:
+		  dataType: 'json',
+		  timeout: CONVERT_TIMEOUT,
+		  success: function(ret){
+		  	showMainWindow();
+		  	$('.bg_mask').hide();
+		    if(!ret) return alert('转换超时');
+			console.log(ret);
+			alert(ret.errMsg!='ok' ? ret.errMsg : '转换成功,已自动加入文件柜并高亮' );
+		  },
+		  error: function(xhr, type){
+		  	showMainWindow();
+		  	$('.bg_mask').hide();
+		    alert('连接超时或转换服务发生故障，请告知管理员');
+		  }
+		});
+	}
+}
+
+$(function () {
+    $('#fileupload1').fileupload({
+        dataType: 'json',
+        add: function (e, data) {
+			var isImage = false;
+			var isPDF = false;
+        	var filename = data.files[0].name;
+        	var baseName = filename.split('.');
+        	var ext = baseName.pop();
+        	baseName = baseName.join('.');
+        	if( ext.match(regex_image) ){
+        		isImage = true;
+        	}
+
+        	if( ext.match(/(pdf)$/i) ){
+        		isPDF = true;
+        	}
+
+        	if( ! (isImage || isPDF || ext.match(regex_can_be_convert) ) ) {
+        		//return alert('文件格式不支持，请选择图片、OFFICE文档、TXT文本文件');
+        	}
+
+        	//if(isImage ||UploadNonImage ) {
+        	if( UploadNonImage ) {
+        		UploadNonImage = false;
+        		// if it's  images, upload to our server to generate right PDF.
+	        	if (data.autoUpload || (data.autoUpload !== false &&
+	    	            $(this).fileupload('option', 'autoUpload') ) ) {
+	    	        data.process().done(function () {
+	    	            data.submit();
+	    	        });
+	    	    }
+	    	} else {
+
+    			var relativePath =  data.files[0].relativePath||'';
+
+				var sel = getSelectFiles().shift();
+				var files = getAllFiles(sel);
+
+				var fileExists = false;
+				files.forEach(function(v,i){
+    				if( getPath(v)+v.name == getPath(sel) + relativePath + data.files[0].name ){
+    					fileExists = true;
+    				}
+				});
+
+    			if(fileExists) {
+    				console.log( 'exist file, skip', getPath(sel) + relativePath + data.files[0].name );
+    				return;
+    			}
+        		// if it's not images, then we upload using Cloud
+	    		$post(host+'/getUpToken', function(token){
+	    			if(!token) return alert('上传错误');
+
+
+	    			// $(this).fileupload('option', 'url', 'http://up.qiniu.com');
+	    			// data.formData = {key: moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'.'+ext, token:token };
+	    			var key =moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'/' + data.files[0].name;
+	    			UploadNonImage = true;
+
+	    			var shareID = getShareID( treeObj.getSelectedNodes().shift() );
+	    			$('#fileupload1').fileupload('add', {files: data.files, formData:{key:key, token:token, 'x:path':relativePath, 'x:shareID':shareID||'' }, url: 'http://up.qiniu.com'} );
+	    			// This will trigger ADD event again, with UploadNonImage = true
+
+	    		});
+
+	    	}
+    	    $('.bg_mask').show();
+
+        },
+
+        done: function (e, data) {
+        	//console.log(e,data);
+
+        	$('.bg_mask').hide();
+
+        	if( data.result.file ) {
+	            $.each(data.result.file, function (index, file) {
+	            	if(file.error) return alert(file.error);
+	            	$post(host+'/uploadPCImage', {person:rootPerson.userid, filename: encodeURIComponent(file.name) }, function(ret){
+	            		//console.log(ret);
+	            	}  );
+	            });
+	        }
+
+	        if( data.result.key ) {
+	        	var result = data.result;
+				result.person = rootPerson.userid;
+				result.client = '';
+				result.title = result.fname;
+
+				var sel = getSelectFiles().shift();
+				var oldPath = sel? getPath(sel) : '/';
+
+
+				if( result.shareID ){
+
+					var folder = oldPath.replace(/^\/[^/]+/,'');
+					result.path = folder +'/'+ result.srcPath;
+					result.path = result.path.replace(/\/\//g, '/');
+					result.shareName = '/'+getShareName(sel)+'/';
+
+				} else {
+					result.path = oldPath.replace(/[^/]+$/,'') + result.srcPath ;
+				}
+
+
+				result.returnPath = oldPath;
+
+				var isInMsg = $('.msg_wrap').is(':visible');
+				result.isInMsg = isInMsg;
+
+
+        		$post(host+'/upfile', result, function(ret){  });
+
+	        	if( data.result.key.match(/(pdf)$/i) ) {
+
+	        	}
+	        	return;
+
+	        	$post(host+'/generatePDFAtPrinter', data.result, function(ret){
+	        		//console.log(ret);
+	        	}  );
+
+	        }
+        }
+    });
+
+
+
+
+});
+
+
+$(document).bind('dragover', function (e) {
+    var dropZone = $('#dropzone'),
+        timeout = window.dropZoneTimeout;
+    if (!timeout) {
+        dropZone.addClass('in');
+    } else {
+        clearTimeout(timeout);
+    }
+    var found = false,
+        node = e.target;
+    do {
+        if (node === dropZone[0]) {
+            found = true;
+            break;
+        }
+        node = node.parentNode;
+    } while (node != null);
+    if (found) {
+        dropZone.addClass('hover');
+    } else {
+        dropZone.removeClass('hover');
+    }
+    window.dropZoneTimeout = setTimeout(function () {
+        window.dropZoneTimeout = null;
+        dropZone.removeClass('in hover');
+    }, 100);
+});
+
+$(document).bind('drop dragover', function (e) {
+    e.preventDefault();
+});
+
+
+
+
+
+
+window.addEventListener('keydown', handleShortKey);
+
+function handleShortKey (evt) {
+
+      var handled = false;
+      var cmd = (evt.ctrlKey ? 1 : 0) |
+            (evt.altKey ? 2 : 0) |
+            (evt.shiftKey ? 4 : 0) |
+            (evt.metaKey ? 8 : 0);
+
+		//console.log(evt.keyCode)
+
+      if (cmd === 0) { // no control key pressed at all.
+        //console.log(evt, evt.keyCode);
+        switch (evt.keyCode) {
+          case 46:  //Delete key
+          	removeTreeNode();
+          	break;
+          case 116:  //F5 key
+          	window.location.reload();
+            handled = true;
+            break;
+          case 123: //F12 Key
+          	toggleDevTools();
+          	break;
+        }
+      }
+
+    if (cmd === 1 || cmd === 8) {
+      switch (evt.keyCode) {
+        case 82:  //Ctrl+R
+          window.location.reload();
+          break;
+      }
+    }
+
+    if (cmd === 5 || cmd === 12) {
+      switch (evt.keyCode) {
+        case 90:
+
+          break;
+      }
+    }
+
+
+
+    if(handled){
+      evt.preventDefault();
+      return;
+    }
+
+}
+
+
+
+
+$(function initPage () {
+
+	if(isNWJS) $('.commonFunc').show();
+
+	$('.addFileBtn').click(function  () {
+
+		$(this).next('div').toggleClass('hidden');
+
+		//$('#fileupload1').width( $('#fileupload1').parent().get(0).offsetWidth );
+		var menuHeight = $('.addImageBtn').get(0).offsetHeight;
+		menuHeight = 42;
+
+		var pop = $('.addFilePopup');
+		pop.find( '>a' ).css({padding: '0 '+ ( Math.min( $(pop).width()*.23, 10) ) +'px'});
+
+		if(isWeiXin) {
+			$('.addImageBtn').show();
+			//$('#fileupload1').css({ height:menuHeight+'px', top:'0px' });  $('.upHolder1').css({top: 0+'px', height:42 });
+		} else {
+			$('.addImageBtn').hide();
+			//$('#fileupload1').css({ height:menuHeight*2+'px' });  $('.upHolder1').css({top: 0+'px', height:84 });
+		}
+
+	});
+
+
+
+	$(document).click(function hideMenu (e) {
+
+		if( $(e.target).hasClass('popBtn') ) return;
+		$('.menuPopup').addClass('hidden');
+
+	});
+
+	$('.msgTitle').click(function(){
+		if( $(this).find('.titleContent').height()<20 ) return;
+		$(this).toggleClass('expend');
+	});
+
+	$('.addMember').click(function(){
+		addShareMember();
+	});
+
+	$('#isExistShare').click(function(){
+		if( $(this).prop('checked') ) {
+			$('.existShareCon').show();
+			$('#existShareInput option:first').html('等待加载...');
+			$('#existShareInput option:gt(0)').remove();
+			$post(host+'/getAllShareID', {person:rootPerson.userid}, function(data){
+				if(!data) return alert('获取共享列表失败');
+				$('#existShareInput option:first').html('请选择共享ID');
+				data.forEach(function(v){
+					var toPerson = v.toPerson.map(function(v){return v.name});
+					var toStr = toPerson.slice(0,3).join(',');
+					toStr += toPerson.length>3?'...' : '';
+					$('#existShareInput').append('<option value="'+ v.shareID +'">'+ v.shareID + '('+ v.msg + ') [' + v.fromPerson.map(function(v){return v.name}).join(',') + '->' +  toStr +']</option>');
+				});
+
+			}  );
+
+		}else{
+			$('.existShareCon').hide();
+		}
+	});
+
+	$('.exitMember').click(function(){
+		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
+
+		window.confirm('确定要退出吗？(以后可以由其它成员邀请加入)', function(ok){
+
+			if(!ok)return;
+
+			var sel = treeObj.getSelectedNodes().shift();
+			var shareID = getShareID( sel );
+			var shareName = '/'+getShareName(sel)+'/';
+			$post(host+'/exitMember', { shareID:shareID, shareName:shareName, person:rootPerson.userid, personName:rootPerson.name }, function(ret){
+
+				if(!ret) return alert('退出成员错误');
+				var delNode = treeObj.getNodesByFilter( function(node){ return node.shareID==shareID && node.level==1 } ).shift();
+
+				if(delNode) treeObj.removeNode(delNode);
+
+				return closeViewDetail();
+
+			} );
+
+		});
+
+	});
+
+
+
+	function addShareMember(){
+		$('.company_wrap').show().data('role', 'member');
+		treeObj = companyTree;
+		$('.msg_wrap').hide();
+		$('.company_wrap .msgTitle').html( '选择成员' );
+		$('.treeCompanyCon').css({}, 300, 'linear');
+		updateMenu('.shareMenu');
+	}
+
+
+	$('.msgTitleMenu').click(function(){
+		$(this).toggleClass('active');
+		$(this).next().toggleClass('active');
+
+	});
+
+
+	$('.topMenu').click(function(){
+		$('.msgTitleMenuPop').addClass('active');
+	});
+
+	var msgDateInterval = setInterval(updateMsgTime, 10000);
+	updateContentTop();
+
+	$('[data-click]').off().on(clickE, function  () {
+		eval($(this).data('click'));
+	});
+
+	$(document).click(function(e){
+
+		if( $(e.target).hasClass('msgTitleMenu') || $(e.target).hasClass('topMenu') ) return;
+
+		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
+	});
+
+	$('.searchTxt').on('blur keydown change search', debounce(function(){
+		var el = $('.searchTxt:visible');
+		var val = el.val();
+		searchByName( val );
+		$(el).closest('.searchDIV').find('.clearInput').css('display', val!=''?'block':'none' );
+
+		var idx = $('.currTab').data('idx')+1;
+		var loadMore = $('.tree'+idx).find('.loadMore');
+		if(val!=''){
+			loadMore.hide();
+		} else {
+			loadMore.show();
+		}
+	}, 500) );
+
+	$(window).resize(function(){
+		$('.msgTitle').width( $(this).width() );
+	});
+	$(window).resize();
+});
+
+function setCompanyTreeCheck (isCheck) {
+	isCheck = !isCheck;
+	var allNodes = companyTree.getNodesByFilter( function(v){
+		v.nocheck = isCheck;
+		companyTree.updateNode(v);
+	} );
+}
+
+
+function showContact () {
+
+	$('.company_wrap').show().data('role', 'contact');
+
+	var prevPos = $(window).scrollTop();
+	$(window).scrollTop(0);
+
+	var isContact = $('.company_wrap').data('role')=='contact';
+	setCompanyTreeCheck(isContact ? false : true );
+
+	$('.content_wrap').data('prevPos', prevPos  ).hide();
+	$('.msg_wrap').hide();
+	$('.header').hide();
+	$('.company_wrap .msgTitle').html( '查看联系人' );
+	updateMenu('.contactMenu');
+	if(!isNWJS){
+		$('.fClient').hide();
+	}
+
+	treeObj = companyTree;
+}
+
+function refreshPage () {
+	window.location.reload();
+}
+
+function commonFunc () {
+	$post(host+'/getCommonFunc', {company: COMPANY_NAME }, function(data){
+		if(!data) return alert('获取命令错误');
+		var str = '';
+		data.commandList.forEach(function(v){
+			if(!v.param) v.param=[];
+			if( !$.isArray(v.param) ) v.param = [v.param];
+			if(v.role=='JS') {
+				str += '<p><a href="javascript:'+ v.function +'.apply(this, '+ JSON.stringify(v.param).replace(/"/g,'&quot;') +'); hideDialog(); ">'+ v.name +'</a></p>';
+			}
+			if(v.role=='EXE') {
+				str += '<p><a href="javascript:runCommand.apply(this, '+ JSON.stringify( [v.function].concat(v.param) ).replace(/"/g,'&quot;') +'); hideDialog(); ">'+ v.name +'</a></p>';
+			}
+
+		});
+		alert(str);
+	});
+}
+
+
+function runCommand (cmd) {
+	if(!isNWJS) return;
+	var exec = require('child_process').exec;
+	exec(cmd, function(err,stdout,stderr){
+
+	});
+}
+
+function openClient (address) {
+
+	if(!isNWJS) return;
+	if(!address){
+		var sel = companyTree.getSelectedNodes().shift();
+		address = sel.ip || sel.client;
+	}
+	if(!address) return;
+	//var address='192.168.8.116';
+
+	var exec = require('child_process').exec;
+	var cmd = '';
+	switch (process.platform) {
+		case 'darwin':
+			cmd='open smb://'+address;
+			break;
+		case 'win32':
+			cmd='explorer \\\\'+address;
+			break;
+		default:
+			return;
+			break;
+	}
+
+	exec(cmd, function(err,stdout,stderr){
+
+	});
+
+}
+
+function hideCompanyTree (){
+	$('.clearInput:visible').click();
+	$('.company_wrap').hide().data('role', '');
+	setCompanyTreeCheck(true);
+
+	var prevPos = $('.content_wrap').data('prevPos');
+	$('.content_wrap').show();
+	$('.header').show();
+	updateMenu();
+	updateTreeObj();
+
+	$(window).scrollTop(prevPos);
+};
+
+function viewContact () {
+	var sel = companyTree.getSelectedNodes().shift();
+	if(!sel) return;
+	var str = '';
+	str += '<p>'+ sel.name + '('+sel.userid  +')</p>';
+	if(sel.client) str += '<p><a href="javascript:openClient(\''+ sel.client +'\')">'+ sel.client +'</a></p>';
+	if(sel.ip) str += '<p><a href="javascript:openClient(\''+ sel.ip +'\')">'+ sel.ip +'</a></p>';
+	str += '<p><a href="tel:'+sel.mobile+'">'+ sel.mobile +'</a></p>';
+	str += '<p><a href="tel:'+ sel.shortPhone +'">'+ sel.shortPhone +'</a></p>';
+	alert(str);
+}
+
+
+function isVisible(el){
+	el = $(el);
+	while( el.is(':visible') && !el.is(document) ){
+		el = el.parent();
+	}
+	return el.is(document);
+}
+
+function debounce(fun, mil){
+    var timer;
+    return function(){
+        clearTimeout(timer);
+        timer = setTimeout(function(){
+            fun();
+        }, mil);
+    };
+}
+
+
+function searchByName (keyword) {
+
+	if(treeObj.prevKeyword == keyword) return;
+
+	var allNodes = treeObj.getNodesByFilter( function(v){return true} );
+
+	// keyword = $.trim(keyword);
+	if(!keyword){
+		return treeObj.showNodes(allNodes);
+	} else{
+		treeObj.hideNodes(allNodes);
+	}
+
+	treeObj.prevKeyword = keyword;
+	keyword = escapeRe(keyword);
+
+	var nodes2 = [];
+	var nodes = treeObj.getNodesByFilter( function(p){
+		if(p.level==0) return false;
+
+		if( ( (p.title||p.name)+' '+(p.userid||'')+' '+(p.mobile||'') ).match( new RegExp(keyword, 'i')) ){
+
+			nodes2 = nodes2.concat( treeObj.transformToArray(p) );
+
+			while( p ) {
+				nodes2.push(p);
+				p = p.getParentNode();
+				if(p&&!p.open) treeObj.expandNode(p, true);
+			}
+		}
+
+	} );
+
+	treeObj.showNodes(nodes2);
+
+	// var nodes2 = $.grep(nodes, function(v, i){
+	// 	return nodes.indexOf( v.getParentNode() )==-1;
+	// });
+
+
+	// var nodes = treeObj.getNodesByFilter( function  (node) {
+	// 	return true;
+	// 	var condition = (node.level&&node.level>0) && !node.isParent && !node.name.match( new RegExp(keyword, 'i') );
+	// 	return condition;
+	// } );
+
+	// treeObj.hideNodes(nodes);
+
+
+
+
+	// var nodes = treeObj.getNodesByFilter( function  (node1) {
+	// 	if( node1.level===0 ) return true;
+	// 	if( node1.title.match( new RegExp(keyword, 'i') ) ) return true;
+	// 	var nodes2 = treeObj.getNodesByFilter( function(v){
+	// 		return v.title.match( new RegExp(keyword, 'i') )
+	// 	}, true, node1);
+	// 	if(nodes2!=null) return true;
+	// } );
+	// treeObj.showNodes(nodes);
+
+
+
+
+
+
+	// var nodes = treeObj.getNodesByFilter( function  (node1) {
+	// 	if( !!$('#'+ node1.tId +'_a').text().match( new RegExp(keyword, 'i')) ) return true;
+	// });
+	// console.log(nodes)
+	// treeObj.showNodes(nodes);
+}
+
+function updateContentTop () {
+	$('.content_wrap').css('margin-top', $('.header').height() );
+}
+
+function moveUploaderButton (el) {
+
+	$('#fileupload1').appendTo( $(el) );
+
+}
+
+
+function alert (msg) {
+  var args =Array.prototype.slice.call(arguments);
+  args.splice(1,0,null);
+  confirm.apply( this, args );
+}
+
+function confirm (msg) {
+
+  var arglen = arguments.length;
+  var arg1 = arguments[1];
+  var arg2 = arguments[2];
+  var lastArg = arguments[arglen-1];
+  var callback = typeof lastArg=='function' ? lastArg : function(){};
+  var text1 = typeof arg1=='string' ? arg1 : '取消';
+  var text2 = typeof arg2=='string' ? arg2 : '确定';
+
+  $("#confirm p.button a:first").css('display', arg1===null?'none':'inline');
+  $("#confirm p.button a:last").css('display', arg2===null?'none':'inline');
+  $("#confirm p.button span").css('display', arg1===null||arg2===null ?'none':'inline');
+
+  if(text1) $("#confirm p.button a").first().html(text1);
+  if(text2) $("#confirm p.button a").last().html(text2);
+
+  $("#confirm .shareMsg").html(msg);
+  $("#confirm").trigger("dialog-open");
+
+  $("#confirm p.button a").off().on('click', function(){
+    var ret = callback( $(this).data('confirm')==1 );
+    if(ret!==false) $("#confirm").trigger("dialog-close");
+  });
+
+}
+
+function hideDialog () {
+	$("#confirm").trigger("dialog-close");
+}
+
+
+
+window.shareNodePre = shareNodePre;
+window.removeTreeNode = removeTreeNode;
+window.renameTreeNode = renameTreeNode;
+window.addPictureCon = addPictureCon;
+window.addTreeNode = addTreeNode;
+window.addTemplateCon = addTemplateCon;
+window.addTopic = addTopic;
+window.showContact = showContact;
+window.commonFunc = commonFunc;
+window.refreshPage = refreshPage;
+window.sendShareMsg = sendShareMsg;
+window.closeViewDetail = closeViewDetail;
+window.cutNode = cutNode;
+window.shareFileDialog = shareFileDialog;
+window.beginFlow = beginFlow;
+window.setFileTemplate = setFileTemplate;
+window.openPrintCon = openPrintCon;
+window.convertPDF = convertPDF;
+window.previewImage = previewImage;
+window.moveTreeNodeCancel = moveTreeNodeCancel;
+window.pasteNode = pasteNode;
+window.hideShare = hideShare;
+window.hideCompanyTree = hideCompanyTree;
+window.viewContact = viewContact;
+window.openClient = openClient;
+window.previewImage = previewImage;
+window.markFinish = markFinish;
+window.hideTemplateCon = hideTemplateCon;
+window.applyTemplatePre = applyTemplatePre;
+window.hidePrintCon = hidePrintCon;
+window.applyPrint = applyPrint;
+
+
+
+// end of INITPAGE
+}
+
+// INIT();
+
 </script>
-
-
-
-
-<!-- load fonts -->
-<script type="text/javascript" src="js/glyphicon.js?t=4545"></script>
 
 
 
@@ -4041,705 +4822,6 @@ div.selectivity-dropdown{
 
 <div id="dropzone" class="fade well">Drop files here</div>
 
-<script src="js/vendor/jquery.ui.widget.js"></script>
-<script src="js/jquery.iframe-transport.js"></script>
-<script src="js/jquery.fileupload.js"></script>
-<script src="js/jquery.ba-throttle-debounce.min.js"></script>
-<script src="js/jquery.ztree.exhide-3.5.js"></script>
-<script>
-
-var regex_image= /(gif|jpe?g|png|bmp)$/i;
-var regex_preview = /(gif|jpe?g|png|bmp|txt)$/i;
-var regex_can_be_convert = /(docx?|xlsx?|pptx?|txt)$/i;
-var UploadNonImage = false;
-var CONVERT_TIMEOUT = 2*60*1000 ; 	//5 mins
-
-function convertPDF () {
-	var sel = getSelectFiles().shift();
-	if(!sel || sel.isParent) return;
-	var shareID = getShareID(sel);
-		var data = getFileKeys(sel);
-		if(shareID){
-			data.shareID = parseInt(shareID);
-			var pathA = data.path.split('/').slice(2);
-			data.path = '/'+pathA.join('/');
-		}
-
-
-	$('.fConvert').hide();
-
-	if( sel.key.match( regex_image ) ){
-		$('.bg_mask').show();
-		$post(host+'/uploadPCImage', {person:rootPerson.userid, data: data }, function(ret){
-			//console.log(ret);
-			showMainWindow();
-			$('.bg_mask').hide();
-			if(!ret) alert('转换文件发生错误');
-		}  );
-	}
-
-	if( sel.key.match( regex_can_be_convert ) ){
-
-		$('.bg_mask').show();
-		$.ajax({
-		  type: 'POST',
-		  url: host+'/generatePDFAtPrinter',
-		  data: data,
-		  // type of data we are expecting in return:
-		  dataType: 'json',
-		  timeout: CONVERT_TIMEOUT,
-		  success: function(ret){
-		  	showMainWindow();
-		  	$('.bg_mask').hide();
-		    if(!ret) return alert('转换超时');
-			console.log(ret);
-			alert(ret.errMsg!='ok' ? ret.errMsg : '转换成功,已自动加入文件柜并高亮' );
-		  },
-		  error: function(xhr, type){
-		  	showMainWindow();
-		  	$('.bg_mask').hide();
-		    alert('连接超时或转换服务发生故障，请告知管理员');
-		  }
-		});
-	}
-}
-
-$(function () {
-    $('#fileupload1').fileupload({
-        dataType: 'json',
-        add: function (e, data) {
-			var isImage = false;
-			var isPDF = false;
-        	var filename = data.files[0].name;
-        	var baseName = filename.split('.');
-        	var ext = baseName.pop();
-        	baseName = baseName.join('.');
-        	if( ext.match(regex_image) ){
-        		isImage = true;
-        	}
-
-        	if( ext.match(/(pdf)$/i) ){
-        		isPDF = true;
-        	}
-
-        	if( ! (isImage || isPDF || ext.match(regex_can_be_convert) ) ) {
-        		//return alert('文件格式不支持，请选择图片、OFFICE文档、TXT文本文件');
-        	}
-
-        	//if(isImage ||UploadNonImage ) {
-        	if( UploadNonImage ) {
-        		UploadNonImage = false;
-        		// if it's  images, upload to our server to generate right PDF.
-	        	if (data.autoUpload || (data.autoUpload !== false &&
-	    	            $(this).fileupload('option', 'autoUpload') ) ) {
-	    	        data.process().done(function () {
-	    	            data.submit();
-	    	        });
-	    	    }
-	    	} else {
-
-    			var relativePath =  data.files[0].relativePath||'';
-
-				var sel = getSelectFiles().shift();
-				var files = getAllFiles(sel);
-
-				var fileExists = false;
-				files.forEach(function(v,i){
-    				if( getPath(v)+v.name == getPath(sel) + relativePath + data.files[0].name ){
-    					fileExists = true;
-    				}
-				});
-
-    			if(fileExists) {
-    				console.log( 'exist file, skip', getPath(sel) + relativePath + data.files[0].name );
-    				return;
-    			}
-        		// if it's not images, then we upload using Cloud
-	    		$post(host+'/getUpToken', function(token){
-	    			if(!token) return alert('上传错误');
-
-
-	    			// $(this).fileupload('option', 'url', 'http://up.qiniu.com');
-	    			// data.formData = {key: moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'.'+ext, token:token };
-	    			var key =moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'/' + data.files[0].name;
-	    			UploadNonImage = true;
-
-	    			var shareID = getShareID( treeObj.getSelectedNodes().shift() );
-	    			$('#fileupload1').fileupload('add', {files: data.files, formData:{key:key, token:token, 'x:path':relativePath, 'x:shareID':shareID||'' }, url: 'http://up.qiniu.com'} );
-	    			// This will trigger ADD event again, with UploadNonImage = true
-
-	    		});
-
-	    	}
-    	    $('.bg_mask').show();
-
-        },
-
-        done: function (e, data) {
-        	//console.log(e,data);
-
-        	$('.bg_mask').hide();
-
-        	if( data.result.file ) {
-	            $.each(data.result.file, function (index, file) {
-	            	if(file.error) return alert(file.error);
-	            	$post(host+'/uploadPCImage', {person:rootPerson.userid, filename: encodeURIComponent(file.name) }, function(ret){
-	            		//console.log(ret);
-	            	}  );
-	            });
-	        }
-
-	        if( data.result.key ) {
-	        	var result = data.result;
-				result.person = rootPerson.userid;
-				result.client = '';
-				result.title = result.fname;
-
-				var sel = getSelectFiles().shift();
-				var oldPath = sel? getPath(sel) : '/';
-
-
-				if( result.shareID ){
-
-					var folder = oldPath.replace(/^\/[^/]+/,'');
-					result.path = folder +'/'+ result.srcPath;
-					result.path = result.path.replace(/\/\//g, '/');
-					result.shareName = '/'+getShareName(sel)+'/';
-
-				} else {
-					result.path = oldPath.replace(/[^/]+$/,'') + result.srcPath ;
-				}
-
-
-				result.returnPath = oldPath;
-
-				var isInMsg = $('.msg_wrap').is(':visible');
-				result.isInMsg = isInMsg;
-
-
-        		$post(host+'/upfile', result, function(ret){  });
-
-	        	if( data.result.key.match(/(pdf)$/i) ) {
-
-	        	}
-	        	return;
-
-	        	$post(host+'/generatePDFAtPrinter', data.result, function(ret){
-	        		//console.log(ret);
-	        	}  );
-
-	        }
-        }
-    });
-
-
-
-
-});
-
-
-$(document).bind('dragover', function (e) {
-    var dropZone = $('#dropzone'),
-        timeout = window.dropZoneTimeout;
-    if (!timeout) {
-        dropZone.addClass('in');
-    } else {
-        clearTimeout(timeout);
-    }
-    var found = false,
-        node = e.target;
-    do {
-        if (node === dropZone[0]) {
-            found = true;
-            break;
-        }
-        node = node.parentNode;
-    } while (node != null);
-    if (found) {
-        dropZone.addClass('hover');
-    } else {
-        dropZone.removeClass('hover');
-    }
-    window.dropZoneTimeout = setTimeout(function () {
-        window.dropZoneTimeout = null;
-        dropZone.removeClass('in hover');
-    }, 100);
-});
-
-$(document).bind('drop dragover', function (e) {
-    e.preventDefault();
-});
-
-
-
-
-
-
-window.addEventListener('keydown', handleShortKey);
-
-function handleShortKey (evt) {
-
-      var handled = false;
-      var cmd = (evt.ctrlKey ? 1 : 0) |
-            (evt.altKey ? 2 : 0) |
-            (evt.shiftKey ? 4 : 0) |
-            (evt.metaKey ? 8 : 0);
-
-		//console.log(evt.keyCode)
-
-      if (cmd === 0) { // no control key pressed at all.
-        //console.log(evt, evt.keyCode);
-        switch (evt.keyCode) {
-          case 46:  //Delete key
-          	removeTreeNode();
-          	break;
-          case 116:  //F5 key
-          	window.location.reload();
-            handled = true;
-            break;
-          case 123: //F12 Key
-          	toggleDevTools();
-          	break;
-        }
-      }
-
-    if (cmd === 1 || cmd === 8) {
-      switch (evt.keyCode) {
-        case 82:  //Ctrl+R
-          window.location.reload();
-          break;
-      }
-    }
-
-    if (cmd === 5 || cmd === 12) {
-      switch (evt.keyCode) {
-        case 90:
-
-          break;
-      }
-    }
-
-
-
-    if(handled){
-      evt.preventDefault();
-      return;
-    }
-
-}
-
-
-
-
-$(function initPage () {
-
-	if(isNWJS) $('.commonFunc').show();
-
-	$('.addFileBtn').click(function  () {
-
-		$(this).next('div').toggleClass('hidden');
-
-		//$('#fileupload1').width( $('#fileupload1').parent().get(0).offsetWidth );
-		var menuHeight = $('.addImageBtn').get(0).offsetHeight;
-		menuHeight = 42;
-
-		var pop = $('.addFilePopup');
-		pop.find( '>a' ).css({padding: '0 '+ ( Math.min( $(pop).width()*.23, 10) ) +'px'});
-
-		if(isWeiXin) {
-			$('.addImageBtn').show();
-			//$('#fileupload1').css({ height:menuHeight+'px', top:'0px' });  $('.upHolder1').css({top: 0+'px', height:42 });
-		} else {
-			$('.addImageBtn').hide();
-			//$('#fileupload1').css({ height:menuHeight*2+'px' });  $('.upHolder1').css({top: 0+'px', height:84 });
-		}
-
-	});
-
-
-
-	$(document).click(function hideMenu (e) {
-
-		if( $(e.target).hasClass('popBtn') ) return;
-		$('.menuPopup').addClass('hidden');
-
-	});
-
-	$('.msgTitle').click(function(){
-		if( $(this).find('.titleContent').height()<20 ) return;
-		$(this).toggleClass('expend');
-	});
-
-	$('.addMember').click(function(){
-		addShareMember();
-	});
-
-	$('#isExistShare').click(function(){
-		if( $(this).prop('checked') ) {
-			$('.existShareCon').show();
-			$('#existShareInput option:first').html('等待加载...');
-			$('#existShareInput option:gt(0)').remove();
-			$post(host+'/getAllShareID', {person:rootPerson.userid}, function(data){
-				if(!data) return alert('获取共享列表失败');
-				$('#existShareInput option:first').html('请选择共享ID');
-				data.forEach(function(v){
-					var toPerson = v.toPerson.map(function(v){return v.name});
-					var toStr = toPerson.slice(0,3).join(',');
-					toStr += toPerson.length>3?'...' : '';
-					$('#existShareInput').append('<option value="'+ v.shareID +'">'+ v.shareID + '('+ v.msg + ') [' + v.fromPerson.map(function(v){return v.name}).join(',') + '->' +  toStr +']</option>');
-				});
-
-			}  );
-
-		}else{
-			$('.existShareCon').hide();
-		}
-	});
-
-	$('.exitMember').click(function(){
-		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
-
-		window.confirm('确定要退出吗？(以后可以由其它成员邀请加入)', function(ok){
-
-			if(!ok)return;
-
-			var sel = treeObj.getSelectedNodes().shift();
-			var shareID = getShareID( sel );
-			var shareName = '/'+getShareName(sel)+'/';
-			$post(host+'/exitMember', { shareID:shareID, shareName:shareName, person:rootPerson.userid, personName:rootPerson.name }, function(ret){
-
-				if(!ret) return alert('退出成员错误');
-				var delNode = treeObj.getNodesByFilter( function(node){ return node.shareID==shareID && node.level==1 } ).shift();
-
-				if(delNode) treeObj.removeNode(delNode);
-
-				return closeViewDetail();
-
-			} );
-
-		});
-
-	});
-
-
-
-	function addShareMember(){
-		$('.company_wrap').show().data('role', 'member');
-		treeObj = companyTree;
-		$('.msg_wrap').hide();
-		$('.company_wrap .msgTitle').html( '选择成员' );
-		$('.treeCompanyCon').css({}, 300, 'linear');
-		updateMenu('.shareMenu');
-	}
-
-
-	$('.msgTitleMenu').click(function(){
-		$(this).toggleClass('active');
-		$(this).next().toggleClass('active');
-
-	});
-
-
-	$('.topMenu').click(function(){
-		$('.msgTitleMenuPop').addClass('active');
-	});
-
-	var msgDateInterval = setInterval(updateMsgTime, 10000);
-	updateContentTop();
-
-	$('[data-click]').off().on(clickE, function  () {
-		eval($(this).data('click'));
-	});
-
-	$(document).click(function(e){
-
-		if( $(e.target).hasClass('msgTitleMenu') || $(e.target).hasClass('topMenu') ) return;
-
-		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
-	});
-
-	$('.searchTxt').on('blur keydown change search', debounce(function(){
-		var el = $('.searchTxt:visible');
-		var val = el.val();
-		searchByName( val );
-		$(el).closest('.searchDIV').find('.clearInput').css('display', val!=''?'block':'none' );
-
-		var idx = $('.currTab').data('idx')+1;
-		var loadMore = $('.tree'+idx).find('.loadMore');
-		if(val!=''){
-			loadMore.hide();
-		} else {
-			loadMore.show();
-		}
-	}, 500) );
-
-	$(window).resize(function(){
-		$('.msgTitle').width( $(this).width() );
-	});
-	$(window).resize();
-});
-
-function setCompanyTreeCheck (isCheck) {
-	isCheck = !isCheck;
-	var allNodes = companyTree.getNodesByFilter( function(v){
-		v.nocheck = isCheck;
-		companyTree.updateNode(v);
-	} );
-}
-
-
-function showContact () {
-
-	$('.company_wrap').show().data('role', 'contact');
-
-	var prevPos = $(window).scrollTop();
-	$(window).scrollTop(0);
-
-	var isContact = $('.company_wrap').data('role')=='contact';
-	setCompanyTreeCheck(isContact ? false : true );
-
-	$('.content_wrap').data('prevPos', prevPos  ).hide();
-	$('.msg_wrap').hide();
-	$('.header').hide();
-	$('.company_wrap .msgTitle').html( '查看联系人' );
-	updateMenu('.contactMenu');
-	if(!isNWJS){
-		$('.fClient').hide();
-	}
-
-	treeObj = companyTree;
-}
-
-function refreshPage () {
-	window.location.reload();
-}
-
-function commonFunc () {
-	$post(host+'/getCommonFunc', {company: COMPANY_NAME }, function(data){
-		if(!data) return alert('获取命令错误');
-		var str = '';
-		data.commandList.forEach(function(v){
-			if(!v.param) v.param=[];
-			if( !$.isArray(v.param) ) v.param = [v.param];
-			if(v.role=='JS') {
-				str += '<p><a href="javascript:'+ v.function +'.apply(this, '+ JSON.stringify(v.param).replace(/"/g,'&quot;') +'); hideDialog(); ">'+ v.name +'</a></p>';
-			}
-			if(v.role=='EXE') {
-				str += '<p><a href="javascript:runCommand.apply(this, '+ JSON.stringify( [v.function].concat(v.param) ).replace(/"/g,'&quot;') +'); hideDialog(); ">'+ v.name +'</a></p>';
-			}
-
-		});
-		alert(str);
-	});
-}
-
-
-function runCommand (cmd) {
-	if(!isNWJS) return;
-	var exec = require('child_process').exec;
-	exec(cmd, function(err,stdout,stderr){
-
-	});
-}
-
-function openClient (address) {
-
-	if(!isNWJS) return;
-	if(!address){
-		var sel = companyTree.getSelectedNodes().shift();
-		address = sel.ip || sel.client;
-	}
-	if(!address) return;
-	//var address='192.168.8.116';
-
-	var exec = require('child_process').exec;
-	var cmd = '';
-	switch (process.platform) {
-		case 'darwin':
-			cmd='open smb://'+address;
-			break;
-		case 'win32':
-			cmd='explorer \\\\'+address;
-			break;
-		default:
-			return;
-			break;
-	}
-
-	exec(cmd, function(err,stdout,stderr){
-
-	});
-
-}
-
-function hideCompanyTree (){
-	$('.clearInput:visible').click();
-	$('.company_wrap').hide().data('role', '');
-	setCompanyTreeCheck(true);
-
-	var prevPos = $('.content_wrap').data('prevPos');
-	$('.content_wrap').show();
-	$('.header').show();
-	updateMenu();
-	updateTreeObj();
-
-	$(window).scrollTop(prevPos);
-};
-
-function viewContact () {
-	var sel = companyTree.getSelectedNodes().shift();
-	if(!sel) return;
-	var str = '';
-	str += '<p>'+ sel.name + '('+sel.userid  +')</p>';
-	if(sel.client) str += '<p><a href="javascript:openClient(\''+ sel.client +'\')">'+ sel.client +'</a></p>';
-	if(sel.ip) str += '<p><a href="javascript:openClient(\''+ sel.ip +'\')">'+ sel.ip +'</a></p>';
-	str += '<p><a href="tel:'+sel.mobile+'">'+ sel.mobile +'</a></p>';
-	str += '<p><a href="tel:'+ sel.shortPhone +'">'+ sel.shortPhone +'</a></p>';
-	alert(str);
-}
-
-
-function isVisible(el){
-	el = $(el);
-	while( el.is(':visible') && !el.is(document) ){
-		el = el.parent();
-	}
-	return el.is(document);
-}
-
-function debounce(fun, mil){
-    var timer;
-    return function(){
-        clearTimeout(timer);
-        timer = setTimeout(function(){
-            fun();
-        }, mil);
-    };
-}
-
-
-function searchByName (keyword) {
-
-	if(treeObj.prevKeyword == keyword) return;
-
-	var allNodes = treeObj.getNodesByFilter( function(v){return true} );
-
-	// keyword = $.trim(keyword);
-	if(!keyword){
-		return treeObj.showNodes(allNodes);
-	} else{
-		treeObj.hideNodes(allNodes);
-	}
-
-	treeObj.prevKeyword = keyword;
-	keyword = escapeRe(keyword);
-
-	var nodes2 = [];
-	var nodes = treeObj.getNodesByFilter( function(p){
-		if(p.level==0) return false;
-
-		if( ( (p.title||p.name)+' '+(p.userid||'')+' '+(p.mobile||'') ).match( new RegExp(keyword, 'i')) ){
-
-			nodes2 = nodes2.concat( treeObj.transformToArray(p) );
-
-			while( p ) {
-				nodes2.push(p);
-				p = p.getParentNode();
-				if(p&&!p.open) treeObj.expandNode(p, true);
-			}
-		}
-
-	} );
-
-	treeObj.showNodes(nodes2);
-
-	// var nodes2 = $.grep(nodes, function(v, i){
-	// 	return nodes.indexOf( v.getParentNode() )==-1;
-	// });
-
-
-	// var nodes = treeObj.getNodesByFilter( function  (node) {
-	// 	return true;
-	// 	var condition = (node.level&&node.level>0) && !node.isParent && !node.name.match( new RegExp(keyword, 'i') );
-	// 	return condition;
-	// } );
-
-	// treeObj.hideNodes(nodes);
-
-
-
-
-	// var nodes = treeObj.getNodesByFilter( function  (node1) {
-	// 	if( node1.level===0 ) return true;
-	// 	if( node1.title.match( new RegExp(keyword, 'i') ) ) return true;
-	// 	var nodes2 = treeObj.getNodesByFilter( function(v){
-	// 		return v.title.match( new RegExp(keyword, 'i') )
-	// 	}, true, node1);
-	// 	if(nodes2!=null) return true;
-	// } );
-	// treeObj.showNodes(nodes);
-
-
-
-
-
-
-	// var nodes = treeObj.getNodesByFilter( function  (node1) {
-	// 	if( !!$('#'+ node1.tId +'_a').text().match( new RegExp(keyword, 'i')) ) return true;
-	// });
-	// console.log(nodes)
-	// treeObj.showNodes(nodes);
-}
-
-function updateContentTop () {
-	$('.content_wrap').css('margin-top', $('.header').height() );
-}
-
-function moveUploaderButton (el) {
-
-	$('#fileupload1').appendTo( $(el) );
-
-}
-
-
-function alert (msg) {
-  var args =Array.prototype.slice.call(arguments);
-  args.splice(1,0,null);
-  confirm.apply( this, args );
-}
-
-function confirm (msg) {
-
-  var arglen = arguments.length;
-  var arg1 = arguments[1];
-  var arg2 = arguments[2];
-  var lastArg = arguments[arglen-1];
-  var callback = typeof lastArg=='function' ? lastArg : function(){};
-  var text1 = typeof arg1=='string' ? arg1 : '取消';
-  var text2 = typeof arg2=='string' ? arg2 : '确定';
-
-  $("#confirm p.button a:first").css('display', arg1===null?'none':'inline');
-  $("#confirm p.button a:last").css('display', arg2===null?'none':'inline');
-  $("#confirm p.button span").css('display', arg1===null||arg2===null ?'none':'inline');
-
-  if(text1) $("#confirm p.button a").first().html(text1);
-  if(text2) $("#confirm p.button a").last().html(text2);
-
-  $("#confirm .shareMsg").html(msg);
-  $("#confirm").trigger("dialog-open");
-
-  $("#confirm p.button a").off().on('click', function(){
-    var ret = callback( $(this).data('confirm')==1 );
-    if(ret!==false) $("#confirm").trigger("dialog-close");
-  });
-
-}
-
-function hideDialog () {
-	$("#confirm").trigger("dialog-close");
-}
-
-</script>
 
 <style type="text/css">
 dl, dd, dt{
