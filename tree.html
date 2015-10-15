@@ -2375,6 +2375,7 @@ function shareNodePre(){
 		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
 
 
+
 		var nodes = companyTree.getCheckedNodes();
 		var stuffs =  getAllFiles(nodes);
 
@@ -2386,6 +2387,7 @@ function shareNodePre(){
 		stuffs = stuffs.sort(function(a,b){return a.userid>b.userid})
 		.filter( function(v){ var pos=stuffs.indexOf(v); return pos==0||stuffs[pos-1].userid!=v.userid } );
 
+		treeObj = updateTreeObj(true);
 		var sel = treeObj.getSelectedNodes().shift();
 		var shareID = getShareID( sel );
 		var shareName = '/'+getShareName(sel)+'/';
