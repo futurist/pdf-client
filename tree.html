@@ -280,7 +280,9 @@ function applyTemplatePre () {
 
 
 	$.post( host + '/getSavedSign', { file:sel.key, person:rootPerson.userid }, function(data){
-	  	if(data && data.map) savedSignData = data;
+	  	if(!data) return alert('无法获取流程信息');
+
+  	    savedSignData = data.signIDS;
 
 	    if(!data || !companyNode) return;
 
@@ -672,7 +674,7 @@ function addDiyDom(treeId, treeNode) {
 			var self = this;
 			$(this).addClass('downloading');
 			setTimeout(function() {
-				//$(self).removeClass('downloading');
+				$(self).removeClass('downloading');
 			},10000);
 		});
 	},0);

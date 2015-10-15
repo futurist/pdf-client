@@ -260,25 +260,32 @@ function parseTemplate(str, templateEl){
 	return str;
 }
 
+	var ajaxCount=0;
 
 	$.post( host + '/getCanvas', { file:curFile, shareID:shareID }, function(data){
 		if(data) data = JSON.parse( data );
 		savedCanvasData = data;
-
-		$.post( host + '/getSavedSign', { file:curFile, shareID:shareID }, function(data){
-		  if(data && data.map) savedSignData = data;
-
-		  $.post( host + '/getInputData', { file:curFile, shareID:shareID }, function(data){
-
-		    if(data) savedInputData = data;
-		    renderPage();
-
-		  } );
-
-
-		} );
+		ajaxCount++;
+		renderPage();
 
 	} );
+
+	$.post( host + '/getSavedSign', { file:curFile, shareID:shareID }, function(data){
+		if(!data) return;
+		savedSignData = data.signIDS;
+		ajaxCount++;
+		renderPage();
+	  
+	} );
+
+	$.post( host + '/getInputData', { file:curFile, shareID:shareID }, function(data){
+
+		if(data) savedInputData = data;
+		ajaxCount++;
+		renderPage();
+
+	} );
+
 
 	function getScale (div) {
 		var match = $(div).get(0).style.cssText.match(/scale\(([0-9.]+)\)/i);
@@ -376,6 +383,7 @@ function parseTemplate(str, templateEl){
 
   	function renderPage () {
 
+  		if(ajaxCount<3) return;
 
   		// Copy Draw & Text Data
 	  	savedCanvasData.forEach(function  (v, i) {
