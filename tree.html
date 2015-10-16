@@ -176,7 +176,7 @@ function showMainWindow (){
 
 if(isNWJS) {
 	// require('nw.gui').Window.get().showDevTools();
-	
+
 	var el = document.createElement('script');
 	el.async = false;
 	el.src = './js/nwMain.js?'+Math.random();
@@ -210,10 +210,13 @@ if(isNWJS) {
 
 ISNW = /nw$/.test(window.navigator.userAgent);
 COMPANY_NAME = 'lianrun';
+
+
+
 PATHNAME = window.location.href.split('?').shift().split('#').shift();
 BASKETVER = '1.2';
 
-if( window.localStorage['basket-ver-'+PATHNAME] != BASKETVER ) basket.clear();
+// if( window.localStorage['basket-ver-tree.html'] != BASKETVER ) alert(basket.clear());
 
 // if( !ISNW && typeof basket.get('js/ws.js')!=='object') alert('首次运行，确定后将进行缓存');
 
@@ -222,15 +225,15 @@ basket.require(
 { url: 'js/fingerprint2.min.js' },
 { url: 'js/reconnecting-websocket.js' },
 { url: 'js/ws.js' },
-{ url: 'js/moment.js' },
+{ url: '/js/moment.js' },
 { url: 'http://1111hui.com/js/jquery.js' }
 
 
-).then(function(res) {
+).then(function() {
 
 	basket.require(
 
-	{ url: 'js/jquery.ztree.all-3.5.js' },
+	{ url: 'js/jquery.ztree.all-3.5.js', unique:'12' },
 	{ url: 'js/jquery.ztree.exhide-3.5.js' },
 
 	{ url: 'js/dialog.build.js' },
@@ -242,8 +245,8 @@ basket.require(
 	{ url: 'js/jquery.fileupload.js' },
 	{ url: 'js/jquery.ba-throttle-debounce.min.js' }
 
-	).then(function(res) {
-		window.localStorage['basket-ver-'+PATHNAME] = BASKETVER;
+	).then(function() {
+		window.localStorage['basket-ver-tree.html'] = BASKETVER;
 
 		INIT();
 
