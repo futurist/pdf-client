@@ -816,6 +816,12 @@
 			return null;
 		},
 		getNodeMainDom:function(target) {
+			var p = target.parentNode;
+			while( p && p.tagName&& (p.tagName.toLowerCase() != 'li') ){
+				p = target.parentNode;
+			}
+			return p;
+
 			return ($(target).parent("li").get(0) || $(target).parentsUntil("li").parent().get(0));
 		},
 		isChildOrSelf: function(dom, parentId) {
@@ -2481,13 +2487,13 @@
 		nodeEventCallback = null, treeEventCallback = null,
 		tmp = null;
 
-		if (tools.eqs(e.type, "mouseover")) {
+		if (0&&tools.eqs(e.type, "mouseover")) {
 			tmp = tools.getMDom(setting, target, [{tagName:"a", attrName:"treeNode"+consts.id.A}]);
 			if (tmp) {
 				tId = tools.getNodeMainDom(tmp).id;
 				nodeEventType = "hoverOverNode";
 			}
-		} else if (tools.eqs(e.type, "mouseout")) {
+		} else if (0&&tools.eqs(e.type, "mouseout")) {
 			tmp = tools.getMDom(setting, relatedTarget, [{tagName:"a", attrName:"treeNode"+consts.id.A}]);
 			if (!tmp) {
 				tId = "remove";

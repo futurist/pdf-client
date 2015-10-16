@@ -31,10 +31,8 @@
 	<!-- load fonts -->
 	<script type="text/javascript" src="js/glyphicon.js?t=4545"></script>
 
-
-
-	<!--
 	<script type="text/javascript" src="/js/cookies.js"></script>
+	<!--
 	<script type="text/javascript" src="js/fingerprint2.min.js"></script>
 	<script type="text/javascript" src="js/reconnecting-websocket.js"></script>
 	<script type="text/javascript" src="js/ws.js"></script>
@@ -63,49 +61,6 @@
 
 <script type="text/javascript">
 
-basket.require(
-
-{ url: 'http://1111hui.com/js/cookies.js', unique:'v1.1' },
-{ url: 'js/fingerprint2.min.js', unique:'v1.1' },
-{ url: 'js/reconnecting-websocket.js', unique:'v1.1' },
-{ url: 'js/ws.js', unique:'v1.1' },
-{ url: 'js/moment.js', unique:'v1.1' },
-{ url: 'http://1111hui.com/js/jquery.js', unique:'v1.1' }
-
-
-).then(function(responses) {
-
-	basket.require(
-
-	{ url: 'js/jquery.ztree.all-3.5.js', unique:'v1.1' },
-	{ url: 'js/jquery.ztree.exhide-3.5.js', unique:'v1.1' },
-
-	{ url: 'js/dialog.build.js', unique:'v1.1' },
-	{ url: 'js/draggable.js', unique:'v1.1' },
-	{ url: 'js/noframework.waypoints.min.js', unique:'v1.1' },
-	{ url: 'js/selectivity-full.js', unique:'v1.1' },
-	{ url: 'js/vendor/jquery.ui.widget.js', unique:'v1.1' },
-	{ url: 'js/jquery.iframe-transport.js', unique:'v1.1' },
-	{ url: 'js/jquery.fileupload.js', unique:'v1.1' },
-	{ url: 'js/jquery.ba-throttle-debounce.min.js', unique:'v1.1' }
-
-	).then(function(responses) {
-
-		INIT();
-
-	})
-
-
-});
-
-
-function INIT(){
-// start the INITPAGE
-
-
-COMPANY_NAME = 'lianrun';
-
-moment.locale('zh-cn');
 
 //******* Common Function & Variable part **************
 
@@ -149,7 +104,15 @@ var isMobile = isAndroid||isWeiXin||isiOS;
 var clickE = isMobile?'ontouchstart':'click';
 var downE = isMobile?'ontouchstart':'mousedown';
 
+window.host = "http://1111hui.com:88";
+window.FILE_HOST = 'http://7xkeim.com1.z0.glb.clouddn.com/';
+window.VIEWER_URL = 'http://1111hui.com/pdf/webpdf/viewer.html';
+
 var rootPerson = {};
+
+
+// ************ Check if we are in WX env
+
 var wxUserInfo;
 var DEBUG= eval(urlQuery.debug||0);
 
@@ -172,18 +135,9 @@ if(!DEBUG)
 	wxUserInfo.UserId = 'yangjiming';
 }
 
-var isQT = false;
-var host = "http://1111hui.com:88";
-var root=[];
-var fileData=[];
-var fileKeys=null;
-var addCount = 1;
-var DragParentNode = null;
-var sendRoot = null;
-var receiveRoot = null;
 
+// ************** Check if we are in NW.JS env
 
-//Check if we are in NW.JS env
 var isNWJS = typeof global !='undefined';
 var iconInter=-1;
 var nwMainWin = null;
@@ -220,9 +174,9 @@ function showMainWindow (){
 
 
 
-
 if(isNWJS) {
-
+	// require('nw.gui').Window.get().showDevTools();
+	
 	var el = document.createElement('script');
 	el.async = false;
 	el.src = './js/nwMain.js?'+Math.random();
@@ -237,22 +191,82 @@ if(isNWJS) {
 		global.updateHostName();
 	}
 
-	$(document).on('click','a', function  (e) {
-		var link = e.target.href;
-		if(!link) return e.preventDefault();
+	function nwHookLink() {
+		$(document).on('click','a', function  (e) {
+			var link = e.target.href;
+			if(!link) return e.preventDefault();
 
-		if( link.match(/viewer\.html/) ){
-			e.preventDefault();
-			global._nwMain.showReader(link);
-		}
-	});
-
+			if( link.match(/viewer\.html/) ){
+				e.preventDefault();
+				global._nwMain.showReader(link);
+			}
+		});
+	}
 
 }
 
 
-FILE_HOST = 'http://7xkeim.com1.z0.glb.clouddn.com/';
-VIEWER_URL = 'http://1111hui.com/pdf/webpdf/viewer.html';
+
+
+ISNW = /nw$/.test(window.navigator.userAgent);
+COMPANY_NAME = 'lianrun';
+PATHNAME = window.location.href.split('?').shift().split('#').shift();
+BASKETVER = '1.2';
+
+if( window.localStorage['basket-ver-'+PATHNAME] != BASKETVER ) basket.clear();
+
+// if( !ISNW && typeof basket.get('js/ws.js')!=='object') alert('首次运行，确定后将进行缓存');
+
+basket.require(
+
+{ url: 'js/fingerprint2.min.js' },
+{ url: 'js/reconnecting-websocket.js' },
+{ url: 'js/ws.js' },
+{ url: 'js/moment.js' },
+{ url: 'http://1111hui.com/js/jquery.js' }
+
+
+).then(function(res) {
+
+	basket.require(
+
+	{ url: 'js/jquery.ztree.all-3.5.js' },
+	{ url: 'js/jquery.ztree.exhide-3.5.js' },
+
+	{ url: 'js/dialog.build.js' },
+	{ url: 'js/draggable.js' },
+	{ url: 'js/noframework.waypoints.min.js' },
+	{ url: 'js/selectivity-full.js' },
+	{ url: 'js/vendor/jquery.ui.widget.js' },
+	{ url: 'js/jquery.iframe-transport.js' },
+	{ url: 'js/jquery.fileupload.js' },
+	{ url: 'js/jquery.ba-throttle-debounce.min.js' }
+
+	).then(function(res) {
+		window.localStorage['basket-ver-'+PATHNAME] = BASKETVER;
+
+		INIT();
+
+	})
+
+
+});
+
+
+function INIT(){
+// start the INITPAGE
+
+nwHookLink();
+
+var isQT = false;
+var root=[];
+var fileData=[];
+var fileKeys=null;
+var addCount = 1;
+var DragParentNode = null;
+var sendRoot = null;
+var receiveRoot = null;
+
 window.savedSignData = [];
 
 function eve (el, type){
@@ -3073,6 +3087,7 @@ function setupWayPoint1 () {
 
 	tree1WayPoint = new Waypoint({
 	  element: el.get(0),
+	  continuous:false,
 	  handler: function(direction) {
 	  	if( !el.is(':visible') ) return;
 		$('.tree1 .ztree').show();
@@ -3120,6 +3135,7 @@ function setupWayPoint2 () {
 
 	tree2WayPoint = new Waypoint({
 	  element: el.get(0),
+	  continuous:false,
 	  handler: function(direction) {
 	  	if( !el.is(':visible') ) return;
 		$('.tree2 .ztree').show();
@@ -3172,6 +3188,7 @@ function setupWayPoint3 () {
 
 	tree3WayPoint = new Waypoint({
 	  element: el.get(0),
+	  continuous:false,
 	  handler: function(direction) {
 	  	if( !el.is(':visible') ) return;
 		$('.tree3 .ztree').show();
@@ -3628,6 +3645,8 @@ function handleShortKey (evt) {
 
 $(function initPage () {
 
+	moment.locale('zh-cn');
+
 	if(isNWJS) $('.commonFunc').show();
 
 	$('.addFileBtn').click(function  () {
@@ -3652,13 +3671,6 @@ $(function initPage () {
 	});
 
 
-
-	$(document).click(function hideMenu (e) {
-
-		if( $(e.target).hasClass('popBtn') ) return;
-		$('.menuPopup').addClass('hidden');
-
-	});
 
 	$('.msgTitle').click(function(){
 		if( $(this).find('.titleContent').height()<20 ) return;
@@ -3748,7 +3760,11 @@ $(function initPage () {
 
 	$(document).click(function(e){
 
-		if( $(e.target).hasClass('msgTitleMenu') || $(e.target).hasClass('topMenu') ) return;
+		var el = $(e.target);
+
+		if( el.hasClass('popBtn') || el.hasClass('msgTitleMenu') || el.hasClass('topMenu') ) return;
+
+		$('.menuPopup').addClass('hidden');
 
 		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
 	});
@@ -3997,13 +4013,13 @@ function moveUploaderButton (el) {
 }
 
 
-function alert (msg) {
+function alert1 (msg) {
   var args =Array.prototype.slice.call(arguments);
   args.splice(1,0,null);
   confirm.apply( this, args );
 }
 
-function confirm (msg) {
+function confirm1 (msg) {
 
   var arglen = arguments.length;
   var arg1 = arguments[1];
@@ -4067,6 +4083,10 @@ window.hideTemplateCon = hideTemplateCon;
 window.applyTemplatePre = applyTemplatePre;
 window.hidePrintCon = hidePrintCon;
 window.applyPrint = applyPrint;
+
+
+window.alert = alert;
+window.confirm = confirm;
 
 
 
