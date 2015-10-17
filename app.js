@@ -110,7 +110,9 @@ futurist.array_remove_item = function(array, item) {
   return tmp !== -1 ? futurist.array_remove(array, tmp) : array;
 };
 
-
+function NewID () {
+  return +new Date()+Math.random().toString().slice(2,5)+'_';
+}
 
 function qiniu_getUpToken() {
 	var responseBody =
@@ -757,7 +759,7 @@ app.post("/generatePDFAtPrinter", function (req, res) {
   var CONVERT_TIMEOUT = 2*60*1000 ;
   var data = req.body;
   data.task = 'generatePDF';
-  data.msgid = +new Date()+Math.random().toString().slice(2,5);
+  data.msgid = +new Date()+Math.random().toString().slice(2,5)+'_';
   wsSendPrinter(data, null, res);
   // will wait for job done WS Message from printer client app. check ws message: type=printerMsg
 
@@ -790,7 +792,7 @@ app.post("/printPDF", function (req, res) {
 	// req data: {server, printer, fileKey, shareID, person }
   var data = req.body;
   data.task = 'printPDF';
-  data.msgid = +new Date()+Math.random().toString().slice(2,5);
+  data.msgid = +new Date()+Math.random().toString().slice(2,5)+'_';
   wsSendPrinter(data, data.server, res);
 
 });
@@ -1061,7 +1063,7 @@ app.post("/upfile", function (req, res) {
               data.fromPerson.shift().name,
               ret.shareName  // if we need segmented path:   pathName.join('-'),
             ),
-            "description": "点击查看消息记录",
+            "description": "查看消息记录",
             "url": util.format('%s#path=%s&shareID=%d&openMessage=1', TREE_URL, ret.key, shareID ),
            "picurl": FILE_HOST+ret.key
          }
@@ -1193,7 +1195,7 @@ app.post("/rotateFile", function (req, res) {
     							oldFile.key = newName;
     							oldFile.fname = newName;
     							oldFile.title += '('+dirName+')';
-				        	oldFile.hash = ret.hash? ret.hash : +new Date()+Math.random().toString().slice(2,5);
+				        	oldFile.hash = ret.hash? ret.hash : +new Date()+Math.random().toString().slice(2,5)+'_';
 				        	ret = oldFile;
 				        	console.log('ret:', ret)
 			        	}
@@ -1271,7 +1273,7 @@ app.post("/exitMember", function (req, res) {
              "msgtype": "text",
              "text": {
                "content":
-               util.format('退订成员：%s <a href="%s">点此查看</a>',
+               util.format('退订成员：%s <a href="%s">查看共享</a>',
                   shareName,
                   personName,
                   overAllPath  // if we need segmented path:   pathName.join('-'),
@@ -1320,7 +1322,7 @@ app.post("/addMember", function (req, res) {
              "msgtype": "text",
              "text": {
                "content":
-               util.format('%s加入了新成员：%s，操作者：%s <a href="%s">点此查看</a>',
+               util.format('%s加入了新成员：%s，操作者：%s <a href="%s">查看共享</a>',
                   shareName,
                   newMember.map(function(v){return v.name}).join(',') ,
                   personName,
@@ -1366,7 +1368,7 @@ app.post("/markFinish", function (req, res) {
            "msgtype": "text",
            "text": {
              "content":
-             util.format('%s已由%s标记为：%s<a href="%s">点此查看</a>',
+             util.format('%s已由%s标记为：%s<a href="%s">查看共享</a>',
                 path.replace(/^\/|\/$/g,''),
                 personName,
                 isFinish?'已完成' : '未完成',
@@ -1504,7 +1506,7 @@ app.post("/signInWeiXin", function (req, res) {
 
             if( person != realMainPerson.userid ){
               var content =
-                util.format('流程%d %s (%s-%s)需要您签署，<a href="%s">点此查看后签署</a>',
+                util.format('流程%d %s (%s-%s)需要您签署，<a href="%s">查看文件</a>',
                         shareID,
                         msg,
                         colShare.flowName,
@@ -1567,7 +1569,7 @@ app.post("/signInWeiXin", function (req, res) {
 
   }
 
-  
+
 
 
 
@@ -1612,7 +1614,7 @@ app.post("/applyTemplate", function (req, res) {
       type:info.type,
       drawData:info.drawData,
       signIDS:info.signIDS,
-      hash: +new Date()+Math.random().toString().slice(2,5)+'',
+      hash: +new Date()+Math.random().toString().slice(2,5)+'_'+'',
       order:maxOrder
     };
 
@@ -1720,7 +1722,7 @@ app.post("/applyTemplate2", function (req, res) {
   			drawData:doc.drawData,
   			signIDS: signIDS || doc.signIDS,
   			inputData:doc.inputData|| {} ,
-  			hash: +new Date()+Math.random().toString().slice(2,5)+'',
+  			hash: +new Date()+Math.random().toString().slice(2,5)+'_'+'',
   			order:0
   		};
 
@@ -1981,6 +1983,9 @@ app.post("/removeFolder", function (req, res) {
 });
 
 app.post("/saveCanvas", function (req, res) {
+  var pdfWidth = req.body.pdfWidth;
+  var pdfHeight = req.body.pdfHeight;
+  var totalPage = req.body.totalPage;
   var data = req.body.data;
   var file = req.body.file;
   var personName = req.body.personName;
@@ -1993,7 +1998,7 @@ app.post("/saveCanvas", function (req, res) {
       res.send(err);
     } );
   } else{
-    col.findOneAndUpdate({role:'share', shareID:shareID, 'files.key':filename }, { $set: { 'files.$.drawData':data }  },
+    col.findOneAndUpdate({role:'share', shareID:shareID, 'files.key':filename }, { $set: { 'files.$.drawData':data, totalPage:totalPage, pdfWidth:pdfWidth, pdfHeight:pdfHeight }  },
                         { projection:{'files':1, msg:1, fromPerson:1, toPerson:1, flowName:1, isSign:1  } },
                         function(err, result){
       res.send(err);
@@ -2009,7 +2014,7 @@ app.post("/saveCanvas", function (req, res) {
             var overAllPath = util.format('%s#file=%s&shareID=%d&isSign=%d', VIEWER_URL, FILE_HOST+ encodeURIComponent(fileKey), shareID, isSign?1:0 ) ;
             var content =
             colShare.isSign?
-            util.format('流程%d %s (%s-%s)标注已由%s更新，<a href="%s">点此查看</a>',
+            util.format('流程%d %s (%s-%s)标注已由%s更新，<a href="%s">查看文件</a>',
                     shareID,
                     msg,
                     colShare.flowName,
@@ -2017,7 +2022,7 @@ app.post("/saveCanvas", function (req, res) {
                     personName,
                     overAllPath  // if we need segmented path:   pathName.join('-'),
                   ) :
-            util.format('共享%d %s (%s)标注已由%s更新 <a href="%s">点此查看</a>',
+            util.format('共享%d %s (%s)标注已由%s更新 <a href="%s">查看文件</a>',
                     shareID,
                     msg,
                     colShare.fromPerson[0].name,
@@ -2121,8 +2126,9 @@ app.post("/getSavedSign", function (req, res) {
 
 
     // common function to generate SignData
-    function getSignData(err, docs, fromUserId, curID){
-      if(err||!docs) { return res.send({curID:null, signIDS: []}); }
+    function getSignData(err, docs, fromUserId, curID, totalPage, pdfWidth, pdfHeight){
+
+      if(err||!docs) { return res.send({curID:null, totalPage:totalPage,pdfWidth:pdfWidth,pdfHeight:pdfHeight, signIDS: []}); }
       var ids = docs.filter(function(v){ return v.signData } ).map(function  (v) {
         return new ObjectID( v.signData );
       });
@@ -2147,7 +2153,7 @@ app.post("/getSavedSign", function (req, res) {
 
         });
 
-        res.send({curID:curID, signIDS: docs});
+        res.send({curID:curID, totalPage:totalPage,pdfWidth:pdfWidth, pdfHeight:pdfHeight, signIDS: docs});
 
       });
     }
@@ -2155,7 +2161,7 @@ app.post("/getSavedSign", function (req, res) {
 
 
   if( !shareID ){
-    
+
     col.findOne( {role:'upfile', 'key':filename },  { },  function(err, doc){
 
       if(err ||!doc) return res.send('');
@@ -2165,8 +2171,8 @@ app.post("/getSavedSign", function (req, res) {
           doc.signIDS[i] = safeEvalObj(v, true);
         });
       }
-      
-      getSignData(err, doc.signIDS , null, null );
+
+      getSignData(err, doc.signIDS , person, null, doc.totalPage, doc.pdfWidth, doc.pdfHeight );
     });
 
 
@@ -2198,9 +2204,9 @@ app.post("/getSavedSign", function (req, res) {
                   return !v.isFlow || (v.isFlow && v.order<= curFlowPos+1 );
                 });
 
-                getSignData(err, file.signIDS , doc.fromPerson.shift().userid, curID );
+                getSignData(err, file.signIDS , doc.fromPerson.shift().userid, curID, file.totalPage, file.pdfWidth, file.pdfHeight );
               }
-              else res.send( {curID:null, signIDS: [] } );
+              else res.send( {curID:null, totalPage:file.totalPage,pdfWidth:file.pdfWidth,pdfHeight:file.pdfHeight, signIDS: [] } );
 
           } );
 
@@ -2213,7 +2219,7 @@ app.post("/getSavedSign", function (req, res) {
         var signIDS = result.signIDS;
         if(!signIDS ) return res.send('');
 
-        getSignData(err, signIDS, person );
+        getSignData(err, signIDS, person, result.totalPage, result.pdfWidth, result.pdfHeight );
 
       });
 
@@ -2275,16 +2281,16 @@ app.post("/getShareData", function (req, res) {
   var shareID = safeEval(req.body.shareID);
   var file = safeEval(req.body.file);
   if(!shareID) return res.send('');
-  col.findOne( { 'shareID': shareID, role:'share', files: {$elemMatch:{ key:file }} } , 
-      {limit:500, fields:{ 
+  col.findOne( { 'shareID': shareID, role:'share', files: {$elemMatch:{ key:file }} } ,
+      {limit:500, fields:{
         role:1, shareID:1, fromPerson:1, toPerson:1, curFlowPos:1, flowSteps:1,
-        selectRange:1, fileIDS:1, isSign:1, isFinish:1, 'files.$':1 
-      } } , 
+        selectRange:1, fileIDS:1, isSign:1, isFinish:1, 'files.$':1
+      } } ,
       function(err, item){
           if(err || !item) {
             return res.send('');
           }
-          
+
           var data = {};
           _.each(item.files[0].inputData, function(v,k){
             data[k.replace('\uff0e', '.')] = v;
@@ -2416,6 +2422,9 @@ app.post("/getShareMsg", function (req, res) {
 // Save sign info into upfile, signIDS array, with no ShareID
 app.post("/drawSign", function (req, res) {
 
+  var pdfWidth =  req.body.pdfWidth;
+  var pdfHeight =  req.body.pdfHeight;
+  var totalPage =  req.body.totalPage;
   var data =  req.body.data;
   var shareID =  safeEval(req.body.shareID);
   var signPerson = data.signPerson;
@@ -2430,13 +2439,13 @@ app.post("/drawSign", function (req, res) {
   data.scale = safeEval(data.scale);
   data.role = 'sign';
   data.date = new Date();
-  data._id =  _id || +new Date()+Math.random().toString().slice(2,5);
+  data._id =  _id || +new Date()+Math.random().toString().slice(2,5)+'_';
   delete data.file;
   // delete data.signPerson;
 
   if(shareID){
 
-    col.update( { role:'share', shareID:shareID, 'files.key':file }, { $push: { 'files.$.signIDS': data } }, function(err,result){
+    col.update( { role:'share', shareID:shareID, 'files.key':file }, { $push: { 'files.$.signIDS': data }, $set:{'files.$.totalPage':totalPage,'files.$.pdfWidth':pdfWidth,'files.$.pdfHeight':pdfHeight} }, function(err,result){
       console.log(err);
       if(err || !result) return res.send('');
       res.send(result);
@@ -2444,7 +2453,7 @@ app.post("/drawSign", function (req, res) {
 
   } else {
 
-    col.update( { role:'upfile', key:file }, { $push: { signIDS: data } }, function(err,result){
+    col.update( { role:'upfile', key:file }, { $push: { signIDS: data }, $set:{totalPage:totalPage,pdfWidth:pdfWidth,pdfHeight:pdfHeight,} }, function(err,result){
       console.log(err);
       if(err || !result) return res.send('');
       res.send(result);
@@ -2479,28 +2488,41 @@ app.post("/beginSign", function (req, res) {
 });
 
 app.post("/deleteSign", function (req, res) {
-  var id =  req.body.id;
+  var signID =  req.body.signID+'';
   var person =  req.body.person;
   var file =  req.body.file;
-  var id =  req.body.id;
   var shareID = safeEval(req.body.shareID);
 
   var key = file.replace(FILE_HOST, '');
 
-  if(!id.length){
+  if(!signID.length){
     return res.send('');
   }
 
   if(shareID){
 
-    col.updateOne( { role:'share', shareID:shareID, 'files.key':key }, { $pull: { 'files.$.signIDS': {_id: id } } }  );
-    res.send('OK');
+    getSignIndex(shareID, key, signID, _relay);
+    function _relay(err, ret) {
+      //if(err||ret.signIdx===null) return res.end();
+
+      var condition = { role:'share', shareID:shareID, 'files.key':key };
+      condition['files.'+ret.fileIdx+'.signIDS.'+ret.signIdx+'.isSigned']={$ne:true};
+
+      col.updateOne( condition , { $pull: { 'files.$.signIDS': {_id: signID } } }, function(err, ret){
+        //console.log(shareID, key, signID, err, ret);
+        if(err || !ret.result.nModified) return res.end();
+        res.send('OK');
+      }  );
+    }
 
   } else {
 
     // http://stackoverflow.com/questions/19435123/using-pull-in-mongodb-to-remove-a-deeply-embedded-object
-    col.updateOne({ role:'upfile', key:key, person:person }, { $pull: { 'signIDS': {_id: id } } }  );
-    res.send('OK');
+    col.updateOne({ role:'upfile', key:key, person:person, signIDS:{$elemMatch:{_id:signID, isSigned:{$ne:true} } } }, { $pull: { 'signIDS': {_id: signID } } }, function (err, ret) {
+      if(err || !ret.result.nModified) return res.end();
+      res.send('OK');
+    }  );
+    
 
   }
 
@@ -2531,17 +2553,18 @@ app.post("/deleteSignOnly", function (req, res) {
         var unsetObj = {};
         unsetObj[ 'files.'+ fileIdx +'.signIDS.'+ signIdx +'.signData' ] = '';
         unsetObj[ 'files.'+ fileIdx +'.signIDS.'+ signIdx +'.signPerson' ] = '';
+        unsetObj[ 'files.'+ fileIdx +'.signIDS.'+ signIdx +'.isSigned' ] = '';
 
         col.findOneAndUpdate( {role:'share', shareID:shareID, 'files.key':fileKey, 'files.signIDS._id': signID },
           { $unset:unsetObj }, { projection:{ key:1, 'signIDS':1} }, function(err, result) {
               res.send( result );
             });
       }
-  		
+
 
   	} else {
   		col.findOneAndUpdate( {role:'upfile', 'key':fileKey, 'signIDS._id': signID },
-			{ $unset:{'signIDS.$.signData': '', 'signIDS.$.signPerson': '' } }, { projection:{ key:1, 'signIDS':1} }, function(err, result) {
+			{ $unset:{'signIDS.$.signData': '', 'signIDS.$.signPerson': '', 'signIDS.$.isSigned': '' } }, { projection:{ key:1, 'signIDS':1} }, function(err, result) {
           res.send( result.value );
         });
   	}
@@ -2563,7 +2586,7 @@ app.post("/getSignStatus", function (req, res) {
   if(shareID){
     getSignIndex( shareID, fileKey, signID, _relay );
     function _relay (err, ret) {
-      
+
       if(err|| !ret || ret.signIdx===undefined ){
         return res.send('0');
       }
@@ -2587,7 +2610,7 @@ app.post("/getSignStatus", function (req, res) {
       });
 
   }
-  
+
 
   return;
 
@@ -2688,10 +2711,10 @@ app.post("/finishSign", function (req, res) {
                    "msgtype": "text",
                    "text": {
                      "content":
-                     util.format('%s 文件 %s 增加了新的签名：%s, <a href="%s">点此预览</a>',
-                        
+                     util.format('%s 文件 %s 增加了新的签名：%s, <a href="%s">查看文件</a>',
+
                         (colShare.isSign?'流程-':'共享-') + colShare.shareID + '('+ colShare.fromPerson[0].name + ' '+ (colShare.isSign?colShare.flowName : colShare.msg) +')',
-                        
+
                         colShare.files[fileIdx].title,
 
                         getUserInfo( person ).name,
@@ -2775,7 +2798,7 @@ app.post("/finishSign", function (req, res) {
                          "msgtype": "text",
                          "text": {
                            "content":
-                           util.format('流程%d %s (%s-%s)已由%s签署,此流程已结束并转交至：%s, <a href="%s">点此预览</a>',
+                           util.format('流程%d %s (%s-%s)已由%s签署,此流程已结束并转交至：%s, <a href="%s">查看文件</a>',
                               colShare.shareID,
                               msg,
                               colShare.flowName,
@@ -2803,7 +2826,7 @@ app.post("/finishSign", function (req, res) {
                          "msgtype": "text",
                          "text": {
                            "content":
-                           util.format('流程%d %s (%s-%s)已由%s签署,此流程已结束 <a href="%s">点此预览</a>',
+                           util.format('流程%d %s (%s-%s)已由%s签署,此流程已结束 <a href="%s">查看文件</a>',
                               colShare.shareID,
                               msg,
                               colShare.flowName,
@@ -2844,7 +2867,7 @@ app.post("/finishSign", function (req, res) {
                        "msgtype": "text",
                        "text": {
                          "content":
-                         util.format('流程%d %s (%s-%s)已由 %s 签署,此流程已转交给下一经办人：%s <a href="%s">点此查看</a>',
+                         util.format('流程%d %s (%s-%s)已由 %s 签署,此流程已转交给下一经办人：%s <a href="%s">查看文件</a>',
                             colShare.shareID,
                             msg,
                             colShare.flowName,
@@ -2873,7 +2896,7 @@ app.post("/finishSign", function (req, res) {
                        "msgtype": "text",
                        "text": {
                          "content":
-                         util.format('流程%d %s (%s-%s)需处理, 本组成员：(%s), 前置签署：%s。<a href="%s">点此查看</a>',
+                         util.format('流程%d %s (%s-%s)需处理, 本组成员：(%s), 前置签署：%s。<a href="%s">查看文件</a>',
                             colShare.shareID,
                             msg,
                             colShare.flowName,
@@ -2924,7 +2947,7 @@ app.post("/finishSign", function (req, res) {
 
 
 
-  } 
+  }
 
 
 
@@ -2934,6 +2957,9 @@ app.post("/finishSign", function (req, res) {
 
 
 app.post("/saveSignFlow", function (req, res) {
+  var pdfWidth =  req.body.pdfWidth;
+  var pdfHeight =  req.body.pdfHeight;
+  var totalPage =  req.body.totalPage;
   var signIDS =  req.body.signIDS;
   var key =  req.body.key;
   var pageWidth =  req.body.pageWidth;
@@ -2948,7 +2974,7 @@ app.post("/saveSignFlow", function (req, res) {
     return (a.order||999)-(b.order||999);
   });
 
-  col.findOneAndUpdate( {role:'upfile', key:key}, {$set: { signIDS: signIDS, flowSteps:selectRange, templateImage:null } }, {projection:{title:1, key:1}},  function(err, result){
+  col.findOneAndUpdate( {role:'upfile', key:key}, {$set: { totalPage:totalPage, pdfWidth:pdfWidth, pdfHeight:pdfHeight, signIDS: signIDS, flowSteps:selectRange, templateImage:null } }, {projection:{title:1, key:1}},  function(err, result){
     // console.log(err, result);
     if(err||!result) return res.send('');
 
@@ -3042,8 +3068,8 @@ function getSignIndex (shareID, fileKey, signID, callback) {
                   this.files[fileIdx].signIDS.some(function(v,i){ if(v._id==signID) return signIdx=i; });
 
                 } else {
-                  this.files.some(function(v,i){ 
-                    return v.signIDS.some(function(sign,sid){ 
+                  this.files.some(function(v,i){
+                    return v.signIDS.some(function(sign,sid){
                       if(sign._id==signID){
                         fileIdx = i;
                         signIdx = sid;
@@ -3054,7 +3080,7 @@ function getSignIndex (shareID, fileKey, signID, callback) {
                 }
 
               }
-              
+
               emit(this._id, {fileIdx:fileIdx, signIdx:signIdx} );
             },
             function() {},
@@ -3088,6 +3114,9 @@ app.post("/saveSign", function (req, res) {
           getSignIndex( shareID, fileKey, signID, _relay );
 
       		function _relay (err, val) {
+
+            console.log(shareID, fileKey, signID, err, val);
+
             if(err) return res.end();
 
             var fileIdx = val.fileIdx;
@@ -3137,7 +3166,7 @@ app.post("/saveSign", function (req, res) {
 
 
       		col.findOneAndUpdate( {role:'upfile', 'key':fileKey, 'signIDS._id': signID },
-  				  { $set:{'signIDS.$.signData': new ObjectID(id), 'signIDS.$.signPerson': person } }, 
+  				  { $set:{'signIDS.$.signData': new ObjectID(id), 'signIDS.$.signPerson': person } },
             { projection:{ key:1, 'signIDS':1} }, function(err, result) {
 
             if(err) return res.send('');
@@ -3317,7 +3346,7 @@ app.post("/shareFile", function (req, res) {
              "msgtype": "text",
              "text": {
                "content":
-               util.format('%s添加了新文件：%s; 操作者：%s%s <a href="%s">点此查看</a>',
+               util.format('%s添加了新文件：%s; 操作者：%s%s <a href="%s">查看共享</a>',
                   shareName,
                   data.files.map(function(v){
                     return util.format('<a href="%s#file=%s&shareID=%d&isSign=%d">%s</a>',
@@ -3425,7 +3454,7 @@ function insertShareData (data, res, showTab){
                         data.selectRange.map(function(v){
                           return v.depart? ''+v.depart+'-'+v.name+'' : '【'+v.name+'】' }).join('；'),
                         data.msg ? '，附言：\n'+data.msg : '',
-                        '<a href="'+ treeUrl +'">点此查看</a>'
+                        '<a href="'+ treeUrl +'">查看共享</a>'
                       );
                   }
                   var msg = {
@@ -3552,7 +3581,7 @@ function _logErr () {
 
 function genPDF ( filename, shareID,  realname, cb ) {
 
-	var tempFile = IMAGE_UPFOLDER + (+new Date()+Math.random().toString().slice(2,5)) +'.pdf';
+	var tempFile = IMAGE_UPFOLDER + (+new Date()+Math.random().toString().slice(2,5)+'_') +'.pdf';
 
 	var wget = 'rm -r '+ IMAGE_UPFOLDER+realname+ '; wget --restrict-file-names=nocontrol -P ' + IMAGE_UPFOLDER + ' -O '+ tempFile +' -N "' + FILE_HOST+filename +'" ';
 	console.log(wget);
@@ -3561,7 +3590,7 @@ function genPDF ( filename, shareID,  realname, cb ) {
 		// console.log( err, stdout, stderr );
 		if(err || (stdout+stderr).indexOf('200 OK')<0 ) return cb?cb('无法获取原始文件'):'';
 
-		var tempPDF = IMAGE_UPFOLDER + (+new Date()+Math.random().toString().slice(2,5)) +'.pdf';
+		var tempPDF = IMAGE_UPFOLDER + (+new Date()+Math.random().toString().slice(2,5)+'_') +'.pdf';
 		var cmd = 'phantomjs --config=client/config client/render.js "file='+ FILE_HOST+filename +'&shareID='+ shareID +'" '+ tempPDF;
 		console.log(cmd);
 

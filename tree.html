@@ -118,6 +118,7 @@ var DEBUG= eval(urlQuery.debug||0);
 
 if(window.navigator.userAgent == "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.152 Safari/537.36"
 	|| window.navigator.userAgent == "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36"
+	|| window.navigator.userAgent == "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36"
 	) DEBUG=1;
 
 if(DEBUG) rootPerson = {userid: 'yangjiming', name:"杨吉明", depart:"行政", isAdmin:true };
@@ -226,7 +227,7 @@ basket.require(
 { url: 'js/reconnecting-websocket.js' },
 { url: 'js/ws.js' },
 { url: '/js/moment.js' },
-{ url: 'http://1111hui.com/js/jquery.js' }
+{ url: '/js/jquery.js' }
 
 
 ).then(function() {
@@ -259,7 +260,7 @@ basket.require(
 function INIT(){
 // start the INITPAGE
 
-nwHookLink();
+if(isNWJS) nwHookLink();
 
 var isQT = false;
 var root=[];
@@ -927,6 +928,8 @@ function addTemplateCon() {
 	$('[data-click]').off().on('click', function  () {
 		eval($(this).data('click'));
 	});
+
+	$(window).scrollTop(0);
 };
 
 function sendShareSnd () {
@@ -1046,8 +1049,11 @@ function openPrintCon (){
 	treeObj = treeObjPrint;
 	hideContentWrap();
 	$('.print_wrap').show();
+
 	$('.print_wrap .msgTitle').html('请选择打印机');
 	updateMenu( treeObj.getSelectedNodes() );
+
+	$(window).scrollTop(0);
 }
 
 function hidePrintCon() {
@@ -1868,9 +1874,16 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 			viewDetail();
 		}else if(openMessage==2){
 			openPrintCon();
+
 		} else if(urlQuery.tab) {
 			showTab( urlQuery.tab );
 		}
+
+		window.location.href = window.location.href.replace(/&openShare[^&]+/,'');
+		window.location.href = window.location.href.replace(/&openMessage[^&]+/,'');
+		urlQuery.openShare = 0;
+		urlQuery.openMessage = 0;
+		
 	});
 
 }
@@ -2570,7 +2583,6 @@ function shareNode (){
 		});
 
 
-		hideShare();
 
 	}
 
@@ -2593,6 +2605,8 @@ function shareNode (){
 			alert( alertMsg);
 		}
 	});
+
+	hideShare();
 }
 
 
@@ -2645,7 +2659,9 @@ function addTopic (){
 }
 
 function shareFile (){
-
+	if(!treeObj){
+		return setTimeout( function (){ shareFile() }, 300 );
+	}
 	var sel = treeObj.getSelectedNodes();
 	if(!sel.length) return;
 	sel2 = sel[0];
@@ -4016,13 +4032,13 @@ function moveUploaderButton (el) {
 }
 
 
-function alert1 (msg) {
+function alert (msg) {
   var args =Array.prototype.slice.call(arguments);
   args.splice(1,0,null);
   confirm.apply( this, args );
 }
 
-function confirm1 (msg) {
+function confirm (msg) {
 
   var arglen = arguments.length;
   var arg1 = arguments[1];
@@ -4086,6 +4102,7 @@ window.hideTemplateCon = hideTemplateCon;
 window.applyTemplatePre = applyTemplatePre;
 window.hidePrintCon = hidePrintCon;
 window.applyPrint = applyPrint;
+window.viewDetail = viewDetail;
 
 
 window.alert = alert;
