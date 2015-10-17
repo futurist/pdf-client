@@ -457,7 +457,19 @@ app.use(flash());
 var DOWNLOAD_DIR = './downloads/';
 
 
+app.get("/listClient", function (req, res) {
+  var clients = [];
 
+  _.each( WSCLIENT, function (v, k) {
+    var user = {wsClient:k};
+    user =_.extend(user, getUserInfo( k.split(':').shift() ) );
+    clients.push(user);
+  });
+
+  // console.log('listClient', clients);
+  res.render( 'views/listClient.hbs', {clients:clients} );
+
+});
 
 app.get("/app.js", function (req, res) {
 	res.end();
@@ -1273,7 +1285,7 @@ app.post("/exitMember", function (req, res) {
              "msgtype": "text",
              "text": {
                "content":
-               util.format('退订成员：%s <a href="%s">查看共享</a>',
+               util.format('%s 退订成员：%s <a href="%s">查看共享</a>',
                   shareName,
                   personName,
                   overAllPath  // if we need segmented path:   pathName.join('-'),
@@ -2975,7 +2987,7 @@ app.post("/saveSignFlow", function (req, res) {
   });
 
   col.findOneAndUpdate( {role:'upfile', key:key}, {$set: { totalPage:totalPage, pdfWidth:pdfWidth, pdfHeight:pdfHeight, signIDS: signIDS, flowSteps:selectRange, templateImage:null } }, {projection:{title:1, key:1}},  function(err, result){
-    // console.log(err, result);
+    console.log(err, result);
     if(err||!result) return res.send('');
 
     res.send('ok');
@@ -2983,6 +2995,7 @@ app.post("/saveSignFlow", function (req, res) {
     var token = +new Date();
     var filename = key.split('/').pop();
 	var cmd = 'phantomjs --config=client/config client/template.js '+ FILE_HOST + key + ' ' + pageWidth + ' ' + pageHeight ;
+  console.log(cmd);
 
 	var child = exec(cmd, function(err, stdout, stderr) {
 

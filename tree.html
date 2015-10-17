@@ -1021,7 +1021,7 @@ function applyPrint ( onlyDownload ) {
 		  	showMainWindow();
 		    $('.bg_mask').hide();
 			if(!data || data.errMsg) alert('打印失败：打印服务故障');
-			else alert('打印任务安排成功，已进入打印队列');
+			else alert('打印任务安排成功，请等待打印机打印');
 			console.log(data);
 			hidePrintCon();
 		  },
@@ -2328,10 +2328,11 @@ function showTab (idx) {
 	if(typeof idx=='undefined') idx = prevIdx;
 
 	// hide right top menu of msgTitle
-	if(idx==1){
+	if(idx==0){
 		$('.msgTitleMenu').hide();
-	}else if(idx==2) {
+	}else if(idx==2||idx==1) {
 		$('.msgTitleMenu').show();
+		idx==1? $('.exitMember').hide() :  $('.exitMember').show()
 	}
 	$('.ztreeFile').hide().eq(idx).show();
 	$('.loadMore').hide().eq(idx).show();
@@ -2382,12 +2383,19 @@ function onDblClick2(event, treeId, treeNode, clickFlag) {
 
 function hideShare () {
 	var role = $('.company_wrap').data('role');
+	var roleFrom = $('.company_wrap').data('role-from');
+	$('.company_wrap').removeData('role-from');
+
 	$('.company_wrap').data('role', null);
 	$('.clearInput:visible').click();
 	$('.company_wrap').hide();
 	updateTreeObj();
 
-	if(role=='member'){
+	if(roleFrom=='file'){
+		$('.content_wrap, .header').show();
+		setTimeout(function(){ $(window).scrollTop( $('.content_wrap').data('scrollTop') ); }, 100);
+	}
+	if(role=='member' && roleFrom!='file' ) {
 
 		$('.msg_wrap').show();
 		$('.botmenu').hide();
@@ -2399,7 +2407,6 @@ function hideShare () {
 		$('.header').show();
 		//$('.treeCompanyCon').css({left: $('.company_wrap').width() });
 		updateMenu(sel);
-		console.log(treeObj);
 	}
 
 }
@@ -2428,7 +2435,7 @@ var optionsDrag = {
   }
 };
 
-function shareNodePre(){
+function shareNodePre (){
 
 	if( !companyTree.getCheckedNodes().length ){
 		alert("请先选择分享目标");
@@ -2446,16 +2453,24 @@ function shareNodePre(){
 	} );
 
 	var role = $('.company_wrap').data('role');
+	var roleFrom = $('.company_wrap').data('role-from');
+	$('.company_wrap').removeData('role-from');
 
 	if(role == 'share'){
 
 		shareNode();
 
 	} else if(role == 'member') {
-		$('.company_wrap, .botmenu').hide();
-		$('.msg_wrap').show();
-		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
 
+		$('.company_wrap, .botmenu').hide();
+
+		if(roleFrom!='file'){
+			$('.msg_wrap').show();
+			$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
+		} else {
+			$('.content_wrap, .header').show();
+			setTimeout(function(){ $(window).scrollTop( $('.content_wrap').data('scrollTop') ); }, 100);
+		}
 
 
 		var nodes = companyTree.getCheckedNodes();
@@ -2477,7 +2492,7 @@ function shareNodePre(){
 		$post(host+'/addMember', {shareID:shareID, shareName:shareName, stuffs:stuffs, personName: rootPerson.name }, function  (ret) {
 			if(!ret) return alert('添加成员错误');
 			console.log( ret );
-			$('.memberList').html('<b>'+ ret.map(function(v){return v.name}).join(',') +'</b>');
+			if(roleFrom!='file') $('.memberList').html('<b>'+ ret.map(function(v){return v.name}).join(',') +'</b>');
 		}  );
 
 	}
@@ -3696,8 +3711,15 @@ $(function initPage () {
 		$(this).toggleClass('expend');
 	});
 
-	$('.addMember').click(function(){
+	$('.addMember').click(function(e){
 		addShareMember();
+
+		if( $(e.target).closest('.fFolder').length ){
+			$('.company_wrap').data('role-from', 'file');
+			$('.content_wrap').data('scrollTop', $(window).scrollTop() );
+			$('.content_wrap, .header').hide();
+		}
+		$(window).scrollTop(0);
 	});
 
 	$('#isExistShare').click(function(){
@@ -3789,7 +3811,7 @@ $(function initPage () {
 	});
 
 	$('.searchTxt').on('blur keydown change search', debounce(function(){
-		var el = $('.searchTxt:visible');
+		var el = $('.searchTxt:visible').last();
 		var val = el.val();
 		searchByName( val );
 		$(el).closest('.searchDIV').find('.clearInput').css('display', val!=''?'block':'none' );
@@ -5224,6 +5246,7 @@ dl, dd, dt{
 		<a class="fFile fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>
 		<a class="fFolder fFinish" href="javascript:;" onclick="markFinish(false)">未完成</a>
 		<a class="fFolder fNotFinish" href="javascript:;" onclick="markFinish(true)">完成</a>
+		<a class="fFolder addMember" href="javascript:;">添加成员</a>
 	</div>
 
 	<div class="receiveMenu">
@@ -5237,6 +5260,7 @@ dl, dd, dt{
 		<a class="fFile fPrint" href="javascript:;" onclick="openPrintCon()">打印</a>
 		<a class="fFolder fFinish" href="javascript:;" onclick="markFinish(false)">未完成</a>
 		<a class="fFolder fNotFinish" href="javascript:;" onclick="markFinish(true)">完成</a>
+		<a class="fFolder addMember" href="javascript:;">添加成员</a>
 	</div>
 
 	<div class="templateMenu">

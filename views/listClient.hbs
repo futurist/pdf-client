@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html manifest="">
+<HEAD>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<TITLE>listClient</TITLE>
+<meta name="google" content="notranslate">
+<meta http-equiv="cache-control" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+</HEAD>
+<body>
+
+<h2>clients list</h2>
+
+<div class="list">
+
+<ul>
+{{#each clients}}
+    <li>
+    	{{@index}} : {{this.wsClient}}, {{this.userid}}, {{this.name}}, {{this.ip}}, {{this.client}}
+    </li>
+{{/each}}
+</ul>
+
+</div>
+
+</body>
+</html>
