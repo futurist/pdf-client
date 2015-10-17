@@ -1,0 +1,33 @@
+CACHE MANIFEST
+#VERSION 1.21111234234
+CACHE:
+http://1111hui.com/pdf/client/css/font-awesome.min.css
+http://1111hui.com/pdf/client/css/zTreeStyle/zTreeStyle.css
+http://1111hui.com/pdf/client/js/selectivity-full.css
+http://1111hui.com/js/basket.full.min.js
+http://1111hui.com/pdf/client/js/dialog.css
+http://res.wx.qq.com/open/js/jweixin-1.0.0.js
+http://1111hui.com/pdf/client/js/glyphicon.js?t=4545
+http://1111hui.com/js/cookies.js
+http://1111hui.com/pdf/client/loading.gif
+js/fingerprint2.min.js
+js/reconnecting-websocket.js
+js/ws.js
+js/moment.js
+http://1111hui.com/js/jquery.js
+js/jquery.ztree.all-3.5.js
+js/dialog.build.js
+js/draggable.js
+js/noframework.waypoints.min.js
+js/selectivity-full.js
+js/vendor/jquery.ui.widget.js
+js/jquery.iframe-transport.js
+js/jquery.fileupload.js
+js/jquery.ba-throttle-debounce.min.js
+js/jquery.ztree.exhide-3.5.js
+http://1111hui.com:88/tree.html
+http://1111hui.com/pdf/client/tree.html
+
+NETWORK:
+*
+

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html manifest="">
+<html manifest="client.manifest">
 <HEAD>
 <TITLE>文件柜</TITLE>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8">
@@ -1879,8 +1879,8 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 			showTab( urlQuery.tab );
 		}
 
-		window.location.href = window.location.href.replace(/&openShare[^&]+/,'');
-		window.location.href = window.location.href.replace(/&openMessage[^&]+/,'');
+		window.location.hash = window.location.hash.replace(/&openShare[^&]+/,'');
+		window.location.hash = window.location.hash.replace(/&openMessage[^&]+/,'');
 		urlQuery.openShare = 0;
 		urlQuery.openMessage = 0;
 		
