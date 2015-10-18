@@ -136,3 +136,5 @@ Nd.millisecond=Nd.milliseconds=Md,Nd.utcOffset=Na,Nd.utc=Pa,Nd.local=Qa,Nd.parse
 
 }));
 
+moment.locale('zh-cn');
+

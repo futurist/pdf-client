@@ -69,6 +69,7 @@ page.onError = function(msg, trace) {
 
 page.onConsoleMessage=function(data){
 
+	console.log(data);
 	if( ( new RegExp ("_PageRenderFinished") ).test(data) ){
 
 		page.evaluate(function() {
@@ -85,16 +86,16 @@ page.onConsoleMessage=function(data){
 }
 
 
-page.open('http://1111hui.com/pdf/webpdf/viewer.html#file='+ url +'&isTemplate=1&debug=1', function() {
+page.open('http://1111hui.com/pdf/webpdf/viewerPhantom.html#file='+ url +'&isTemplate=1&debug=1', function() {
 	page.evaluate(function() {
-		$("head").append('<link rel="stylesheet" type="text/css" href="css/font-awesome.css" />'); 
-		var scrolltop = $('#viewerContainer').scrollTop(); 
-		$('#viewer .page').each(function(i){ 
-			var T = $(this).position().top+ scrolltop; 
+		$("head").append('<link rel="stylesheet" type="text/css" href="css/font-awesome.css" />');
+		var scrolltop = $('#viewerContainer').scrollTop();
+		$('#viewer .page').each(function(i){
+			var T = $(this).position().top+ scrolltop;
 			setTimeout(function  () {
 				$('#viewerContainer').scrollTop( T );
 			}, 100*i );
-			
+
 		} );
 
 	});

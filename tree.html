@@ -226,7 +226,7 @@ basket.require(
 { url: 'js/fingerprint2.min.js' },
 { url: 'js/reconnecting-websocket.js' },
 { url: 'js/ws.js' },
-{ url: '/js/moment.js' },
+{ url: '/js/moment.js', unique:'121' },
 { url: '/js/jquery.js' }
 
 
@@ -1883,7 +1883,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 		window.location.hash = window.location.hash.replace(/&openMessage[^&]+/,'');
 		urlQuery.openShare = 0;
 		urlQuery.openMessage = 0;
-		
+
 	});
 
 }
@@ -4125,6 +4125,7 @@ window.applyTemplatePre = applyTemplatePre;
 window.hidePrintCon = hidePrintCon;
 window.applyPrint = applyPrint;
 window.viewDetail = viewDetail;
+window.viewTemplateImage = viewTemplateImage;
 
 
 window.alert = alert;
