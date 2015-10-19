@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html manifest="">
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<TITLE></TITLE>
+<meta name="google" content="notranslate">
+<meta http-equiv="cache-control" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<script type="text/javascript" src="http://1111hui.com/js/react/react.min.js"></script>
+<script type="text/javascript" src="http://1111hui.com/js/react/react.dom.js"></script>
+<script type="text/javascript" src="http://1111hui.com/js/react/babel.min.js"></script>
+<script type="text/javascript" src="http://1111hui.com/js/jquery.js"></script>
+<style type="text/css">
+.success{
+	color:green;
+}
+.fail{
+	color:red;
+}
+</style>
+</head>
+<body>
+
+<h2>员工列表</h2>
+
+<div class="wrap"></div>
+
+<script type="text/javascript" src="data.json"></script>
+<script type="text/babel">
+
+var UserForm = React.createClass({
+
+	submit:function onSubmit (e) {
+		e.preventDefault();
+		var newData = this.props.data;
+		for(var i in this.refs){
+			var v = this.refs[i];
+			if(v.name) newData[i] = v.value;
+		}
+		console.log(newData);
+		var infoEl = this.refs.info;
+		$(this).removeAttr('style').html('更新中...').show();
+		$.ajax({
+			url:'http://1111hui.com:88/updateStuffInfo',
+			type:'POST',
+			data: JSON.stringify(newData),
+			contentType:'application/json',
+			success:function  (data) {
+				infoEl.className = 'success';
+				infoEl.innerHTML = '已更新!';
+			},
+			error: function (err) {
+		        console.log("AJAX error in request: " + JSON.stringify(err, null, 2));
+				infoEl.className = 'fail';
+		        infoEl.innerHTML = '更新错误!';
+		    }, 
+		    complete:function  () {
+		    	$(infoEl).removeAttr('style').stop().animate({opacity:0}, 2000, function  () {
+		    		$(this).hide();
+		    	});
+		    }
+		});
+	},
+	handleChange: function(event) {
+		var val = event.target.value;
+	},
+	render:function renderForm () {
+
+		return(
+
+<li>
+	<form onSubmit={this.submit}>
+		{/* // Below use defaultValue="" instead of value="" to make input editable */} 
+		<div><input type="text" defaultValue={this.props.data.userid} ref="userid" readOnly name="userid" /></div>
+		<div><input type="text" defaultValue={this.props.data.client} placeholder="电脑名称" ref="client" name="client" /></div>
+		<div><input type="text" defaultValue={this.props.data.ip} placeholder="IP地址" onChange={this.handleChange} ref="ip" name="ip" /></div>
+		<div><input type="text" defaultValue={this.props.data.level} placeholder="用户级别" ref="level" name="level" /></div>
+		<div><input type="text" defaultValue={this.props.data.shortPhone} placeholder="短号" ref="shortPhone" name="shortPhone" /></div>
+		<div><input type="submit" value="提交" /><span ref="info"></span></div>
+	</form>
+</li>
+
+			);
+	}
+});
+
+var User = React.createClass({
+	render:function renderUser () {
+
+		var forms = this.props.data.map(v=>{
+
+			return <UserForm data={v} />
+		});
+
+		return(
+
+		<ul>
+		{forms}
+		</ul>
+
+			);
+		
+	}
+});
+
+
+ReactDOM.render( <User data={data} />, $('.wrap')[0] );
+
+
+
+
+</script>
+
+</body>
+</html>
+

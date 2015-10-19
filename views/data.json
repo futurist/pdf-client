@@ -1,0 +1,144 @@
+var data = [
+        {
+            "userid": "gary",
+            "client": "pc-gary",
+            "ip": "",
+            "level": 80,
+            "userRole": [
+                "boss"
+            ],
+            "shortPhone": "664148",
+            "color": "#0000CD"
+        },
+        {
+            "userid": "yangjiming",
+            "client": "pc33",
+            "ip": "192.168.1.135",
+            "level": 0,
+            "userRole": [
+                "designer"
+            ],
+            "isAdmin": true,
+            "shortPhone": "665991",
+            "color": "#0000CD"
+        },
+        {
+            "userid": "dongyuexia",
+            "client": "pc-dong",
+            "ip": "",
+            "level": 10,
+            "userRole": [
+                "designer"
+            ],
+            "shortPhone": "665991"
+        },
+        {
+            "userid": "ceshi02",
+            "client": "pc333",
+            "ip": "",
+            "level": 0,
+            "shortPhone": "665991"
+        },
+        {
+            "userid": "ceshi1",
+            "client": "pc333",
+            "ip": "",
+            "level": 100,
+            "shortPhone": "665991"
+        },
+        {
+            "userid": "jinweichao",
+            "client": "pcxln",
+            "ip": "",
+            "level": 20,
+            "shortPhone": "665991"
+        },
+        {
+            "userid": "tangxiaohong",
+            "client": "",
+            "ip": "",
+            "level": "",
+            "userRole": [],
+            "shortPhone": ""
+        },
+        {
+            "userid": "fangdifei",
+            "client": "",
+            "ip": "",
+            "level": "",
+            "userRole": [],
+            "shortPhone": ""
+        },
+        {
+            "userid": "chenjie",
+            "client": "",
+            "ip": "",
+            "level": "",
+            "userRole": [],
+            "shortPhone": ""
+        },
+        {
+            "userid": "yangjufen",
+            "client": "",
+            "ip": "",
+            "level": "",
+            "userRole": [],
+            "shortPhone": ""
+        },
+        {
+            "userid": "zhaojianming",
+            "client": "",
+            "ip": "",
+            "level": "",
+            "userRole": [],
+            "shortPhone": ""
+        },
+        {
+            "userid": "chenpeifang",
+            "client": "",
+            "ip": "",
+            "level": "",
+            "userRole": [],
+            "shortPhone": ""
+        },
+        {
+            "userid": "ziyanmei",
+            "client": "",
+            "ip": "",
+            "level": "",
+            "userRole": [],
+            "shortPhone": ""
+        },
+        {
+            "userid": "hongyinghai",
+            "client": "",
+            "ip": "",
+            "level": "",
+            "userRole": [],
+            "shortPhone": ""
+        },
+        {
+            "userid": "tangdongya",
+            "client": "",
+            "ip": "",
+            "level": "",
+            "userRole": [],
+            "shortPhone": ""
+        },
+        {
+            "userid": "zhuzhangfu",
+            "client": "",
+            "ip": "",
+            "level": "",
+            "userRole": [],
+            "shortPhone": ""
+        },
+        {
+            "userid": "shenjianqin",
+            "client": "pcdz",
+            "ip": "192.168.1.124",
+            "level": "",
+            "userRole": [],
+            "shortPhone": ""
+        }
+    ]

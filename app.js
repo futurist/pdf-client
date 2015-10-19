@@ -229,6 +229,11 @@ var JOBS = {};  // store printer jobs same format as WSMSG
 var WSMSG = {}; // store client persistent message
 var WSCLIENT = {};
 wss.on('connection', function connection(ws) {
+
+  // https://github.com/websockets/ws/issues/361
+  // https://github.com/websockets/ws/issues/117
+  //console.log(_.keys(ws._sender));
+
   ws.on('close', function incoming(code, message) {
     //console.log("WS close: ", code, message);
 
@@ -242,6 +247,9 @@ wss.on('connection', function connection(ws) {
     //     var idx = WSCLIENT.indexOf(v);
     //     if(idx>-1) WSCLIENT.splice( idx , 1  );
     //   });
+  });
+  ws.on('ping', function incoming(data) {
+    //console.log(data.toString());
   });
   ws.on('message', function incoming(data) {
     // Client side data format:
@@ -259,8 +267,11 @@ wss.on('connection', function connection(ws) {
 
       // msg format: { clientName:clientName, clientRole:'printer', clientOrder:1 }
       var suffix = (msg.from? ':'+msg.from: '');
-      console.log( 'client up', msg.clientName+suffix );
-      WSCLIENT[msg.clientName+suffix] = _.extend( msg, {ws:ws, timeStamp:+new Date()} );
+      var clientFullName = msg.clientName+suffix;
+      if(WSCLIENT[clientFullName]) return;
+
+      console.log( 'client up', clientFullName );
+      WSCLIENT[clientFullName] = _.extend( msg, {ws:ws, timeStamp:+new Date()} );
 
       if(msg.clientRole == 'printer') {
 
@@ -293,7 +304,9 @@ wss.on('connection', function connection(ws) {
 
 
   });
-  console.log('new client connected', _.keys(ws.connection)) ;
+
+  // https://github.com/websockets/ws/issues/338
+  console.log('ws new client connected',  ws._socket.remoteAddress, ws._socket.remotePort ) ;
   ws.send('connected');
 });
 
