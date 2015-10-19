@@ -4032,10 +4032,27 @@ function updateCompanyTree () {
   });
 }
 
+
+app.post("/getStuffList", function (req, res) {
+  col.findOne({role:'stuff'}, function(err, ret){
+    res.send(ret.stuffList);
+  } );
+});
+
+app.post("/updateOneStuff", function (req, res) {
+  var data = req.body;
+  col.updateOne({role:'stuff', 'stuffList.userid':data.userid}, {$set:{'stuffList.$': data}}, function(err, ret){
+    if(err||ret.result.nModified==0) return res.end();
+    res.send('OK');
+  } );
+});
+
+
 app.get("/updateCompanyTree", function (req, res) {
   updateCompanyTree();
   res.send('OK');
 });
+
 
 app.post("/getCompanyTree", function (req, res) {
   var data = req.body;
