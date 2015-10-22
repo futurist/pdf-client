@@ -22,6 +22,14 @@ function $post (url, data, callback) {
     success:callback
   });
 }
+function safeEval (str) {
+  try{
+    var ret = JSON.parse(str);
+  }catch(e){
+    ret = str
+  }
+  return /object/i.test(typeof ret) ? (ret===null?null:str) : ret;
+}
 
 
 function searchToObject(search) {
@@ -52,7 +60,7 @@ var rootPerson = {};
 // ************ Check if we are in WX env
 
 var wxUserInfo;
-var DEBUG= eval(urlQuery.debug||0);
+var DEBUG= safeEval(urlQuery.debug||0);
 
 if(
 window.navigator.userAgent == "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.152 Safari/537.36" || window.navigator.userAgent == "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36" || window.navigator.userAgent == "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36"
@@ -1353,6 +1361,13 @@ function hidePrintCon() {
 			}
 			return true;
 		}
+
+		function makeViewURL (treeNode) {
+			var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
+			shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
+			shareStr += treeNode.isTemplate ? '&isTemplate=1' : '';
+			return treeNode.key + shareStr;
+		}
 		function onDblClick (event, treeId, treeNode) {
 
 			if(!treeNode ) return;
@@ -1364,13 +1379,10 @@ function hidePrintCon() {
 			if( !treeNode.key ) return;
 
 			if( ! $('.content_wrap').is(':visible') ) return;
-			var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
-			shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
 
-			shareStr += treeNode.isTemplate ? '&isTemplate=1' : '';
 
 			if(  treeNode.key.match(/\.pdf$/) ){
-				sendClientMsg(treeNode.key + shareStr, treeNode.title);
+				sendClientMsg( makeViewURL(treeNode) , treeNode.title);
 			} else if( treeNode.key.match(regex_preview) ) {
 				previewImage();
 			} else if( treeNode.key.match(regex_can_be_convert) ) {
@@ -1398,7 +1410,7 @@ function hidePrintCon() {
 				$(window).scrollTop( prevScrollPos );
 			}
 			if( isMobile&& !treeNode.isParent && treeNode.prevTime && (+new Date()- treeNode.prevTime)<3000 ){
-				sendClientMsg( getFileUrl(treeNode).replace(VIEWER_URL,''), treeNode.title);
+				if( $('.content_wrap').is(':visible') ) sendClientMsg( makeViewURL(treeNode) , treeNode.title);
 			}
 			showLog("[ "+getTime()+" beforeClick ]&nbsp;&nbsp;" + treeNode.name );
 			return (treeNode.click != false);
@@ -1660,7 +1672,7 @@ function initShareFrom (data, bForceUpdate) {
 			v.isParent = true;
 			if(v.isFinish) v.font = {color:'blue'};
 			root.push(v);
-			
+
 		}
 	}
 
@@ -1835,7 +1847,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 	$post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
 		if(!data) window.location.reload();
 		data = JSON.parse(data);
-		
+
 		var curTab = $('.currTab').data('idx');
 		if(switchTo=='auto'){
 			isSwith = curTab>0?false:true;
@@ -2363,7 +2375,7 @@ function onDblClick2(event, treeId, treeNode, clickFlag) {
 		viewContact();
 		var sel = companyTree.getSelectedNodes().shift();
 		if(sel&&sel.ip){
-			openClient(sel.ip);
+			//openClient(sel.ip);
 		}
 	}
 }
@@ -3635,15 +3647,34 @@ function handleShortKey (evt) {
         //console.log(evt, evt.keyCode);
         switch (evt.keyCode) {
           case 46:  //Delete key
-          	removeTreeNode();
+          	if( $('.content_wrap').is(':visible') ) removeTreeNode();
+          	handled = true;
           	break;
           case 116:  //F5 key
           	window.location.reload();
             handled = true;
             break;
+          case 115: //F4 Key
+          	showContact();
+          	handled = true;
+          	break;
           case 123: //F12 Key
           	toggleDevTools();
+          	handled = true;
           	break;
+        }
+
+        if( 0&& $('.company_wrap').is(':visible') ) {
+        	var key = evt.keyCode-48;
+    		var v = $('.searchTxt').last().val();
+        	if(key>=0 && key<=42){
+        		var c = String.fromCharCode( key );
+        		$('.searchTxt').last().val( v+c );
+        	}
+        	if(evt.keyCode==46){
+        		$('.searchTxt').last().val( v.slice(0,-1) );
+        	}
+
         }
       }
 
