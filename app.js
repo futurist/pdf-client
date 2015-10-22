@@ -1541,6 +1541,7 @@ app.post("/signInWeiXin", function (req, res) {
 
                         function(err, result){
 
+
           if(err || !result) return res.send('');
 
           if( !isFlow ) {
@@ -1875,7 +1876,7 @@ app.post("/applyTemplate2", function (req, res) {
 app.post("/getTemplateFiles", function (req, res) {
   // find signIDS.length > 0
   // http://stackoverflow.com/questions/7811163/how-to-query-for-documents-where-array-size-is-greater-than-one-1-in-mongodb/15224544#15224544
-  col.find( { role:'upfile', isTemplate:true, status:{$ne:-1}, 'signIDS.1':{$exists:true} } , {limit:2000,fields:{drawData:0,inputData:0,signIDS:0} } ).sort({title:1,date:-1}).toArray(function(err, docs){
+  col.find( { role:'upfile', isTemplate:true, status:{$ne:-1}, 'signIDS.0':{$exists:true} } , {limit:2000,fields:{drawData:0,inputData:0,signIDS:0} } ).sort({title:1,date:-1}).toArray(function(err, docs){
     if(err) {
       return res.send('error');
     }
@@ -1962,7 +1963,7 @@ app.get("/downloadFile2/:name", function (req, res) {
 
       } else {
 
-        exec('rm -f "'+ IMAGE_UPFOLDER+rename +'"; mv '+IMAGE_UPFOLDER+realname+' "'+IMAGE_UPFOLDER+rename+'"', function(){
+        exec('rm -f "'+ IMAGE_UPFOLDER+rename +'"; mv "'+IMAGE_UPFOLDER+realname+'" "'+IMAGE_UPFOLDER+rename+'"', function(){
           res.download(IMAGE_UPFOLDER+rename);
         });
 
@@ -3703,11 +3704,11 @@ function genPDF ( filename, shareID,  realname, cb ) {
 
 	var tempFile = IMAGE_UPFOLDER + (+new Date()+Math.random().toString().slice(2,5)+'_') +'.pdf';
 
-	var wget = 'rm -r '+ IMAGE_UPFOLDER+realname+ '; wget --restrict-file-names=nocontrol -P ' + IMAGE_UPFOLDER + ' -O '+ tempFile +' -N "' + FILE_HOST+filename +'" ';
+	var wget = 'rm -r "'+ IMAGE_UPFOLDER+realname+ '"; wget --restrict-file-names=nocontrol -P "' + IMAGE_UPFOLDER + '" -O "'+ tempFile +'" -N "' + FILE_HOST+filename +'" ';
 	console.log(wget);
 	var child = exec(wget, function(err, stdout, stderr) {
 
-		// console.log( err, stdout, stderr );
+		//console.log( err, stdout, stderr );
 		if(err || (stdout+stderr).indexOf('200 OK')<0 ) return cb?cb('无法获取原始文件'):'';
 
 		var tempPDF = IMAGE_UPFOLDER + (+new Date()+Math.random().toString().slice(2,5)+'_') +'.pdf';
@@ -3717,10 +3718,14 @@ function genPDF ( filename, shareID,  realname, cb ) {
 		var child = exec(cmd, function(err, stdout, stderr) {
 
 		if(err || stdout.toString().indexOf('render page:')<0 ) return cb?cb('生成绘图数据错误'):'';
-		cmd = './mergepdf.py -i '+ tempFile +' -m '+tempPDF+' -o '+ IMAGE_UPFOLDER+realname +' ';
+		
+    // pyPDF2 will not handle landscrape page of pdf, and rotate it strangely; using pdftk instead:
+    // http://stackoverflow.com/questions/501723/overlay-one-pdf-or-ps-file-on-top-of-another
+    // cmd = './mergepdf.py -i '+ tempFile +' -m '+tempPDF+' -o '+ IMAGE_UPFOLDER+realname +' ';
+    cmd = 'pdftk "'+ tempPDF +'" multibackground "'+tempFile+'" output "'+ IMAGE_UPFOLDER+realname +'" ';
 		console.log(cmd);
 		exec(cmd, function (error, stdout, stderr) {
-			// console.log(error,stdout, stderr);
+			//console.log(error,stdout, stderr);
 			if(error){
 				cb('合并PDF文件错误');
 			}
