@@ -469,7 +469,9 @@ app.use(flash());
 
 var DOWNLOAD_DIR = './downloads/';
 
-
+app.get("/listStuff", function (req, res) {
+  res.render( 'views/listStuff.hbs' );
+});
 app.get("/listClient", function (req, res) {
   var clients = [];
 
@@ -560,7 +562,7 @@ app.post("/getFinger", function (req, res) {
 
 
 app.post("/exitApp", function (req, res) {
-  if(!req.cookies.finger) return;
+  if(!req.cookies.finger) return res.send('');
 	console.log('logout', req.cookies.finger);
   col.updateMany( { finger:req.cookies.finger, role:'finger' }, { $set:{status:-1} } );
   req.cookies.finger = null;
@@ -1176,11 +1178,28 @@ app.post("/updateHost", function (req, res) {
   var person = req.body.person;
   var hostname = req.body.hostname.toLowerCase();
   var ip = req.body.ip;
-  col.update({role:'stuff', 'stuffList.userid': person }, { $set:{ role:'stuff', 'stuffList.$.userid': person, 'stuffList.$.client': hostname,  'stuffList.$.ip': ip } }, {upsert:1}, function(err, ret){
+  var finger = req.body.finger;
+  col.update({role:'stuff', 'stuffList.userid': person }, { $set:{ role:'stuff', 'stuffList.$.userid': person, 'stuffList.$.client': hostname,  'stuffList.$.ip': ip,  'stuffList.$.finger': finger } }, {upsert:1}, function(err, ret){
     if(err) {
       console.log('ERROR update host:', person, hostname);
       return res.send('');
     }
+
+    STUFF_LIST && STUFF_LIST.some(function  (v) {
+      if(v.userid==person){
+        v.client = hostname;
+        v.ip = ip;
+        return true;
+      }
+    });
+    
+    COMPANY_TREE && COMPANY_TREE.some(function  (v) {
+      if(v.userid==person){
+        v.client = hostname;
+        v.ip = ip;
+        return true;
+      }
+    });
 
     console.log('updated host:', person, hostname, ip);
     res.send('OK');
@@ -3386,7 +3405,7 @@ app.post("/sendShareMsg", function (req, res) {
 
       res.send( msg );
 
-      //wsBroadcast(msg);
+      wsBroadcast(msg);
 
   });
 

@@ -111,6 +111,22 @@ function showMainWindow (){
 }
 
 
+var updateInterval;
+function updateClientHost(){
+
+	if(isNWJS) {
+		console.log(global, rootPerson.userid );
+		clearInterval(updateInterval);
+		updateInterval = setInterval(function(){
+			if(global.updateHostName && rootPerson.userid) {
+				global.updateHostName();
+				clearInterval(updateInterval);
+			}
+		}, 300);
+	}
+
+}
+
 
 if(isNWJS) {
 	// require('nw.gui').Window.get().showDevTools();
@@ -126,7 +142,7 @@ if(isNWJS) {
 		global.msgQueue = global.msgQueue || {};
 		updateIcon();
 		nwMainWin = global._nwMain.mainWin;
-		global.updateHostName();
+		updateClientHost();
 	}
 
 	function nwHookLink() {
@@ -517,20 +533,12 @@ function applyTemplate () {
 
 //******* Websocket part **************
 
-	var updateInterval;
 
 	ws.addEventListener('open', function(){
 		console.log('ws opened');
 		ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
-		if(isNWJS) {
-			clearInterval(updateInterval);
-			updateInterval = setInterval(function(){
-				if(global.updateHostName && rootPerson.userid) {
-					global.updateHostName();
-					clearInterval(updateInterval);
-				}
-			}, 300);
-		}
+		updateClientHost();
+
 	});
 
 	ws.addEventListener('message', function(data){
@@ -1608,7 +1616,7 @@ function initShareFrom (data, bForceUpdate) {
 	root= treeObj2? treeObj2.getNodes()[0].children : [];
 	if(bForceUpdate) root = [];
 
-	for(var i=0; i<data.length; i++){
+	for(var i=0; i<data.length; i++) {
 		var shareID = data[i].shareID;
 		var files = data[i].files;
 		var isSign = data[i].isSign;
@@ -1619,28 +1627,41 @@ function initShareFrom (data, bForceUpdate) {
 		var toPerson = data[i].toPerson.map(function(v){return v.name});
 		var toPersonStr = toPerson.length>2? '('+toPerson.slice(0,2).join(',')+'...)' :  '('+toPerson.join(',')+')' ;
 		var flowName = '('+data[i].flowName+'-'+fromPerson.join(',')+ ')';
-		files.every(function(v){
-			try{
-				var folderName = isSign? '流程-'+shareID+flowName+ (msg) : '共享-'+shareID+toPersonStr+ (msg);
-				v.path = "/"+ folderName  + v.path;
-				v.isSign = isSign;
-				v.shareID = shareID;
-				pathToObj( v );
+		if(files.length) {
+			files.every(function(v){
+				try{
+					var folderName = isSign? '流程-'+shareID+flowName+ (msg) : '共享-'+shareID+toPersonStr+ (msg);
+					v.path = "/"+ folderName  + v.path;
+					v.isSign = isSign;
+					v.shareID = shareID;
+					pathToObj( v );
 
-				var folder = root[root.length-1]
-				folder.shareID = shareID;
-				folder.isSign = isSign;
-				folder.isFinish = isFinish;
-				if(isFinish) folder.font = {color:'blue'};
+					var folder = root[root.length-1]
+					folder.shareID = shareID;
+					folder.isSign = isSign;
+					folder.isFinish = isFinish;
+					if(isFinish) folder.font = {color:'blue'};
 
-				// folder.children.unshift({name:'task1', isTask:true});
+					// folder.children.unshift({name:'task1', isTask:true});
 
-			} catch(e){
-				alert('发件柜初始化错误');
-				return false;
-			}
-			return true;
-		});
+				} catch(e){
+					alert('发件柜初始化错误');
+					return false;
+				}
+				return true;
+			});
+		} else {
+
+			var folderName = isSign? '流程-'+shareID+flowName+ (msg) : '共享-'+shareID+fromPersonStr+ (msg);
+			var v = {shareID: shareID};
+			v.name = v.title = folderName;
+			v.isSign = isSign;
+			v.isFinish = isFinish;
+			v.isParent = true;
+			if(v.isFinish) v.font = {color:'blue'};
+			root.push(v);
+			
+		}
 	}
 
     zNodes2[0].children = root;
@@ -2640,14 +2661,17 @@ function addTopic (){
 
 }
 
-function shareFile (){
+function shareFile (role){
 	if(!treeObj){
 		return setTimeout( function (){ shareFile() }, 300 );
 	}
+	var title = '';
 	var sel = treeObj.getSelectedNodes();
-	if(!sel.length) return;
-	sel2 = sel[0];
-	var title = sel.length>1?  sel2.name+'..' : sel2.name;
+	if(role!='topic'){
+		if(!sel.length) return;
+		sel2 = sel[0];
+		title = sel.length>1?  sel2.name+'..' : sel2.name;
+	}
 
 	var isExistShare = $('#isExistShare').is(':checked');
 	var existShareID = isExistShare? $('#existShareInput').val() : '';
@@ -3266,6 +3290,7 @@ $(function  () {
 			}
 
 			rootPerson = userinfo;
+			updateClientHost();
 		}
 
 		$('.bg_mask').show();
@@ -3321,7 +3346,7 @@ $(function  () {
 		var role = $( "#mydialog" ).data('role');
 
 		if(role=='flow') shareNode();
-		else shareFile();
+		else shareFile(role);
 	});
 
 

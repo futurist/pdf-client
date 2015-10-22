@@ -74,11 +74,11 @@ var nwMain = (function(gui) {
 			gui.App.quit();
 		});
 
-		var menuItem3 = new gui.MenuItem({ label: '退出并注销' });
-		menuItem3.on('click',function(e){
-			Cookies.expire('userid');
-			Cookies.expire('finger');
-			$.post( host+'/exitApp', function(){
+		var menuItem3 = new gui.MenuItem({ label: '注销并退出' });
+		menuItem3.on('click',function(e) {
+			$.post( host+'/exitApp', function(ret){
+				Cookies.expire('userid');
+				Cookies.expire('finger');
 				gui.App.quit();
 			});
 		});
@@ -296,7 +296,7 @@ var nwMain = (function(gui) {
 
 		var ip = global.IP.address;
 
-		$.post(host+'/updateHost', {person:person, hostname:global.HOSTNAME, ip:ip  }, function  (ret) {
+		$.post(host+'/updateHost', {person:person, hostname:global.HOSTNAME, ip:ip, finger: Cookies.get('finger')  }, function  (ret) {
 
 		});
 	}
