@@ -1,3 +1,5 @@
 data/
 !views/
+build/
+node_modules/
 
