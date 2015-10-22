@@ -1386,6 +1386,7 @@ function hidePrintCon() {
 			var prevScrollPos = $(window).scrollTop();
 			if (treeNode.isParent && treeNode.level>0 && treeNode.click!==false) {
 				treeObj.expandNode(treeNode);
+				window.location.hash = 'path=' + getPath(treeNode)+'&shareID='+getShareID(treeNode);
 				$(window).scrollTop( prevScrollPos );
 			}
 			if( isMobile&& !treeNode.isParent && treeNode.prevTime && (+new Date()- treeNode.prevTime)<3000 ){
@@ -1500,7 +1501,7 @@ function getFilesData () {
 
 
 function locateNode (rootNode, path, shareID, switchTo){
-	console.log('locateNode');
+
 	if( !rootNode || !path ) return;
 	var targetNode;
 	var treeObj = rootNode.isSend ? treeObj2 : ( rootNode.isReceive? treeObj3 : treeObj1 );
@@ -1518,7 +1519,8 @@ function locateNode (rootNode, path, shareID, switchTo){
 				p = p.replace( /^\/[^/]+/, '' );
 				comp = comp.replace( /^\/[^/]+/, '' );
 			}
-			return p==comp;
+
+			return  shareID? node.shareID==shareID&& p==comp : p==comp;
 		}, true, rootNode);
 	}else{
 		targetNode = treeObj.getNodesByFilter(function(node){
