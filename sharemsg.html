@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html manifest="sharemsg.manifest">
+<html manifest="">
 <HEAD>
 <TITLE>共享消息</TITLE>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8">
@@ -281,6 +281,9 @@ body,html{
 <script type="text/javascript" src="js/zepto.js"></script>
 <script type="text/javascript" src="js/glyphicon.js"></script>
 <script type="text/javascript" src="/js/cookies.js"></script>
+<script type="text/javascript" src="js/reconnecting-websocket.js"></script>
+<script type="text/javascript" src="js/ws.js"></script>
+<script type="text/javascript" src="js/jweixin-1.0.0.js"></script>
 
 <script type="text/javascript">
 
@@ -294,7 +297,7 @@ var clickE = isMobile?'ontouchstart':'click';
 var downE = isMobile?'ontouchstart':'mousedown';
 
 window.host = "http://1111hui.com:88";
-var title = 'sodifjosdf';
+var windowTitle = '';
 
 
 Array.prototype.getUnique = function(){
@@ -347,9 +350,11 @@ function searchToObject(search) {
 
 var urlQuery = searchToObject( window.location.hash );
 
-var shareID = urlQuery.shareID||217;
+var shareID = urlQuery.shareID||277;
 var fileKey = urlQuery.fileKey;
-var path = urlQuery.path;
+var sharePath = urlQuery.path||'/共享-277(杨吉明)/';
+
+windowTitle = sharePath;
 
 var rootPerson = {};
 
@@ -383,6 +388,78 @@ if(!DEBUG)
 }
 
 
+if(isWeiXin) rootPerson.userid = wxUserInfo.UserId;
+
+
+
+//******* Websocket part **************
+
+
+ws.addEventListener('open', function(){
+	console.log('ws opened');
+	if(rootPerson.userid) ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
+
+});
+
+ws.addEventListener('message', function(data){
+	if( !data || !data.data || !data.data.match(/^\s*{/) ) return;
+	var msg = JSON.parse(data.data);
+
+	switch(msg.role){
+
+		case 'shareMsg':
+
+			// Update Message window, when the window is open
+			appendShareMsg(msg);
+
+			break;
+
+		case 'errMsg':
+			alert(msg.message);
+			break;
+	}
+
+});
+
+
+// ******************* WX Init Part ******************
+
+
+window.wxReady = false;
+
+var wxInitTryCount = 0;
+function initWX() {
+	$post(host+'/getJSConfig', { url:window.location.href.split('#')[0] }, function(data){
+		if(!data){
+			if(wxInitTryCount++<3){
+				initWX();
+			}else{
+				alert('获取微信接口错误');
+				wx.closeWindow();
+			}
+			return;
+		}
+
+		data = JSON.parse(data);
+
+		wx.config(data);
+
+		wx.ready(function(){
+			window.wxReady = true;
+			//wxConfigMenu();
+			return;
+		});
+		wx.error(function(res){
+			alert('身份验证失败:'+ JSON.stringify(res));
+			//wx.closeWindow();
+		});
+
+	});
+}
+initWX();
+
+// *********************
+
 
 
 window.addEventListener('load', initPage);
@@ -393,7 +470,7 @@ function initPage () {
 		data = JSON.parse(data);
 		var lastData = data[data.length-1];
 
-		if(lastData.touserName) document.querySelector('.msgTitle .titleContent').innerHTML=( '群成员:<span class="memberList"><b>'+ lastData.touserName.split('|').getUnique().join(',') + '</b></span> 标题:'+ title );
+		if(lastData.touserName) document.querySelector('.msgTitle .titleContent').innerHTML=( '群成员:<span class="memberList"><b>'+ lastData.touserName.split('|').getUnique().join(',') + '</b></span> 标题:'+ windowTitle );
 		data.forEach(function  (v) {
 
 			appendShareMsg(v);
@@ -405,13 +482,13 @@ function initPage () {
 function appendShareMsg (v) {
 
 	if( !v ) return;
+	if( v._id && $('.msgTree li[data-id="'+v._id+'"]').length ) return;
 
-	var titleReg = title.replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+	var titleReg = windowTitle.replace(/\(/g, '\\(').replace(/\)/g, '\\)');
 
 	// Text Message
 	if(v.text ){
-		var content = v.text.content.replace(new RegExp(titleReg,'ig'), '');
-
+		var content = v.text.content.replace(/[在|对].*留言/, '');
 		var $div = $('<div></div>');
 		$div.html(content);
 		$div.find('a').each(function  () {
@@ -427,8 +504,8 @@ function appendShareMsg (v) {
 	if(v.news ){
 
 		var item = v.news.articles.shift();
-		var content = item.title.replace(new RegExp(titleReg,'ig'), '');
-
+		var content = item.title.replace(/[在|对].*留言/, '');
+		console.log(content)
 		var $div = $('<div></div>');
 		$div.html(content+'<br>');
 		$div.append( '<img class="msgImage" src="'+ item.picurl +'">' );
@@ -441,7 +518,8 @@ function appendShareMsg (v) {
 
 	}
 
-	var li = $('<li><span class="msgDate"></span> '+ content +'</li>');
+	var dataID = v._id? ' data-id="'+ v._id +'"' : '';
+	var li = $('<li'+ dataID +'><span class="msgDate"></span> '+ content +'</li>');
 	li.find('.msgDate').data( 'date', v.date );
 	$('.msgTree ul').append(li);
 	$('.msgTree').scrollTop( 99999999999 )
@@ -509,6 +587,69 @@ function closeWin () {
 }
 
 
+function pcUploadImage() {
+
+}
+
+function addPictureCon() {
+	if(isWeiXin) wxUploadImage();
+	else pcUploadImage();
+};
+
+function wxUploadImage() {
+
+	if(!window.wxReady) return;
+	_relay( window.confirm( '压缩图片吗？(上传较快)' ) );
+
+	function _relay(ok) {
+
+		var sourceType = ok ? 'compressed' : 'original';
+
+		//选择微信照片
+		wx.chooseImage( {
+		    count: 1, // 默认9
+		    sizeType: [sourceType], // 可以指定是原图还是压缩图，默认二者都有 ['original', 'compressed']
+		    sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
+		    success: function (res) {
+		        var localIds = res.localIds; // 返回选定照片的本地ID列表，localId可以作为img标签的src属性显示图片
+		        localIds.forEach(function(v){
+
+		        	//开始上传图片
+		        	wx.uploadImage({
+		        	    localId: v, // 需要上传的图片的本地ID，由chooseImage接口获得
+		        	    isShowProgressTips: 1, // 默认为1，显示进度提示
+		        	    success: function (res) {
+		        	        var serverId = res.serverId; // 返回图片的服务器端ID
+
+
+		        	        var folder = sharePath.replace( /^\/[^/]*/, '' );
+		        	        var isInMsg = true;
+
+
+		        	        $.get(host+'/uploadWXImage', {mediaID:serverId, person:rootPerson.userid, path: folder, shareID:shareID, isInMsg:isInMsg, shareName:sharePath }, function(data){
+
+		        	        	if(!data) return alert('上传图片错误');
+		        	        	//appendTree1(data);
+
+		        	        });
+
+		        	    }
+		        	});
+		        });
+
+		    },
+		    fail:function(res){
+
+		    },
+		    cancel:function(res){
+
+		    }
+		} );
+
+	}
+
+}
+
 function sendShareMsg ( state ) {
 
 	var val = $('.inputMsg').val();
@@ -516,16 +657,18 @@ function sendShareMsg ( state ) {
 	if(!val) return;
 
 
-	var data = { person: rootPerson.userid, shareID:shareID, text:val, fileKey:fileKey, path:path&&path.split('/') };
+	var data = { person: rootPerson.userid, shareID:shareID, text:val, fileKey:fileKey, path:sharePath?sharePath.split('/'):[] };
 
 	$post(host+'/sendShareMsg', data , function(ret){
 		if(!ret){
 			return alert('消息发送错误，请复试');
 		}
 		$('.msg_wrap .inputMsg').val('');
-		appendShareMsg(ret);
-	});
 
+		ret = JSON.parse(ret);
+		appendShareMsg(ret);
+		// closeViewDetail();
+	});
 }
 
 function closeViewDetail () {

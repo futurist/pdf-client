@@ -1563,8 +1563,8 @@ function locateNode (rootNode, path, shareID, switchTo){
 			p += (node.key||node.hash||'');
 
 			if(shareID) {
-				p = p.replace( /^\/[^/]+/, '' );
-				comp = comp.replace( /^\/[^/]+/, '' );
+				p = p.replace( /^\/[^/]*/, '' );
+				comp = comp.replace( /^\/[^/]*/, '' );
 			}
 
 			return  shareID? node.shareID==shareID&& p==comp : p==comp;
@@ -1591,6 +1591,10 @@ function locateNode (rootNode, path, shareID, switchTo){
 			if(switchTo) $(window).scrollTop( offset.top-100 );
 		}, 0);
 
+	} else {
+		if(switchTo){
+			showTab(0);
+		}
 	}
 }
 
@@ -1843,13 +1847,36 @@ function reloadTree1 (fileObj, switchTo){
 
 function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 	shareID = shareID || urlQuery.shareID;
-	openShare = openShare || urlQuery.openShare;
-	openMessage = openMessage || urlQuery.openMessage;
 	var highlightTab = 0;
 
-	if(shareID && (openShare || openMessage ) ) {
-		//hideContentWrap();
+	function openAction () {
+		openShare = openShare || urlQuery.openShare;
+		openMessage = openMessage || urlQuery.openMessage;
+		if(shareID && (openShare || openMessage ) ) {
+			//hideContentWrap();
+		} else {
+			return;
+		}
+		if(openShare){
+			shareFile();
+		}else if(openMessage==1){
+			viewDetail();
+		}else if(openMessage==2){
+			openPrintCon();
+		}else if(openMessage==3){
+			shareFile();
+
+		} else if(urlQuery.tab) {
+			showTab( urlQuery.tab );
+		}
+
+		window.location.hash = window.location.hash.replace(/&openShare[^&]+/,'');
+		window.location.hash = window.location.hash.replace(/&openMessage[^&]+/,'');
+		urlQuery.openShare = 0;
+		urlQuery.openMessage = 0;
 	}
+
+
 	$post(host+'/getShareFrom', {person:rootPerson.userid}, function  (data) {
 		if(!data) window.location.reload();
 		data = JSON.parse(data);
@@ -1869,6 +1896,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 		if(shareID) {
 			locateNode(sendRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, isSwith );
 		}
+		openAction();
 	});
 
 	$post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
@@ -1889,23 +1917,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 		if(shareID) {
 			locateNode(receiveRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, isSwith );
 		}
-		if(openShare){
-			shareFile();
-		}else if(openMessage==1){
-			viewDetail();
-		}else if(openMessage==2){
-			openPrintCon();
-		}else if(openMessage==3){
-			shareFile();
-
-		} else if(urlQuery.tab) {
-			showTab( urlQuery.tab );
-		}
-
-		window.location.hash = window.location.hash.replace(/&openShare[^&]+/,'');
-		window.location.hash = window.location.hash.replace(/&openMessage[^&]+/,'');
-		urlQuery.openShare = 0;
-		urlQuery.openMessage = 0;
+		openAction();
 
 	});
 
@@ -2741,6 +2753,7 @@ function shareFile (role){
 
 
 function viewDetail () {
+	treeObj = updateTreeObj();
 	var sel = treeObj.getSelectedNodes();
 	if(!sel.length) return;
 	sel = sel[0];
@@ -2813,10 +2826,12 @@ function viewDetail () {
 
 function appendShareMsg (v){
 	if( !v || !$('.msg_wrap').is(':visible') ) return;
+	if( v._id && $('.msgTree li[data-id="'+v._id+'"]').length ) return;
+	treeObj = updateTreeObj();
 	var sel = treeObj.getSelectedNodes();
 	if(!sel.length) return;
 	sel = sel[0];
-	if(!(sel.isSend||sel.isReceive)) return;
+	//if(!(sel.isSend||sel.isReceive)) return;
 
 	var title = getPath(sel);
 	title = title.split('/').slice(0,2).join('/')+'/';
@@ -2858,10 +2873,11 @@ function appendShareMsg (v){
 
 	}
 
-	var li = $('<li><span class="msgDate"></span> '+ content +'</li>');
+	var dataID = v._id? ' data-id="'+ v._id +'"' : '';
+	var li = $('<li'+ dataID +'><span class="msgDate"></span> '+ content +'</li>');
 	li.find('.msgDate').data( 'date', v.date );
 	$('.msgTree ul').append(li);
-	$('.msgTree').scrollTop( 99999999999 )
+	$('.msgTree').scrollTop( 99999999999 );
 
 	updateMsgTime();
 
@@ -2956,7 +2972,10 @@ function sendShareMsg ( state ) {
 			return alert('消息发送错误，请复试');
 		}
 		$('.msg_wrap .inputMsg').val('');
-		//appendShareMsg(ret);
+
+		ret = JSON.parse(ret);
+		appendShareMsg(ret);
+
 	});
 
 }
@@ -3053,7 +3072,7 @@ function pcUploadImage(){
 }
 
 
-function wxUploadImage(){
+function wxUploadImage() {
 
 	// if(!window.wxReady) return;
 	window.confirm('压缩图片吗？(上传较快)', function(ok){
@@ -3327,6 +3346,7 @@ $(function  () {
 
 			rootPerson = userinfo;
 			updateClientHost();
+			if(ws.readyState==1) ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
 		}
 
 		$('.bg_mask').show();

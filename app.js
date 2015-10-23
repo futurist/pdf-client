@@ -3540,7 +3540,7 @@ function insertShareData (data, res, showTab){
                     if( data.files.length ){
 
                       var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
-                      var content = util.format('%s创建了共享ID：%d(%s)，相关文档：%s，收件人：%s\n%s',
+                      var content = util.format('%s创建了/共享%d(%s)/，相关文档：%s，收件人：%s\n%s',
                           data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                           shareID,
                           data.msg,
@@ -3555,7 +3555,7 @@ function insertShareData (data, res, showTab){
                     // it's empty topic
 
                     var treeUrl = TREE_URL + '#path=&shareID='+ shareID;
-                      var content = util.format('%s创建了新话题，共享ID：%d(%s)，收件人：%s\n%s',
+                      var content = util.format('%s创建了新话题/共享ID %d(%s)/，收件人：%s\n%s',
                           data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                           shareID,
                           data.msg,
@@ -3567,7 +3567,7 @@ function insertShareData (data, res, showTab){
 
                   } else {
                     var treeUrl = makeViewURL(data.files[0].key, shareID, 1);
-                    var content = util.format('流程%d %s发起了流程：%s，文档：%s，经办人：%s%s\n%s',
+                    var content = util.format('/流程%d %s/发起了流程：%s，文档：%s，经办人：%s%s\n%s',
                         shareID,
                         data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                         data.flowName,
@@ -3619,7 +3619,7 @@ function sendWXMessage (msg, fromUser) {
 	    var touser = _.uniq( msg.touser.split('|').concat(fromUser) );
       console.log( 'send client message vai ws', touser );
 	    touser.forEach(function sendToUserWS (v) {
-	      wsSendClient(v, wsMsg);
+	      if(v) wsSendClient(v, wsMsg);
 	    });
     }
 
@@ -3633,12 +3633,22 @@ function sendWXMessage (msg, fromUser) {
   // delete msg.toparty;
   // delete msg.totag;
 
-  api.send(msgTo, msg, function  (err, result) {
+  var wxMsg = JSON.parse(JSON.stringify(msg));
+  var sharePath = JSON.stringify(msg).replace(/<[^>]+>/g,'').match(/\/[^/]+\//);
+  sharePath = sharePath? sharePath.shift() : '';
+
+  if(sharePath && msg.shareID){
+    if(wxMsg.text) {
+      wxMsg.text.content += '\n\n<a href="http://1111hui.com/pdf/client/sharemsg.html#path='+ sharePath +'&shareID='+ msg.shareID +'">群内对话</a>';
+    }
+  }
+
+  api.send(msgTo, wxMsg, function  (err, result) {
     console.log('sendWXMessage', msg.tryCount, err, result);
     if(err){
       if(msg.tryCount++ <=5)
         setTimeout( function(){
-          sendWXMessage(msg);
+          sendWXMessage(msg, fromUser);
         },1000);
       return ('error');
     }
