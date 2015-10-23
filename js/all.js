@@ -71,8 +71,12 @@ if(isWeiXin)
 if(!DEBUG)
 {
 	wxUserInfo = Cookies.get( 'wxUserInfo' );
+
+	var WX_JUMP_URL = encodeURIComponent( window.location.href.replace('#','{@@@}') );
+	localStorage.setItem( 'WX_JUMP_URL', WX_JUMP_URL );
+
 	if( !wxUserInfo ){
-		window.location.replace( 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx59d46493c123d365&redirect_uri=http%3A%2F%2F1111hui.com%2F/pdf/getUserID.php&response_type=code&scope=snsapi_base&state='+ encodeURIComponent( window.location.href.replace('#','{@@@}') ) +'#wechat_redirect');
+		window.location.replace( 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx59d46493c123d365&redirect_uri=http%3A%2F%2F1111hui.com%2F/pdf/getUserID.php&response_type=code&scope=snsapi_base&state=#wechat_redirect');
 	} else {
 		wxUserInfo = JSON.parse(wxUserInfo);
 	}
@@ -958,7 +962,7 @@ function applyPrint ( onlyDownload ) {
 
 	var p = treeObjPrint.getSelectedNodes()[0];
 	var server = p.server;
-	var printer = p.name;
+	var printer = p.path;
 
 	var idx = $('.currTab').data('idx');
 	var tree = eval('treeObj'+(idx+1) );

@@ -38,6 +38,8 @@ body{
 }
 button{
 	margin: 10px auto;
+	font:18px/1 Arial;
+	padding: 10px;
 }
 
 </style>
@@ -52,6 +54,9 @@ button{
 	$code = $_GET['code'];
 	$msgid = $_GET['state'];
 
+	if(!$code || !$msgid ){
+		exit();
+	}
 	//$content=file_get_contents('http://1111hui.com:88/putFingerInfo?code='.$code.'&msgid='.$msgid);
 	//echo $content;
 ?>

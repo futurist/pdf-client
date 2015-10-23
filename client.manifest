@@ -1,5 +1,5 @@
 CACHE MANIFEST
-#VERSION 1.2111123423412342mafd324sdfsads23sdfsdfsdf12kdsf
+#VERSION 1.2111123423412342mafd324sdfsads23sdfsdfsdf12kdsfsdsdfsdf
 CACHE:
 http://1111hui.com/pdf/client/css/font-awesome.min.css
 http://1111hui.com/pdf/client/css/zTreeStyle/zTreeStyle.css
@@ -25,6 +25,7 @@ js/jquery.iframe-transport.js
 js/jquery.fileupload.js
 js/jquery.ba-throttle-debounce.min.js
 js/jquery.ztree.exhide-3.5.js
+js/all.js
 http://1111hui.com/pdf/client/tree.html
 http://1111hui.com:88/tree.html
 

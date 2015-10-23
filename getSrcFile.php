@@ -44,7 +44,7 @@ a{
 
 <div id="result">
 	<div class="msg">由于微信中不支持下载文件，请按以下步骤下载<p>1.请在右上角微信菜单中选择：在浏览器中打开</p><p>2.在弹出窗口中点以下链接下载</div>
-	<p><a href="<?php echo $_GET['url']; ?>" download>下载</a></p>
+	<p class="download"><a href="<?php echo $_GET['url']; ?>" download="<?php echo $_GET['filename']; ?>">下载</a></p>
 	<p><a id="backBtn" href="javascript:history.go(-1)">返回</a></p>
 </div>
 
@@ -53,6 +53,9 @@ var isWeiXin = navigator.userAgent.match(/MicroMessenger\/([\d.]+)/i);
 if(!isWeiXin){
 	document.querySelector('#backBtn').href='javascript:window.close()';
 	document.querySelector('#backBtn').style.display = 'none';
+}else{
+	
+	document.querySelector('.download').style.display = 'none';
 }
 </script>
 

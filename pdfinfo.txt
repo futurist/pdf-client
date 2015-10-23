@@ -1,0 +1,4 @@
+InfoKey: Creator
+InfoValue:  XeTeX
+InfoKey: Producer
+InfoValue: xdvipdf
