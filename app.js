@@ -1963,7 +1963,7 @@ app.get("/downloadFile2/:name", function (req, res) {
 
       } else {
 
-        exec('rm -f "'+ IMAGE_UPFOLDER+rename +'"; mv "'+IMAGE_UPFOLDER+realname+'" "'+IMAGE_UPFOLDER+rename+'"', function(){
+        exec('rm -f "'+ IMAGE_UPFOLDER+rename +'"; pdftk "'+IMAGE_UPFOLDER+realname+'" update_info client/pdfinfo.txt output "'+IMAGE_UPFOLDER+rename+'"', function(){
           res.download(IMAGE_UPFOLDER+rename);
         });
 
@@ -2812,7 +2812,7 @@ app.post("/finishSign", function (req, res) {
                        "content":
                        util.format('%s 文件 %s 增加了新的签名：%s, <a href="%s">查看文件</a>',
 
-                          (colShare.isSign?'流程-':'共享-') + colShare.shareID + '('+ colShare.fromPerson[0].name + ' '+ (colShare.isSign?colShare.flowName : colShare.msg) +')',
+                          (colShare.isSign?'流程':'共享') + colShare.shareID + '('+ colShare.fromPerson[0].name + ' '+ (colShare.isSign?colShare.flowName : colShare.msg) +')',
 
                           colShare.files[fileIdx].title,
 
@@ -2848,7 +2848,7 @@ app.post("/finishSign", function (req, res) {
                   var fileKey = file.key;
                   var flowName = colShare.flowName;
                   var msg = colShare.msg;
-                  var title = getSubStr( '流程-'+shareID+flowName+ (msg), 50);
+                  var title = getSubStr( '流程'+shareID+flowName+ (msg), 50);
                   var overAllPath = util.format('%s#file=%s&shareID=%d&isSign=1', VIEWER_URL, FILE_HOST+ encodeURIComponent(fileKey), shareID ) ;
 
 
@@ -3402,11 +3402,11 @@ app.post("/sendShareMsg", function (req, res) {
         shareID:shareID
       };
       if(hash) msg.hash = hash;
-      sendWXMessage(msg);
+      sendWXMessage(msg, person);
 
       res.send( msg );
 
-      wsBroadcast(msg);
+      //wsBroadcast(msg);
 
   });
 
@@ -3567,7 +3567,7 @@ function insertShareData (data, res, showTab){
 
                   } else {
                     var treeUrl = makeViewURL(data.files[0].key, shareID, 1);
-                    var content = util.format('流程ID：%d %s发起了流程：%s，文档：%s，经办人：%s%s\n%s',
+                    var content = util.format('流程%d %s发起了流程：%s，文档：%s，经办人：%s%s\n%s',
                         shareID,
                         data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                         data.flowName,
@@ -3607,17 +3607,19 @@ function insertShareData (data, res, showTab){
 }
 
 
-function sendWXMessage (msg) {
+function sendWXMessage (msg, fromUser) {
 
   if(!msg.tryCount){
-    col.insert(msg);
+    var wsMsg = _.extend(msg, {fromUser: fromUser});
+    col.insert( wsMsg );
     msg.tryCount = 1;
 
     if(!msg.WXOnly){
 	    // send client message vai ws
-	    var touser = _.uniq( msg.touser.split('|') );
+	    var touser = _.uniq( msg.touser.split('|').concat(fromUser) );
+      console.log( 'send client message vai ws', touser );
 	    touser.forEach(function sendToUserWS (v) {
-	      wsSendClient(v, msg);
+	      wsSendClient(v, wsMsg);
 	    });
     }
 

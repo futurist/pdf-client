@@ -191,7 +191,6 @@ basket.require(
 { url: 'js/fingerprint2.min.js' },
 { url: 'js/reconnecting-websocket.js' },
 { url: 'js/ws.js' },
-{ url: 'js/moment.js', unique:'121' },
 { url: 'js/jquery.js' }
 
 
@@ -706,7 +705,9 @@ function addDiyDom(treeId, treeNode) {
 
 	var shareID = getShareID(treeNode)||'';
 
-	var dateStr = moment(treeNode.date).isBefore( moment([moment().year(),0,1]) ) ?  moment(treeNode.date).format('YYYY-MM-DD HH:mm') : moment(treeNode.date).format('MM-DD HH:mm');
+	var date = new Date(treeNode.date);
+	dateStr = formatDate( (  (new Date()).getFullYear() - date.getFullYear()  ?'yyyy-':'')+'mm-dd hh:ii', date );
+
 	var info = $('<a href="#" class="glyphicon glyphicon-download-alt downloadIcon" aria-hidden="true"></a><div class="fileInfo" id="info_'+treeNode.tId +'"><p>'+ humanFileSize(treeNode.fsize) +'</p><span class="date">'+ dateStr +'</span></div>');
 	$li.append(info).addClass('clearfix withInfo');
 
@@ -823,8 +824,9 @@ function all () {
 }
 
 
-var formatDate = function(format) {
-	d = new Date();
+var formatDate = function(format, time) {
+	var d = time ? new Date(time): new Date();
+	format = format||'';
     var yyyy = d.getFullYear().toString();
     format = format.replace(/yyyy/g, yyyy)
     var mm = (d.getMonth()+1).toString();
@@ -839,6 +841,27 @@ var formatDate = function(format) {
     format = format.replace(/ss/g, (ss[1]?ss:"0"+ss[0]));
     return format;
 };
+
+
+function prettyDate(time){
+	var date = time ? new Date(time): new Date(),
+		diff = (((new Date()).getTime() - date.getTime()) / 1000),
+		day_diff = Math.floor(diff / 86400);
+	var year_diff = (new Date()).getFullYear() - date.getFullYear();
+
+	if ( isNaN(day_diff) || day_diff < 0 || day_diff >= 2 )
+		return formatDate( (year_diff?'yyyy-':'')+'mm-dd hh:ii', time );
+
+	return day_diff == 0 && (
+			diff < 60 && "刚刚" ||
+			diff < 120 && "1分钟前" ||
+			diff < 3600 && Math.floor( diff / 60 ) + "分钟前" ||
+			diff < 7200 && "1小时前" ||
+			diff < 86400 && Math.floor( diff / 3600 ) + "小时前") ||
+		day_diff == 1 && "昨天"+formatDate('hh:ii', time) ||
+		day_diff < 7 && day_diff + "天前" ||
+		day_diff < 31 && Math.ceil( day_diff / 7 ) + "星期前";
+}
 
 
 function OnRightClick(event, treeId, treeNode) {
@@ -1872,6 +1895,8 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 			viewDetail();
 		}else if(openMessage==2){
 			openPrintCon();
+		}else if(openMessage==3){
+			shareFile();
 
 		} else if(urlQuery.tab) {
 			showTab( urlQuery.tab );
@@ -2852,13 +2877,8 @@ function updateMsgTime () {
 
 		var date = $(msgDate).data('date');
 		if(!date) return true;
-		var diff = moment().diff( moment(date), 'days' );
-		var dtime =
-			diff<1
-			? moment(date).from( moment() )
-			: (diff >=1 && diff<=180) ? moment(date).format('MM-DD HH:mm') : moment(date).format('YYYY-MM-DD HH:mm');
 
-
+		var dtime = prettyDate(date);
 		$(msgDate).html(dtime);
 
 	});
@@ -3522,7 +3542,7 @@ $(function () {
 
 	    			// $(this).fileupload('option', 'url', 'http://up.qiniu.com');
 	    			// data.formData = {key: moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'.'+ext, token:token };
-	    			var key =moment().format('YYYYMMDDHHmmss')+Math.random().toString().slice(2,5)+'/' + data.files[0].name;
+	    			var key =formatDate('yyyymmddhhiiss')+Math.random().toString().slice(2,5)+'/' + data.files[0].name;
 	    			UploadNonImage = true;
 
 	    			var shareID = getShareID( treeObj.getSelectedNodes().shift() );
@@ -3711,8 +3731,6 @@ function handleShortKey (evt) {
 
 
 $(function initPage () {
-
-	moment.locale('zh-cn');
 
 	if(isNWJS) $('.commonFunc').show();
 

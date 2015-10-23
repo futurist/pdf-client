@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html manifest="sharemsg.manifest">
+<HEAD>
+<TITLE>共享消息</TITLE>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta name="apple-touch-fullscreen" content="yes"/>
+<meta name="format-detection" content="telephone=no"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, maximum-scale=1, minimum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+<meta name="google" content="notranslate">
+<meta http-equiv="cache-control" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+
+<style type="text/css">
+
+body, p, ul, li {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+body,html{
+	height: 100%;
+}
+
+*:focus:not(select,input), *:active {
+    border:none;
+    outline: none;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+
+.clearfix {
+  *zoom: 1;
+}
+
+.clearfix:before,
+.clearfix:after {
+  display: table;
+  line-height: 0;
+  content: "";
+}
+
+.clearfix:after {
+  clear: both;
+}
+
+
+.glyphicon {
+    font-size: 18px;
+    position: relative;
+    top: 1px;
+    display: inline-block;
+    font-family: 'FontAwesome';
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+.msgDate {
+    font: 12px Arial;
+    color: #999;
+}
+.msg_wrap{
+  position: fixed;
+  top: 0px;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #fff;
+}
+
+.msgTree {
+    position: absolute;
+    background-color: white;
+    left: 10px;
+    right: 10px;
+    top: 43px;
+    bottom:150px;
+    overflow: auto;
+}
+
+.msgTree ul li{
+	padding: 10px 0;
+	border-bottom: 1px solid #eee;
+	font: 14px Arial;
+	color: #666;
+}
+.msgTitle {
+	position: fixed;
+	top:0;
+	z-index: 9;
+	left:0;
+	width: 100%;
+    height: 21px;
+    border-bottom: 1px solid #ccc;
+    background: #eee;
+    text-align: center;
+    line-height: 1;
+    padding: 10px 10px;
+    overflow: hidden;
+}
+.msgTitle.expend {
+	height: auto;
+}
+
+.msgTitle.expend:after {
+	font-family: "FontAwesome";
+	font-size:10px;
+	display: block;
+	margin:0 auto;
+	content:"\e253";
+    position: relative;
+    bottom: -7px;
+}
+
+.msgDate{
+	font: 12px Arial;
+    color: #999;
+}
+
+	.fAddShare{
+		display: none;
+	}
+	.msgText{
+		position: fixed;
+		bottom: 8px;
+		  left: 10px;
+		  right:10px;
+	}
+	.inputMsg{
+    	border: 1px solid #ccc;
+		border-radius: 4px;
+		 height: 48px;
+		 width: 365px;
+	     font: 18px/1 Arail;
+	    float: left;
+	    margin-bottom: 10px;
+	}
+
+	.leftButton{
+		float: right;
+		width:65px;
+	}
+
+	.inputBtn2{
+	    width: 58px;
+	    height: 38px;
+        margin: 4px 0;
+        vertical-align: top;
+        background-color: rgb(70, 129, 183);
+	    border: none;
+	    border-radius: 4px;
+        color: white;
+	    font: 18px/1 "黑体";
+	}
+	.inputBtn{
+		float: right;
+	    margin-right: 10px;
+	    width: 80px;
+	    height: 44px;
+        vertical-align: top;
+            background-color: rgb(70,183,103);
+	    border: none;
+	    border-radius: 4px;
+	        color: white;
+	    font: 18px/1 "黑体";
+	}
+	.inputBtn.mileBtn{
+		background-color: rgb(70, 141, 183);
+	}
+	.inputBtn.sendBtn{
+		margin-right: 78px;
+	}
+	.inputBtn.closeBtn{
+		background: none;
+		color: #333;
+		border: 1px solid #aaa;
+	}
+
+
+
+
+.msgTitleMenu.active {
+    color: #EC700C;
+}
+.msgTitleMenu {
+    position: absolute;
+    z-index: 99;
+    top: 10px;
+    right: -10px;
+    float:right;
+    width: 28px;
+    height: 30px;
+    padding-top: 9px;
+    padding-right: 10px;
+    margin-top: -10px;
+    display: none;
+}
+
+.msgTitleMenuPop.active {
+	display: block;
+}
+.msgTitleMenuPop {
+	display: none;
+    position: absolute;
+    z-index: 99;
+    top: 41px;
+    right: 0px;
+    background-color: #fff;
+    border: 1px solid #D0D0D0;
+}
+
+.msgTitleMenuPop li {
+	cursor: pointer;
+    padding: 16px 10px;
+    border-bottom: 1px solid #ccc;
+}
+
+.msgTitleMenuPop li.addMember:before {
+	font-family:'FontAwesome';
+    content: "\f067";
+    font-size: 13px;
+    padding-right: 4px;
+}
+.msgTitleMenuPop li.exitMember:before {
+	font-family:'FontAwesome';
+    content: "\f00d";
+    font-size: 14px;
+    padding-right: 4px;
+    position: relative;
+    top: 1px;
+}
+
+.msgTitleMenuPop li.showContact:before {
+	font-family:'FontAwesome';
+    content: "\f0c0";
+    font-size: 14px;
+    padding-right: 4px;
+    position: relative;
+    top: 1px;
+}
+
+.msgTitleMenuPop li.commonFunc {
+	display: none;
+}
+
+.msgTitleMenuPop li.commonFunc:before {
+	font-family:'FontAwesome';
+    content: "\f0e7";
+    font-size: 14px;
+    padding-right: 4px;
+    position: relative;
+    top: 1px;
+}
+
+.msgTitleMenuPop li.refreshPage:before {
+	font-family:'FontAwesome';
+    content: "\f021";
+    font-size: 14px;
+    padding-right: 4px;
+    position: relative;
+    top: 1px;
+}
+
+
+.msgTitleMenu:before {
+    content: "\f0c9";
+}
+
+.titleContent{
+	margin-right: 40px;
+    word-wrap: break-word;
+    word-break: break-all;
+}
+
+
+</style>
+
+
+<script type="text/javascript" src="js/zepto.js"></script>
+<script type="text/javascript" src="js/glyphicon.js"></script>
+<script type="text/javascript" src="/js/cookies.js"></script>
+
+<script type="text/javascript">
+
+
+var isAndroid = /(android)/i.test(navigator.userAgent);
+var isWeiXin = navigator.userAgent.match(/MicroMessenger\/([\d.]+)/i);
+var isiOS = /iPhone/i.test(navigator.userAgent) || /iPod/i.test(navigator.userAgent) || /iPad/i.test(navigator.userAgent);
+var isMobile = isAndroid||isWeiXin||isiOS;
+
+var clickE = isMobile?'ontouchstart':'click';
+var downE = isMobile?'ontouchstart':'mousedown';
+
+window.host = "http://1111hui.com:88";
+var title = 'sodifjosdf';
+
+
+Array.prototype.getUnique = function(){
+   var u = {}, a = [];
+   for(var i = 0, l = this.length; i < l; ++i){
+      if(u.hasOwnProperty(this[i])) {
+         continue;
+      }
+      a.push(this[i]);
+      u[this[i]] = 1;
+   }
+   return a;
+}
+
+function $post (url, data, callback) {
+  if (arguments.length == 2) { // if only two arguments were supplied
+    if ( typeof(data)=='function' ) {
+      callback = data;
+      data = {};
+    }
+  }
+
+  var request = new XMLHttpRequest(), response;
+  request.open('POST', url, true);
+  request.setRequestHeader( "Content-Type", "application/json" );
+
+  request.onload = function() {
+
+    if (this.status == 200) {
+      try {
+        //this.response = JSON.parse(this.response);
+        callback( this.response );
+      } catch(e) {
+        // error from url
+      }
+    }
+  };
+  request.send( JSON.stringify(data) );
+}
+
+
+
+function searchToObject(search) {
+  return search.substring(1).split("&").reduce(function(result, value) {
+    var parts = value.split('=');
+    if (parts[0]) result[decodeURIComponent(parts[0])] = decodeURIComponent(parts[1]);
+    return result;
+  }, {});
+}
+
+var urlQuery = searchToObject( window.location.hash );
+
+var shareID = urlQuery.shareID||217;
+var fileKey = urlQuery.fileKey;
+var path = urlQuery.path;
+
+var rootPerson = {};
+
+
+// ************ Check if we are in WX env
+
+var wxUserInfo;
+var DEBUG= (urlQuery.debug||0);
+
+if(
+window.navigator.userAgent == "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.152 Safari/537.36" || window.navigator.userAgent == "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36" || window.navigator.userAgent == "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36"
+	) DEBUG=1;
+
+if(DEBUG) rootPerson = {userid: 'yangjiming', name:"杨吉明", depart:"行政", isAdmin:true };
+if(isWeiXin)
+if(!DEBUG)
+{
+	wxUserInfo = Cookies.get( 'wxUserInfo' );
+
+	var WX_JUMP_URL = encodeURIComponent( window.location.href.replace('#','{@@@}') );
+	localStorage.setItem( 'WX_JUMP_URL', WX_JUMP_URL );
+
+	if( !wxUserInfo ){
+		window.location.replace( 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx59d46493c123d365&redirect_uri=http%3A%2F%2F1111hui.com%2F/pdf/getUserID.php&response_type=code&scope=snsapi_base&state=#wechat_redirect');
+	} else {
+		wxUserInfo = JSON.parse(wxUserInfo);
+	}
+}else {
+	wxUserInfo={};
+	wxUserInfo.UserId = 'yangjiming';
+}
+
+
+
+
+window.addEventListener('load', initPage);
+
+function initPage () {
+	$post(host+'/getShareMsg', {shareID: shareID} , function(data){
+		if(!data)return;
+		data = JSON.parse(data);
+		var lastData = data[data.length-1];
+
+		if(lastData.touserName) document.querySelector('.msgTitle .titleContent').innerHTML=( '群成员:<span class="memberList"><b>'+ lastData.touserName.split('|').getUnique().join(',') + '</b></span> 标题:'+ title );
+		data.forEach(function  (v) {
+
+			appendShareMsg(v);
+		});
+	});
+}
+
+
+function appendShareMsg (v) {
+
+	if( !v ) return;
+
+	var titleReg = title.replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+
+	// Text Message
+	if(v.text ){
+		var content = v.text.content.replace(new RegExp(titleReg,'ig'), '');
+
+		var $div = $('<div></div>');
+		$div.html(content);
+		$div.find('a').each(function  () {
+			if( $(this).html()=='' ) $(this).remove();
+			if( $(this).attr('href').match(new RegExp( '/tree.html' ,'i') ) ){
+				$(this).attr('href', 'javascript: closeViewDetail() ');
+			}
+		});
+		content = $div.html().replace(/对\s+/, '');
+	}
+
+	// Text Message
+	if(v.news ){
+
+		var item = v.news.articles.shift();
+		var content = item.title.replace(new RegExp(titleReg,'ig'), '');
+
+		var $div = $('<div></div>');
+		$div.html(content+'<br>');
+		$div.append( '<img class="msgImage" src="'+ item.picurl +'">' );
+
+		$div.find('a').each(function  () {
+			if( $(this).html()=='' ) $(this).remove();
+		});
+
+		content = $div.html().replace(/[在|对]\s+/, '');
+
+	}
+
+	var li = $('<li><span class="msgDate"></span> '+ content +'</li>');
+	li.find('.msgDate').data( 'date', v.date );
+	$('.msgTree ul').append(li);
+	$('.msgTree').scrollTop( 99999999999 )
+
+	updateMsgTime();
+
+}
+
+
+var formatDate = function(format, time) {
+	var d = time ? new Date(time): new Date();
+	format = format||'';
+    var yyyy = d.getFullYear().toString();
+    format = format.replace(/yyyy/g, yyyy)
+    var mm = (d.getMonth()+1).toString();
+    format = format.replace(/mm/g, (mm[1]?mm:"0"+mm[0]));
+    var dd  = d.getDate().toString();
+    format = format.replace(/dd/g, (dd[1]?dd:"0"+dd[0]));
+    var hh = d.getHours().toString();
+    format = format.replace(/hh/g, (hh[1]?hh:"0"+hh[0]));
+    var ii = d.getMinutes().toString();
+    format = format.replace(/ii/g, (ii[1]?ii:"0"+ii[0]));
+    var ss  = d.getSeconds().toString();
+    format = format.replace(/ss/g, (ss[1]?ss:"0"+ss[0]));
+    return format;
+};
+
+
+function prettyDate(time){
+	var date = time ? new Date(time): new Date(),
+		diff = (((new Date()).getTime() - date.getTime()) / 1000),
+		day_diff = Math.floor(diff / 86400);
+	var year_diff = (new Date()).getFullYear() - date.getFullYear();
+
+	if ( isNaN(day_diff) || day_diff < 0 || day_diff >= 2 )
+		return formatDate( (year_diff?'yyyy-':'')+'mm-dd hh:ii', time );
+
+	return day_diff == 0 && (
+			diff < 60 && "刚刚" ||
+			diff < 120 && "1分钟前" ||
+			diff < 3600 && Math.floor( diff / 60 ) + "分钟前" ||
+			diff < 7200 && "1小时前" ||
+			diff < 86400 && Math.floor( diff / 3600 ) + "小时前") ||
+		day_diff == 1 && "昨天"+formatDate('hh:ii', time) ||
+		day_diff < 7 && day_diff + "天前" ||
+		day_diff < 31 && Math.ceil( day_diff / 7 ) + "星期前";
+}
+
+
+function updateMsgTime () {
+
+	$('.msg_wrap .msgDate').each(function(i, msgDate){
+		var date = $(msgDate).data('date');
+		if(!date) return true;
+
+		var dtime = prettyDate(date);
+		$(msgDate).html(dtime);
+
+	});
+}
+
+
+function closeWin () {
+	isWeiXin? wx.closeWindow() : window.close();
+}
+
+
+function sendShareMsg ( state ) {
+
+	var val = $('.inputMsg').val();
+	val = $.trim(val);
+	if(!val) return;
+
+
+	var data = { person: rootPerson.userid, shareID:shareID, text:val, fileKey:fileKey, path:path&&path.split('/') };
+
+	$post(host+'/sendShareMsg', data , function(ret){
+		if(!ret){
+			return alert('消息发送错误，请复试');
+		}
+		$('.msg_wrap .inputMsg').val('');
+		appendShareMsg(ret);
+	});
+
+}
+
+function closeViewDetail () {
+	if(isWeiXin){
+
+	}
+	setInterval(function  () {closeWin(); }, 300);
+	closeWin();
+}
+
+
+</script>
+
+</HEAD>
+<body>
+
+<div class="msg_wrap">
+	<div class="msgTitle clearfix">
+		<div class="titleContent"></div>
+	</div>
+	<div class="msgTitleMenu glyphicon"></div>
+	<div class="msgTitleMenuPop">
+		<ul>
+			<li class="addMember">添加成员</li>
+			<li class="exitMember">退出共享</li>
+		</ul>
+	</div>
+
+	<div class="msgTree">
+		<ul></ul>
+	</div>
+	<div class="msgText">
+		<div>
+			<div class="leftButton">
+				<div class="upHolder2" style="overflow:hidden; width:100%; height:46px; position:relative;">
+					<input class="inputBtn2" type="button" value="图片" onclick="addPictureCon()" />
+				</div>
+				<!-- <input class="inputBtn2" type="button" value="语音" onclick="sendShareSnd()" /> -->
+			</div>
+			<div style="display:block; margin-right:70px; padding-right:10px;"><textarea class="inputMsg" style="width:100%;"></textarea></div>
+			<div style="clear:both;"></div>
+		</div>
+		<input class="inputBtn sendBtn" type="button" value="发送" onclick="sendShareMsg()" />
+		<!-- <input class="inputBtn mileBtn" type="button" value="里程" onclick="sendShareMsg('mile')" /> -->
+		<input class="inputBtn closeBtn" type="button" value="关闭"  onclick=" closeViewDetail()" />
+	</div>
+</div>
+
+
+</body>
+</html>

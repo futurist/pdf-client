@@ -1,0 +1,11 @@
+CACHE MANIFEST
+#VERSION 1.2sdfsdfdsfsdfsdfsdf
+CACHE:
+http://1111hui.com/js/cookies.js
+http://1111hui.com/pdf/client/js/zepto.js
+http://1111hui.com/pdf/client/js/glyphicon.js
+http://1111hui.com/pdf/client/sharemsg.html
+
+NETWORK:
+*
+
