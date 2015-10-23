@@ -72,7 +72,7 @@ if(!DEBUG)
 {
 	wxUserInfo = Cookies.get( 'wxUserInfo' );
 
-	var WX_JUMP_URL = encodeURIComponent( window.location.href.replace('#','{@@@}') );
+	var WX_JUMP_URL =  window.location.href.replace('http://1111hui.com/pdf/','') ;
 	localStorage.setItem( 'WX_JUMP_URL', WX_JUMP_URL );
 
 	if( !wxUserInfo ){
@@ -623,7 +623,7 @@ function applyTemplate () {
 
 	});
 	setInterval(function(){
-		if(ws&&ws.readyState==1) ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
+		if(ws&&ws.readyState==1&&rootPerson.userid) ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
 	}, 30000);
 
 

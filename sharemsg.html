@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html manifest="">
 <HEAD>
-<TITLE>共享消息</TITLE>
+<TITLE>群内消息</TITLE>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8">
 <meta name="apple-touch-fullscreen" content="yes"/>
 <meta name="format-detection" content="telephone=no"/>
@@ -109,9 +109,10 @@ body,html{
 	font-size:10px;
 	display: block;
 	margin:0 auto;
-	content:"\e253";
+	content:"\f206";
     position: relative;
     bottom: -7px;
+    padding: 10px 0 2px 0;
 }
 
 .msgDate{
@@ -274,6 +275,10 @@ body,html{
     word-break: break-all;
 }
 
+.msgImage{
+	max-width: 300px;
+}
+
 
 </style>
 
@@ -287,6 +292,7 @@ body,html{
 
 <script type="text/javascript">
 
+var isNWJS = false;
 
 var isAndroid = /(android)/i.test(navigator.userAgent);
 var isWeiXin = navigator.userAgent.match(/MicroMessenger\/([\d.]+)/i);
@@ -374,7 +380,7 @@ if(!DEBUG)
 {
 	wxUserInfo = Cookies.get( 'wxUserInfo' );
 
-	var WX_JUMP_URL = encodeURIComponent( window.location.href.replace('#','{@@@}') );
+	var WX_JUMP_URL =  window.location.href.replace('http://1111hui.com/pdf/','') ;
 	localStorage.setItem( 'WX_JUMP_URL', WX_JUMP_URL );
 
 	if( !wxUserInfo ){
@@ -405,7 +411,7 @@ ws.addEventListener('message', function(data){
 	if( !data || !data.data || !data.data.match(/^\s*{/) ) return;
 	var msg = JSON.parse(data.data);
 
-	switch(msg.role){
+	switch(msg.role) {
 
 		case 'shareMsg':
 
@@ -420,6 +426,9 @@ ws.addEventListener('message', function(data){
 	}
 
 });
+setInterval(function(){
+	if(ws&&ws.readyState==1&&rootPerson.userid) ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
+}, 1000);
 
 
 // ******************* WX Init Part ******************
@@ -461,7 +470,6 @@ initWX();
 // *********************
 
 
-
 window.addEventListener('load', initPage);
 
 function initPage () {
@@ -476,6 +484,17 @@ function initPage () {
 			appendShareMsg(v);
 		});
 	});
+
+	$(document).on('click', '.msgImage', function  () {
+		previewImage( $(this).attr('src') );
+	});
+
+	$('.msgTitle').click(function(){
+		if( $(this).find('.titleContent').height()<20 ) return;
+		$(this).toggleClass('expend');
+	});
+
+
 }
 
 
@@ -505,7 +524,6 @@ function appendShareMsg (v) {
 
 		var item = v.news.articles.shift();
 		var content = item.title.replace(/[在|对].*留言/, '');
-		console.log(content)
 		var $div = $('<div></div>');
 		$div.html(content+'<br>');
 		$div.append( '<img class="msgImage" src="'+ item.picurl +'">' );
@@ -595,6 +613,33 @@ function addPictureCon() {
 	if(isWeiXin) wxUploadImage();
 	else pcUploadImage();
 };
+
+
+function previewImage ( imgArray, curIndex ){
+	if(!imgArray) {
+		return;
+
+	} else {
+
+		if( !$.isArray(imgArray) ) imgArray = [imgArray];
+		curIndex = curIndex || 0;
+	}
+
+	if(isWeiXin) {
+		wx.previewImage({
+		    current: imgArray[curIndex], // 当前显示图片的http链接
+		    urls: imgArray // 需要预览的图片http链接列表
+		});
+	} else {
+
+		if(isNWJS)
+			global._nwMain.showReader( imgArray[curIndex] );
+		else
+			window.open( imgArray[curIndex] );
+
+	}
+}
+
 
 function wxUploadImage() {
 
