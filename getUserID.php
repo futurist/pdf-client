@@ -23,8 +23,8 @@ var data = '<?php echo $content ?>';
 var state = '<?php echo $state ?>';
 state = state.replace(/^\s+|\s+$/g,'');
 
-if(!state) Cookies.expire('wxUserInfo');
-else Cookies.set('wxUserInfo', data, {expires:6000000});
+//if(!state) Cookies.expire('wxUserInfo');
+Cookies.set('wxUserInfo', data, {expires:6000000});
 
 var WX_JUMP_URL = localStorage.getItem('WX_JUMP_URL');
 

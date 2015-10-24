@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html manifest="">
+<html manifest="sharemsg.manifest">
 <HEAD>
 <TITLE>群内消息</TITLE>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8">
@@ -9,8 +9,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="google" content="notranslate">
-<meta http-equiv="cache-control" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
+<meta http-equiv="cache-control" content="max-age=0" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 
 <style type="text/css">
 
@@ -288,7 +290,7 @@ body,html{
 <script type="text/javascript" src="/js/cookies.js"></script>
 <script type="text/javascript" src="js/reconnecting-websocket.js"></script>
 <script type="text/javascript" src="js/ws.js"></script>
-<script type="text/javascript" src="js/jweixin-1.0.0.js"></script>
+<script type="text/javascript" src="js/jweixin-1.1.0.js"></script>
 
 <script type="text/javascript">
 
@@ -498,6 +500,24 @@ function initPage () {
 }
 
 
+function sendUserMsg (userid, groupName) {
+	if(isWeiXin && wx.openEnterpriseChat){
+		wx.openEnterpriseChat({
+			userIds: userid,
+			groupName: groupName||'',
+			success: function(res){
+				//alert(res);
+			},
+		    fail: function(res){
+				//alert( JSON.stringify(res));
+				if(res.errMsg.indexOf('function not exist') > 0){
+	                //alert('微信版本过低请升级')
+	            }
+			}
+		});
+	}
+}
+
 function appendShareMsg (v) {
 
 	if( !v ) return;
@@ -513,7 +533,7 @@ function appendShareMsg (v) {
 		$div.find('a').each(function  () {
 			if( $(this).html()=='' ) $(this).remove();
 			if( $(this).attr('href').match(new RegExp( '/tree.html' ,'i') ) ){
-				$(this).attr('href', 'javascript: closeViewDetail() ');
+				//$(this).attr('href', 'javascript: closeViewDetail() ');
 			}
 		});
 		content = $div.html().replace(/对\s+/, '');
@@ -536,9 +556,14 @@ function appendShareMsg (v) {
 
 	}
 
-	var dataID = v._id? ' data-id="'+ v._id +'"' : '';
-	var li = $('<li'+ dataID +'><span class="msgDate"></span> '+ content +'</li>');
+	var dataAttr = v._id? ' data-id="'+ v._id +'"' : '';
+	dataAttr = v.fromUser? ' data-fromuser="'+ v.fromUser +'"' : '';
+	var li = $('<li'+ dataAttr +'><span class="msgDate"></span> '+ content +'</li>');
 	li.find('.msgDate').data( 'date', v.date );
+	li.on('click', function  () {
+		var user = $(this).data('fromuser');
+		if(user) sendUserMsg(user, windowTitle);
+	});
 	$('.msgTree ul').append(li);
 	$('.msgTree').scrollTop( 99999999999 )
 

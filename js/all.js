@@ -63,7 +63,7 @@ var wxUserInfo;
 var DEBUG= safeEval(urlQuery.debug||0);
 
 if(
-window.navigator.userAgent == "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.152 Safari/537.36" || window.navigator.userAgent == "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36" || window.navigator.userAgent == "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36"
+window.navigator.userAgent == "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.152 Safari/537.36" || window.navigator.userAgent == "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36" || window.navigator.userAgent == "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36"
 	) DEBUG=1;
 
 if(DEBUG) rootPerson = {userid: 'yangjiming', name:"杨吉明", depart:"行政", isAdmin:true };
@@ -2370,6 +2370,7 @@ function showTab (idx) {
 		idx==1? $('.exitMember').hide() :  $('.exitMember').show()
 	}
 	$('.ztreeFile').hide().eq(idx).show();
+	$('.loadMoreIndi').hide();
 	$('.loadMore').hide().eq(idx).show();
 
 	$('.header ul li').removeClass('currTab').eq(idx).addClass('currTab');
