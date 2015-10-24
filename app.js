@@ -3963,9 +3963,12 @@ wechat(config, wechat
     var shareID = p? parseInt( p.pop().replace(/\s*@/,'') ) :'';
     var content = message.Content.replace(re, '');
     
+    var condition = {role:'shareMsg', role : 'shareMsg', shareID:{$gt:0}, WXOnly:{$in: [null, false]} ,
+             touser: new RegExp('^'+ person +'\||\|'+ person +'\||\|'+ person +'$') };
 
-    col.findOne( {role:'shareMsg', role : 'shareMsg', shareID:{$gt:0}, WXOnly:{$in: [null, false]} ,
-             touser: new RegExp('^'+ person +'\||\|'+ person +'\||\|'+ person +'$') }, { sort: {date : -1}, limit:1, fields:{_id:0, fromUser:0} }, 
+    if(shareID) condition.shareID = shareID;
+
+    col.findOne( condition , { sort: {date : -1}, limit:1, fields:{_id:0, fromUser:0} }, 
       function  (err, msg) {
         
         //console.log(err, msg);
