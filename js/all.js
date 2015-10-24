@@ -3776,7 +3776,9 @@ $(function initPage () {
 
 	});
 
-
+	$(document).on('click', '.msgImage', function  () {
+		previewImage( $(this).attr('src') );
+	});
 
 	$('.msgTitle').click(function(){
 		if( $(this).find('.titleContent').height()<20 ) return;

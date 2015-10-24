@@ -1192,7 +1192,7 @@ app.post("/updateHost", function (req, res) {
         return true;
       }
     });
-    
+
     COMPANY_TREE && COMPANY_TREE.some(function  (v) {
       if(v.userid==person){
         v.client = hostname;
@@ -3742,7 +3742,7 @@ function genPDF ( filename, shareID,  realname, cb ) {
 		var child = exec(cmd, function(err, stdout, stderr) {
 
 		if(err || stdout.toString().indexOf('render page:')<0 ) return cb?cb('生成绘图数据错误'):'';
-		
+
     // pyPDF2 will not handle landscrape page of pdf, and rotate it strangely; using pdftk instead:
     // http://stackoverflow.com/questions/501723/overlay-one-pdf-or-ps-file-on-top-of-another
     // cmd = './mergepdf.py -i '+ tempFile +' -m '+tempPDF+' -o '+ IMAGE_UPFOLDER+realname +' ';
@@ -3962,19 +3962,22 @@ wechat(config, wechat
     var p = message.Content.match(re);
     var shareID = p? parseInt( p.pop().replace(/\s*@/,'') ) :'';
     var content = message.Content.replace(re, '');
-    
+
     var condition = {role:'shareMsg', role : 'shareMsg', shareID:{$gt:0}, WXOnly:{$in: [null, false]} ,
-             touser: new RegExp('^'+ person +'\||\|'+ person +'\||\|'+ person +'$') };
+             touser: new RegExp('^'+ person +'\\||\\|'+ person +'\\||\\|'+ person +'$') };
 
     if(shareID) condition.shareID = shareID;
 
-    col.findOne( condition , { sort: {date : -1}, limit:1, fields:{_id:0, fromUser:0} }, 
+    col.findOne( condition , { sort: {date : -1}, limit:1, fields:{_id:0, fromUser:0} },
       function  (err, msg) {
-        
-        //console.log(err, msg);
-        if(err||!msg) return;
 
-        if(!shareID) {
+        //console.log(condition, err, msg);
+        if(err||!msg) return;
+        if(!msg.shareID) return;
+
+        shareID = msg.shareID;
+
+        if(0 && !shareID) {
 
         var sharePath = JSON.stringify(msg).replace(/<[^>]+>/g,'').match(/\/[^/]+\//);
         sharePath = sharePath? sharePath.pop() : '';
@@ -3982,11 +3985,11 @@ wechat(config, wechat
       var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, encodeURIComponent(sharePath), msg.shareID, sharePath ) ;
 
           msg.MsgId = message.MsgId;
-  
-          msg.text.content = 
+
+          msg.text.content =
             util.format('%s 对%s 留言：%s',
                   userInfo.name,
-                  overAllPath, 
+                  overAllPath,
                   content
                 );
 
@@ -4007,9 +4010,9 @@ wechat(config, wechat
 
   res.reply('');
 
-  return; 
+  return;
 
-  
+
 
   res.reply([
   {
