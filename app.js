@@ -979,7 +979,7 @@ app.get("/uploadWXImage", function (req, res) {
                     shareID:shareID
                   };
 
-                  sendWXMessage(msg);
+                  sendWXMessage(msg, person);
 
               });
             }
@@ -1013,7 +1013,7 @@ app.post("/getJSConfig", function (req, res) {
   var rkey = 'wx:js:ticket:'+ encodeURIComponent(url);
   var param = {
     debug:false,
-    jsApiList: ["onMenuShareTimeline","onMenuShareAppMessage","onMenuShareQQ","onMenuShareWeibo","onMenuShareQZone","startRecord","stopRecord","onVoiceRecordEnd","playVoice","pauseVoice","stopVoice","onVoicePlayEnd","uploadVoice","downloadVoice","chooseImage","previewImage","uploadImage","downloadImage","translateVoice","getNetworkType","hideOptionMenu","showOptionMenu","hideMenuItems","showMenuItems","hideAllNonBaseMenuItem","showAllNonBaseMenuItem","closeWindow","scanQRCode"],
+    jsApiList: ["onMenuShareTimeline","onMenuShareAppMessage","onMenuShareQQ","onMenuShareWeibo","onMenuShareQZone","startRecord","stopRecord","onVoiceRecordEnd","playVoice","pauseVoice","stopVoice","onVoicePlayEnd","uploadVoice","downloadVoice","chooseImage","previewImage","uploadImage","downloadImage","translateVoice","getNetworkType","hideOptionMenu","showOptionMenu","hideMenuItems","showMenuItems","hideAllNonBaseMenuItem","showAllNonBaseMenuItem","closeWindow","scanQRCode",'openEnterpriseChat'],
 
     // jsApiList: ["onMenuShareTimeline","onMenuShareAppMessage","onMenuShareQQ","onMenuShareWeibo","onMenuShareQZone","startRecord","stopRecord","onVoiceRecordEnd","playVoice","pauseVoice","stopVoice","onVoicePlayEnd","uploadVoice","downloadVoice","chooseImage","previewImage","uploadImage","downloadImage","translateVoice","getNetworkType","openLocation","getLocation","hideOptionMenu","showOptionMenu","hideMenuItems","showMenuItems","hideAllNonBaseMenuItem","showAllNonBaseMenuItem","closeWindow","scanQRCode"],
 
@@ -1129,7 +1129,7 @@ app.post("/upfile", function (req, res) {
            "articles":[
            {
             "title": util.format('%s 在%s 上传了图片',
-              data.fromPerson.shift().name,
+              data.fromPerson[0].name,
               ret.shareName  // if we need segmented path:   pathName.join('-'),
             ),
             "description": "查看消息记录",
@@ -1143,7 +1143,7 @@ app.post("/upfile", function (req, res) {
           shareID:shareID
         };
 
-        sendWXMessage(msg);
+        sendWXMessage(msg, data.fromPerson[0].userid);
 
     });
   }
@@ -1371,7 +1371,7 @@ app.post("/exitMember", function (req, res) {
               shareID:shareID
             };
 
-            sendWXMessage(wxmsg);
+            sendWXMessage(wxmsg, person);
 
 
 
@@ -1433,6 +1433,7 @@ app.post("/addMember", function (req, res) {
 app.post("/markFinish", function (req, res) {
 
     var data = req.body;
+    var person = data.person;
     var personName = data.personName;
     var shareID = safeEval(data.shareID) ;
     var path = safeEval(data.path) ;
@@ -1467,7 +1468,7 @@ app.post("/markFinish", function (req, res) {
             shareID:shareID
           };
 
-          sendWXMessage(wxmsg);
+          sendWXMessage(wxmsg, person);
 
     });
 
@@ -2132,7 +2133,7 @@ app.post("/saveCanvas", function (req, res) {
                 shareID:shareID
               };
 
-              sendWXMessage(wxmsg);
+              sendWXMessage(wxmsg, colShare.fromPerson[0].userid);
 
     } );
   }
@@ -2827,7 +2828,7 @@ app.post("/finishSign", function (req, res) {
                       shareID:shareID
                     };
 
-                    sendWXMessage(wxmsg);
+                    sendWXMessage(wxmsg, person);
 
                   });
 
@@ -3490,7 +3491,7 @@ app.post("/shareFile", function (req, res) {
                       v.title
                        )
                   }).join(','),
-                  colShare.fromPerson.shift().name,
+                  colShare.fromPerson[0].name,
                   data.msg? ', 附言：'+data.msg : '',
                   overAllPath  // if we need segmented path:   pathName.join('-'),
                 )
@@ -3501,7 +3502,7 @@ app.post("/shareFile", function (req, res) {
               shareID:shareID
             };
 
-            sendWXMessage(wxmsg);
+            sendWXMessage(wxmsg, colShare.fromPerson[0].userid);
 
 
         } );
@@ -3552,7 +3553,7 @@ function insertShareData (data, res, showTab){
                     if( data.files.length ){
 
                       var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
-                      var content = util.format('%s创建了/共享-%d%s/，相关文档：%s，收件人：%s\n%s',
+                      var content = util.format('%s创建了/共享%d%s/，相关文档：%s，收件人：%s\n%s',
                           data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                           shareID,
                           data.msg?'-'+data.msg:'',
@@ -3567,7 +3568,7 @@ function insertShareData (data, res, showTab){
                     // it's empty topic
 
                     var treeUrl = TREE_URL + '#path=&shareID='+ shareID;
-                      var content = util.format('%s创建了新话题/共享-%d%s/，收件人：%s\n%s',
+                      var content = util.format('%s创建了新话题/共享%d%s/，收件人：%s\n%s',
                           data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                           shareID,
                           data.msg?'-'+data.msg:'',
@@ -3579,7 +3580,7 @@ function insertShareData (data, res, showTab){
 
                   } else {
                     var treeUrl = makeViewURL(data.files[0].key, shareID, 1);
-                    var content = util.format('/流程-%d %s/发起了流程：%s，文档：%s，经办人：%s%s\n%s',
+                    var content = util.format('/流程%d %s/发起了流程：%s，文档：%s，经办人：%s%s\n%s',
                         shareID,
                         data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                         data.flowName,
@@ -3602,7 +3603,7 @@ function insertShareData (data, res, showTab){
                     role : 'shareMsg',
                     shareID:shareID
                   };
-                  sendWXMessage(msg);
+                  sendWXMessage(msg, data.fromPerson[0].userid);
                   res.send( data );
 
                   data.openShare = false;
@@ -3629,7 +3630,7 @@ function sendWXMessage (msg, fromUser) {
     if(!msg.WXOnly){
 	    // send client message vai ws
 	    var touser = _.uniq( msg.touser.split('|').concat(fromUser) );
-      console.log( 'send client message vai ws', touser );
+      	console.log( 'send client message vai ws', touser );
 	    touser.forEach(function sendToUserWS (v) {
 	      if(v) wsSendClient(v, wsMsg);
 	    });

@@ -2825,6 +2825,25 @@ function viewDetail () {
 	});
 }
 
+
+function sendUserMsg (userid, groupName) {
+	if(isWeiXin && wx.openEnterpriseChat){
+		wx.openEnterpriseChat({
+			userIds: userid,
+			groupName: groupName||'',
+			success: function(res){
+				//alert( JSON.stringify(res) );
+			},
+		    fail: function(res){
+				//alert( JSON.stringify(res));
+				if(res.errMsg.indexOf('function not exist') > 0){
+	                //alert('微信版本过低请升级')
+	            }
+			}
+		});
+	}
+}
+
 function appendShareMsg (v){
 	if( !v || !$('.msg_wrap').is(':visible') ) return;
 	if( v._id && $('.msgTree li[data-id="'+v._id+'"]').length ) return;
@@ -2874,9 +2893,15 @@ function appendShareMsg (v){
 
 	}
 
-	var dataID = v._id? ' data-id="'+ v._id +'"' : '';
-	var li = $('<li'+ dataID +'><span class="msgDate"></span> '+ content +'</li>');
+	var dataAttr = v._id? ' data-id="'+ v._id +'"' : '';
+	dataAttr = v.fromUser? ' data-fromuser="'+ v.fromUser +'"' : '';
+	var li = $('<li'+ dataAttr +'><span class="msgDate"></span> '+ content +'</li>');
 	li.find('.msgDate').data( 'date', v.date );
+	li.on('click', function  () {
+		var user = $(this).data('fromuser');
+		//user = v.touser.split('|').getUnique().filter(function(v){return !!v}).join(';');
+		if(user) sendUserMsg(user, windowTitle);
+	});
 	$('.msgTree ul').append(li);
 	$('.msgTree').scrollTop( 99999999999 );
 
@@ -3144,7 +3169,7 @@ function addNodes2 (zTree, parent, newNode, isLast) {
 function markFinish (isFinish) {
 	var sel = getSelectFiles().shift();
 	var shareID = getShareID(sel);
-	$post(host+'/markFinish', { personName:rootPerson.name, path:getPath(sel), shareID:shareID, isFinish: isFinish }, function  (data) {
+	$post(host+'/markFinish', { personName:rootPerson.name, person:rootPerson.userid, path:getPath(sel), shareID:shareID, isFinish: isFinish }, function  (data) {
 		//console.log(data);
 	});
 }

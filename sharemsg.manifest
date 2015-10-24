@@ -1,12 +1,12 @@
 CACHE MANIFEST
-#VERSION 1.2sdfsdfdsfsdfsdfsdfssddsjjsds
+#VERSION 1.2sdfsdfdsfsdfsdfsdfssddsjjsdssdsssss
 CACHE:
 http://1111hui.com/js/cookies.js
 http://1111hui.com/pdf/client/js/zepto.js
 http://1111hui.com/pdf/client/js/glyphicon.js
 http://1111hui.com/pdf/client/js/reconnecting-websocket.js
 http://1111hui.com/pdf/client/js/ws.js
-http://1111hui.com/pdf/client/js/jweixin-1.0.0.js
+http://1111hui.com/pdf/client/js/jweixin-1.1.0.js
 http://1111hui.com/pdf/client/sharemsg.html
 
 NETWORK:
