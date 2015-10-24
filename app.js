@@ -3347,11 +3347,11 @@ function SendShareMsg(req, res) {
   var fileKey = req.body.fileKey;
 
   if(path) path = path.slice(1);
-  else path = [' '];
+  else path = [];
 
   var fileHash = path.pop();
 
-  col.findOne( { role:'share', shareID:shareID }, {}, function(err, data) {
+  col.findOne( { role:'share', shareID:shareID }, { fields:{files:0} }, function(err, data) {
       if(err||!data) {
         return res.send('');	//error
       }
@@ -3365,24 +3365,34 @@ function SendShareMsg(req, res) {
         return res.send('');	//没有此组权限
       }
 
-      //get segmented path, Target Path segment and A link
-      var pathName = [];
-      path.forEach(function(v,i){
-        var a = '/'+path.slice(0,i+1).join('/')+'/';
-        pathName.push( util.format('<a href="%s#path=%s&shareID=%d">%s</a>', TREE_URL, encodeURIComponent(a), shareID, v) );
-      });
-      if(fileHash) {
-        var a =  '/'+path.join('/')+'/' + fileHash;
-        pathName.push( util.format('<a href="%s#path=%s&shareID=%d">%s</a>', TREE_URL, encodeURIComponent(fileKey), shareID, fileName) );
-     }
 
-     // get OverAllink
-      var a = '/'+path.join('/')+'/';
+      if(path.length){
+        //get segmented path, Target Path segment and A link
+        var pathName = [];
+        path.forEach(function(v,i){
+          var a = '/'+path.slice(0,i+1).join('/')+'/';
+          pathName.push( util.format('<a href="%s#path=%s&shareID=%d">%s</a>', TREE_URL, encodeURIComponent(a), shareID, v) );
+        });
+        if(fileHash) {
+          var a =  '/'+path.join('/')+'/' + fileHash;
+          pathName.push( util.format('<a href="%s#path=%s&shareID=%d">%s</a>', TREE_URL, encodeURIComponent(fileKey), shareID, fileName) );
+       }
+
+       // get OverAllink
+        var a = '/'+path.join('/')+'/';
+        var link = a;
+        if(fileName && fileKey ){
+          link = a+fileKey;
+          a = a +fileName;
+        }
+    } else {
+
+      var a= (data.isSign?'流程':'共享')+data.shareID+ (data.msg?'['+data.msg+']':'' ) + '('+data.toPerson.map(function(v){return v.name}).join(',')+')' ;
+      a='/'+a+'/';
       var link = a;
-      if(fileName && fileKey ){
-      	link = a+fileKey;
-      	a = a +fileName;
-      }
+    }
+
+
      var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, encodeURIComponent(link), shareID, a ) ;
 
       var msg = {
@@ -3948,47 +3958,49 @@ wechat(config, wechat
   var userInfo = getUserInfo(person);
   if(message.MsgType=='text' && message.Content && userInfo ) {
 
-	  var re = /\s*(共享|流程)(\d+)$/;
-	  var p = message.Content.match(re);
-	  var shareID = p? parseInt(p.pop()) :'';
-	  var content = message.Content.replace(re, '');
+    var re = /\s*@\d+\s*$|^\s*@\d+\s*/;
+    var p = message.Content.match(re);
+    var shareID = p? parseInt( p.pop().replace(/\s*@/,'') ) :'';
+    var content = message.Content.replace(re, '');
+    
 
-	  col.findOne( {role:'shareMsg', "msgtype": "text", role : 'shareMsg', shareID:{$gt:0}, WXOnly:{$in: [null, false]} ,
-	  				 touser: new RegExp('^'+ person +'\||\|'+ person +'\||\|'+ person +'$') }, { sort: {date : -1}, limit:1, fields:{_id:0, fromUser:0} }, 
-	  	function  (err, msg) {
-	  		
-	  		//console.log(err, msg);
-	  		if(err||!msg) return;
+    col.findOne( {role:'shareMsg', role : 'shareMsg', shareID:{$gt:0}, WXOnly:{$in: [null, false]} ,
+             touser: new RegExp('^'+ person +'\||\|'+ person +'\||\|'+ person +'$') }, { sort: {date : -1}, limit:1, fields:{_id:0, fromUser:0} }, 
+      function  (err, msg) {
+        
+        //console.log(err, msg);
+        if(err||!msg) return;
 
-			  var sharePath = JSON.stringify(msg).replace(/<[^>]+>/g,'').match(/\/[^/]+\//);
-			  sharePath = sharePath? sharePath.pop() : '';
+        if(!shareID) {
 
-			var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, encodeURIComponent(sharePath), msg.shareID, sharePath ) ;
+        var sharePath = JSON.stringify(msg).replace(/<[^>]+>/g,'').match(/\/[^/]+\//);
+        sharePath = sharePath? sharePath.pop() : '';
 
-		  		if(shareID) msg.shareID = shareID;
-		  		msg.MsgId = message.MsgId;
+      var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, encodeURIComponent(sharePath), msg.shareID, sharePath ) ;
+
+          msg.MsgId = message.MsgId;
   
-		  	var part = msg.text.content.split('留言：').slice(0,-1);
+          msg.text.content = 
+            util.format('%s 对%s 留言：%s',
+                  userInfo.name,
+                  overAllPath, 
+                  content
+                );
 
-		  	if(part.length) {
-		  		msg.text.content = part.concat(content).join('留言：');
-		  	} else {
+        sendWXMessage(msg, person );
 
-		  		msg.text.content = 
-			  		util.format('%s 对%s 留言：%s',
-			            userInfo.name,
-			            overAllPath,  // if we need segmented path:   pathName.join('-'),
-			            content
-			          );
+      } else {
 
-		  	}
+        var req = {body:{ person: person, shareID:shareID, text:content }};
+        var res = { send:function(){} };
 
-		  	sendWXMessage(msg, person );
+        SendShareMsg(req, res);
 
+      }
 
-	  	}  );
+      }  );
 
-	}
+  }
 
   res.reply('');
 
