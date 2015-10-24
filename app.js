@@ -979,6 +979,8 @@ app.get("/uploadWXImage", function (req, res) {
                     shareID:shareID
                   };
 
+                  msg.appRole = 'chat';
+
                   sendWXMessage(msg, person);
 
               });
@@ -2077,6 +2079,7 @@ app.post("/saveCanvas", function (req, res) {
   var totalPage = req.body.totalPage;
   var data = req.body.data;
   var file = req.body.file;
+  var person = req.body.person;
   var personName = req.body.personName;
   var isSilent = req.body.isSilent;
   var shareID = parseInt( req.body.shareID );
@@ -2133,7 +2136,7 @@ app.post("/saveCanvas", function (req, res) {
                 shareID:shareID
               };
 
-              sendWXMessage(wxmsg, colShare.fromPerson[0].userid);
+              sendWXMessage(wxmsg, person);
 
     } );
   }
@@ -3414,6 +3417,8 @@ function SendShareMsg(req, res) {
         shareID:shareID
       };
       if(hash) msg.hash = hash;
+
+      msg.appRole = 'chat';
       sendWXMessage(msg, person);
 
       res.send( msg );
@@ -3491,7 +3496,7 @@ app.post("/shareFile", function (req, res) {
                       v.title
                        )
                   }).join(','),
-                  colShare.fromPerson[0].name,
+                  data.fromPerson[0].name,
                   data.msg? ', 附言：'+data.msg : '',
                   overAllPath  // if we need segmented path:   pathName.join('-'),
                 )
@@ -3502,7 +3507,7 @@ app.post("/shareFile", function (req, res) {
               shareID:shareID
             };
 
-            sendWXMessage(wxmsg, colShare.fromPerson[0].userid);
+            sendWXMessage(wxmsg, data.fromPerson[0].userid);
 
 
         } );
@@ -3656,7 +3661,7 @@ function sendWXMessage (msg, fromUser) {
     }
   }
 
-  (fromUser?api2:api).send(msgTo, wxMsg, function  (err, result) {
+  (msg.appRole=='chat'?api2:api).send(msgTo, wxMsg, function  (err, result) {
     console.log('sendWXMessage', msg.tryCount, err, result);
     if(err){
       if(msg.tryCount++ <=5)
