@@ -3337,17 +3337,18 @@ app.post("/getSignHistory", function (req, res) {
 
 });
 
-
-app.post("/sendShareMsg", function (req, res) {
+function SendShareMsg(req, res) {
   var person = req.body.person;
   var text = req.body.text;
   var shareID = parseInt(req.body.shareID);
-  var hash = req.body.hash;
   var path = req.body.path;
+  var hash = req.body.hash;
   var fileName = req.body.fileName;
   var fileKey = req.body.fileKey;
 
   if(path) path = path.slice(1);
+  else path = [' '];
+
   var fileHash = path.pop();
 
   col.findOne( { role:'share', shareID:shareID }, {}, function(err, data) {
@@ -3412,7 +3413,8 @@ app.post("/sendShareMsg", function (req, res) {
 
 
 
-});
+}
+app.post("/sendShareMsg", SendShareMsg);
 
 
 app.post("/getAllShareID", function (req, res) {
@@ -3540,10 +3542,10 @@ function insertShareData (data, res, showTab){
                     if( data.files.length ){
 
                       var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
-                      var content = util.format('%s创建了/共享%d(%s)/，相关文档：%s，收件人：%s\n%s',
+                      var content = util.format('%s创建了/共享-%d%s/，相关文档：%s，收件人：%s\n%s',
                           data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                           shareID,
-                          data.msg,
+                          data.msg?'-'+data.msg:'',
                           // data.files.length,
                           data.files.map(function(v){return '<a href="'+ makeViewURL(v.key, shareID) +'">'+v.title+'</a>'}).join('，'),
                           data.selectRange.map(function(v){
@@ -3555,10 +3557,10 @@ function insertShareData (data, res, showTab){
                     // it's empty topic
 
                     var treeUrl = TREE_URL + '#path=&shareID='+ shareID;
-                      var content = util.format('%s创建了新话题/共享ID %d(%s)/，收件人：%s\n%s',
+                      var content = util.format('%s创建了新话题/共享-%d%s/，收件人：%s\n%s',
                           data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                           shareID,
-                          data.msg,
+                          data.msg?'-'+data.msg:'',
                           data.selectRange.map(function(v){
                             return v.depart? ''+v.depart+'-'+v.name+'' : '【'+v.name+'】' }).join('；'),
                           '<a href="'+ treeUrl +'">查看共享</a>'
@@ -3567,7 +3569,7 @@ function insertShareData (data, res, showTab){
 
                   } else {
                     var treeUrl = makeViewURL(data.files[0].key, shareID, 1);
-                    var content = util.format('/流程%d %s/发起了流程：%s，文档：%s，经办人：%s%s\n%s',
+                    var content = util.format('/流程-%d %s/发起了流程：%s，文档：%s，经办人：%s%s\n%s',
                         shareID,
                         data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                         data.flowName,
@@ -3635,15 +3637,15 @@ function sendWXMessage (msg, fromUser) {
 
   var wxMsg = JSON.parse(JSON.stringify(msg));
   var sharePath = JSON.stringify(msg).replace(/<[^>]+>/g,'').match(/\/[^/]+\//);
-  sharePath = sharePath? sharePath.shift() : '';
+  sharePath = sharePath? sharePath.pop() : '';
 
   if(sharePath && msg.shareID){
     if(wxMsg.text) {
-      wxMsg.text.content += '\n\n<a href="http://1111hui.com/pdf/client/sharemsg.html#path='+ sharePath +'&shareID='+ msg.shareID +'">群内对话</a>';
+      wxMsg.text.content += '\n\n<a href="http://1111hui.com/pdf/client/sharemsg.html#path='+ sharePath +'&shareID='+ msg.shareID +'">打开会话</a>';
     }
   }
 
-  api.send(msgTo, wxMsg, function  (err, result) {
+  (fromUser?api2:api).send(msgTo, wxMsg, function  (err, result) {
     console.log('sendWXMessage', msg.tryCount, err, result);
     if(err){
       if(msg.tryCount++ <=5)
@@ -3816,11 +3818,12 @@ function runCmd (cmd, dir, callback) {
 // wx part
 /******/
 
+var WX_COMPANY_ID = 'wx59d46493c123d365';
 var config = {
   token: 'IEAT2qEzDCkT7Dj6JH',
   appid: 'lianrunent',
   encodingAESKey: 'olHrsEf4MaTpiFM1fpjbyvBJnmJNW3yFZBcSbnwYzrJ',
-  corpId: 'wx59d46493c123d365'
+  corpId: WX_COMPANY_ID
 };
 
 var wechat = require('wechat-enterprise');
@@ -3925,20 +3928,73 @@ wechat(config, wechat
 //   MsgId: '4561277396023509013',
 //   AgentID: '1' }
 
-  console.log(message);
 
-  var msg = {
-   "touser": 'yangjiming',
-   "msgtype": "text",
-   "text": {
-     "content": util.format('%s发送了留言：%s', message.FromUserName, message.Content  )
-   },
-   "safe":"0",
-    date : new Date()
-  };
-  api.send(msg.touser, msg, function  (err, result) {  });
+  // var msg = {
+  //  "touser": 'yangjiming',
+  //  "msgtype": "text",
+  //  "text": {
+  //    "content": util.format('%s发送了留言：%s', message.FromUserName, message.Content  )
+  //  },
+  //  "safe":"0",
+  //   date : new Date()
+  // };
+  // api.send(msg.touser, msg, function  (err, result) {  });
 
-  return res.reply(message);
+  //console.log(message);
+
+  var person = message.FromUserName;
+  if (person==WX_COMPANY_ID) return;
+
+  var userInfo = getUserInfo(person);
+  if(message.MsgType=='text' && message.Content && userInfo ) {
+
+	  var re = /\s*(共享|流程)(\d+)$/;
+	  var p = message.Content.match(re);
+	  var shareID = p? parseInt(p.pop()) :'';
+	  var content = message.Content.replace(re, '');
+
+	  col.findOne( {role:'shareMsg', "msgtype": "text", role : 'shareMsg', shareID:{$gt:0}, WXOnly:{$in: [null, false]} ,
+	  				 touser: new RegExp('^'+ person +'\||\|'+ person +'\||\|'+ person +'$') }, { sort: {date : -1}, limit:1, fields:{_id:0, fromUser:0} }, 
+	  	function  (err, msg) {
+	  		
+	  		//console.log(err, msg);
+	  		if(err||!msg) return;
+
+			  var sharePath = JSON.stringify(msg).replace(/<[^>]+>/g,'').match(/\/[^/]+\//);
+			  sharePath = sharePath? sharePath.pop() : '';
+
+			var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, encodeURIComponent(sharePath), msg.shareID, sharePath ) ;
+
+		  		if(shareID) msg.shareID = shareID;
+		  		msg.MsgId = message.MsgId;
+  
+		  	var part = msg.text.content.split('留言：').slice(0,-1);
+
+		  	if(part.length) {
+		  		msg.text.content = part.concat(content).join('留言：');
+		  	} else {
+
+		  		msg.text.content = 
+			  		util.format('%s 对%s 留言：%s',
+			            userInfo.name,
+			            overAllPath,  // if we need segmented path:   pathName.join('-'),
+			            content
+			          );
+
+		  	}
+
+		  	sendWXMessage(msg, person );
+
+
+	  	}  );
+
+	}
+
+  res.reply('');
+
+  return; 
+
+  
 
   res.reply([
   {
@@ -3993,6 +4049,25 @@ wechat(config, wechat
 var CompanyName = 'lianrun';
 var API = require('wechat-enterprise-api');
 
+var api2 = new API("wx59d46493c123d365", "5dyRsI3Wa5gS2PIOTIhJ6jISHwkN68cryFJdW_c9jWDiOn2D7XkDRYUgHUy1w3Hd", 0, function (callback) {
+
+  var rkey = 'wx:js:accessToken2';
+  redisClient.get( rkey, function (err, txt) {
+    if (err) {return callback(err);}
+    callback(null, JSON.parse(txt));
+  });
+
+}, function (token, callback) {
+
+  var rkey = 'wx:js:accessToken2';
+  redisClient.set( rkey, JSON.stringify(token), 'ex', 7200, callback);
+
+});
+
+api2.setOpts({timeout: 60000});
+
+
+
 var api = new API("wx59d46493c123d365", "5dyRsI3Wa5gS2PIOTIhJ6jISHwkN68cryFJdW_c9jWDiOn2D7XkDRYUgHUy1w3Hd", 1, function (callback) {
   // 传入一个获取全局token的方法
 
@@ -4013,6 +4088,7 @@ var api = new API("wx59d46493c123d365", "5dyRsI3Wa5gS2PIOTIhJ6jISHwkN68cryFJdW_c
 });
 
 api.setOpts({timeout: 60000});
+
 
 // get accessToken for first time to cache it.
 api.getLatestToken(function () {});

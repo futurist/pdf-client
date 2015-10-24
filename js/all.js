@@ -2970,12 +2970,12 @@ function sendShareMsg ( state ) {
 
 	$post(host+'/sendShareMsg', data , function(ret){
 		if(!ret){
-			return alert('消息发送错误，请复试');
+			return alert('消息发送错误，请重试');
 		}
 		$('.msg_wrap .inputMsg').val('');
 
 		ret = JSON.parse(ret);
-		appendShareMsg(ret);
+		//appendShareMsg(ret);
 
 	});
 
