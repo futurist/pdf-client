@@ -1,9 +1,11 @@
+var fs = require('fs');
 var gulp = require('gulp');
 var concat = require('gulp-concat');
 var jslint = require('gulp-jslint');
 var jshint = require('gulp-jshint');
 var uglify = require('gulp-uglify');
 var strip = require('gulp-strip-comments');
+var replace = require('gulp-replace');
 
 gulp.task('s1', function  () {
 	gulp.src([
@@ -67,13 +69,13 @@ gulp.task('script-lint', function  () {
 	.pipe(jslint({
                 reporter: function (evt) {
                     var msg = ' ' + evt.file;
-                    
+
                     if (evt.pass) {
                         msg = '[PASS]' + msg;
                     } else {
                         msg = '[FAIL]' + msg;
                     }
-                    
+
                     console.log(msg);
                 }
             }))
@@ -88,6 +90,25 @@ gulp.task('script2', function  () {
 	//.pipe(uglify())
 	.pipe(gulp.dest('build'))
 });
+
+
+
+gulp.task('watch', function  () {
+
+	var clientFiles = fs.readFileSync('client/client.manifest').toString().split(/\n\r|\r\n|\n/);
+	clientFiles = clientFiles.map(function(v){return v.replace('http://1111hui.com/pdf/', '') });
+	clientFiles = clientFiles.filter(function(v){ return !/^http:/.test(v) && /\.\w+$/.test(v)  });
+
+	console.log(clientFiles);
+
+	gulp.watch( clientFiles, function(e){
+
+		console.log(e)
+
+	}  );
+
+});
+
 
 // default gulp task
 gulp.task('default', ['s1', 's2', 's3', 'script'], function() {

@@ -480,7 +480,21 @@ function initPage () {
 		data = JSON.parse(data);
 		var lastData = data[data.length-1];
 
-		if(lastData.touserName) document.querySelector('.msgTitle .titleContent').innerHTML=( '群成员:<span class="memberList"><b>'+ lastData.touserName.split('|').getUnique().join(',') + '</b></span> 标题:'+ windowTitle );
+		if(lastData.touser){
+
+			var touserName = lastData.touserName.split('|');
+
+			var userList = lastData.touser.split('|')
+						.map(function(v,i){return  !v?'': '<a href="javascript:;" class="userChat" data-person="'+ v +'"><b>'+touserName[i]+'</b></a>' })
+						.filter(function(v,i){return  !!v })
+						.getUnique()
+						.join(',');
+
+			document.querySelector('.msgTitle .titleContent').innerHTML=( '群成员:<span class="memberList">'
+						+ userList
+						+ '</span> 标题:'+ windowTitle );
+
+		}
 		data.forEach(function  (v) {
 
 			appendShareMsg(v);
@@ -489,6 +503,10 @@ function initPage () {
 
 	$(document).on('click', '.msgImage', function  () {
 		previewImage( $(this).attr('src') );
+	});
+
+	$(document).on('click', '.userChat', function  () {
+		sendUserMsg($(this).data('person'), windowTitle);
 	});
 
 	$('.msgTitle').click(function(){
@@ -561,6 +579,7 @@ function appendShareMsg (v) {
 	var li = $('<li'+ dataAttr +'><span class="msgDate"></span> '+ content +'</li>');
 	li.find('.msgDate').data( 'date', v.date );
 	li.on('click', function  () {
+		return;
 		var user = $(this).data('fromuser');
 		//user = v.touser.split('|').getUnique().filter(function(v){return !!v}).join(';');
 		if(user) sendUserMsg(user, windowTitle);
