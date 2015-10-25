@@ -32,6 +32,20 @@ function safeEval (str) {
 }
 
 
+
+Array.prototype.getUnique = function(){
+   var u = {}, a = [];
+   for(var i = 0, l = this.length; i < l; ++i){
+      if(u.hasOwnProperty(this[i])) {
+         continue;
+      }
+      a.push(this[i]);
+      u[this[i]] = 1;
+   }
+   return a;
+}
+
+
 function searchToObject(search) {
   return search.substring(1).split("&").reduce(function(result, value) {
     var parts = value.split('=');
@@ -2768,6 +2782,7 @@ function viewDetail () {
 
 	var title = getPath(sel);
 	title = title.split('/').slice(0,2).join('/')+'/';
+	var windowTitle = title;
 
 	$('.msgTitle .titleContent').html( title );
 	$('.msgTree').css({bottom: $('.msgText').height()+10 }).css( {}, 300, 'linear' );
@@ -2817,7 +2832,23 @@ function viewDetail () {
 		if(!data)return;
 		data = JSON.parse(data);
 		var lastData = data[data.length-1];
-		if(lastData.touserName) $('.msgTitle .titleContent').html( '群成员:<span class="memberList"><b>'+ $.unique(lastData.touserName.split('|')).join(',') + '</b></span> 标题:'+ title );
+
+		if(lastData.touser){
+
+			var touserName = lastData.touserName.split('|');
+
+			var userList = lastData.touser.split('|')
+						.map(function(v,i){return  !v?'': '<a href="javascript:;" class="userChat" data-person="'+ v +'"><b>'+touserName[i]+'</b></a>' })
+						.filter(function(v,i){return  !!v })
+						.getUnique()
+						.join(',');
+
+			document.querySelector('.msgTitle .titleContent').innerHTML=( '群成员:<span class="memberList">'
+						+ userList
+						+ '</span> 标题:'+ windowTitle );
+
+		}
+
 		data.forEach(function  (v) {
 
 			appendShareMsg(v);
@@ -2898,6 +2929,7 @@ function appendShareMsg (v){
 	var li = $('<li'+ dataAttr +'><span class="msgDate"></span> '+ content +'</li>');
 	li.find('.msgDate').data( 'date', v.date );
 	li.on('click', function  () {
+		return;
 		var user = $(this).data('fromuser');
 		//user = v.touser.split('|').getUnique().filter(function(v){return !!v}).join(';');
 		if(user) sendUserMsg(user, windowTitle);
@@ -3803,6 +3835,9 @@ $(function initPage () {
 
 	$(document).on('click', '.msgImage', function  () {
 		previewImage( $(this).attr('src') );
+	});
+	$(document).on('click', '.userChat', function  () {
+		sendUserMsg($(this).data('person'), '');
 	});
 
 	$('.msgTitle').click(function(){
