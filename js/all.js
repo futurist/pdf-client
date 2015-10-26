@@ -23,10 +23,11 @@ function $post (url, data, callback) {
   });
 }
 function safeEval (str) {
+  var ret;
   try{
-    var ret = JSON.parse(str);
+    ret = JSON.parse(str);
   }catch(e){
-    ret = str
+    ret = str;
   }
   return /object/i.test(typeof ret) ? (ret===null?null:str) : ret;
 }
@@ -43,7 +44,7 @@ Array.prototype.getUnique = function(){
       u[this[i]] = 1;
    }
    return a;
-}
+};
 
 
 function searchToObject(search) {
@@ -169,9 +170,9 @@ if(isNWJS) {
 		updateIcon();
 		nwMainWin = global._nwMain.mainWin;
 		updateClientHost();
-	}
+	};
 
-	function nwHookLink() {
+	var nwHookLink = function () {
 		$(document).on('click','a', function  (e) {
 			var link = e.target.href;
 			if(!link) return e.preventDefault();
@@ -181,7 +182,7 @@ if(isNWJS) {
 				global._nwMain.showReader(link);
 			}
 		});
-	}
+	};
 
 }
 
@@ -229,14 +230,25 @@ basket.require(
 
 		INIT();
 
-	})
+	});
 
 
 });
 
-
 function INIT(){
 // start the INITPAGE
+
+		window.treeObj = null;
+		window.treeObj1 = null;
+		window.treeObj2 = null;
+		window.treeObj3 = null;
+		var treeObjTemplate = null;
+		var treeObjPrint = null;
+
+		window.tree1WayPoint =null;
+		window.tree2WayPoint =null;
+		window.tree3WayPoint =null;
+
 
 if(isNWJS) nwHookLink();
 
@@ -272,9 +284,7 @@ function humanFileSize(bytes, si) {
     if(Math.abs(bytes) < thresh) {
         return bytes + ' B';
     }
-    var units = si
-        ? ['KB','MB','GB','TB','PB','EB','ZB','YB']
-        : ['KiB','MiB','GiB','TiB','PiB','EiB','ZiB','YiB'];
+    var units = si ? ['KB','MB','GB','TB','PB','EB','ZB','YB'] : ['KiB','MiB','GiB','TiB','PiB','EiB','ZiB','YiB'];
     var u = -1;
     do {
         bytes /= thresh;
@@ -296,12 +306,12 @@ function sortCompanyNode (data) {
   });
 
 
-  var depart = data.filter(function(v){ return v.pId>=0 && v.parentid>=0 });
+  var depart = data.filter(function(v){ return v.pId>=0 && v.parentid>=0; });
   var opData = [];
   depart.forEach(function(v){
     opData.push(v);
     opData = opData.concat(
-      data.filter(function(x){ return x.pId==v.id && x.parentid===undefined })
+      data.filter(function(x){ return x.pId==v.id && x.parentid===undefined; })
       .sort(function(a,b){return a.userid>b.userid } )
      );
   });
@@ -545,12 +555,14 @@ function applyTemplate () {
 
 	return;
 
+/*
 	$post(host+'/applyTemplate', { info: JSON.stringify(info), userid: rootPerson.userid, path:path }, function  (data) {
 		$('.bg_mask').hide();
 		hideTemplateCon();
 		reloadTree1(data);
 
 	});
+*/
 
 
 }
@@ -641,26 +653,16 @@ function applyTemplate () {
 	}, 30000);
 
 
-		var treeObj = null;
-		var treeObj1 = null;
-		var treeObj2 = null;
-		var treeObj3 = null;
-		var treeObjTemplate = null;
-		var treeObjPrint = null;
-
-		var tree1WayPoint =null;
-		var tree2WayPoint =null;
-		var tree3WayPoint =null;
 
 		var zNodes, zNodes2, zNodes3, zNodesTemplate, zNodesPrint;
 
 		var rMenu;
-		var addCount = 1;
+
 		var log, className = "dark", curDragNodes, autoExpandNode;
 		var setting = {
 
 			view: {
-				showLine: true,
+
 				selectedMulti: true,
 				dblClickExpand: false,
 				expandSpeed: "",
@@ -773,12 +775,15 @@ var escapeRe = function(str) {
     var re = (str+'').replace(/[.?*+^$[\]\\/(){}|-]/g, "\\$&");
     return re;
 
+/*
     // replace unicode Then
     var ret = '';
     for(var i=0;i<re.length;i++) {
     	ret += /[\x00-\x7F]/.test(re[i])?re[i]: '\\u'+re[i].charCodeAt(0).toString(16);
     }
     return ret;
+*/
+
 };
 
 
@@ -793,9 +798,10 @@ function pathToObj (v, isOnTop, isOpen) {
 	var str = path.split('/');
 	var p = root;
 	//if(!file) str.splice(str.length-2, 2);
+	var name;
 	loop1:
 	for(var i=0; i<str.length; i++){
-		var name = str[i];
+		name = str[i];
 		if(!name) continue;
 		for(var j=0; j<p.length; j++){
 			if( p[j].name == name ){
@@ -817,7 +823,7 @@ function pathToObj (v, isOnTop, isOpen) {
 		}
 		p = p[p.length-1].children;
 	}
-	var name = title||file||"";
+	name = title||file||"";
 	//If we have key it's file LEAF
 	if(file && p){
 		var treeNode = {name:name, oldName:name, oldPath:v.path};
@@ -931,11 +937,11 @@ function addTemplateCon() {
 	updateMenu( treeObj.getSelectedNodes() );
 
 	$('[data-click]').off().on('click', function  () {
-		eval($(this).data('click'));
+		//eval($(this).data('click'));
 	});
 
 	$(window).scrollTop(0);
-};
+}
 
 function sendShareSnd () {
 	if(isWeiXin){
@@ -950,13 +956,13 @@ function addPictureCon() {
 	if(isWeiXin) wxUploadImage();
 	else pcUploadImage();
 	return;
-
+/*
 	treeObj = treeObjTemplate;
 	$('.templateFile_wrap').show();
 	hideContentWrap();
 	$('.templateFile_wrap .msgTitle').html('请选择模板');
-	updateMenu( treeObj.getSelectedNodes() );
-};
+	updateMenu( treeObj.getSelectedNodes() ); */
+}
 
 
 
@@ -1002,7 +1008,7 @@ function applyPrint ( onlyDownload ) {
 	var printer = p.path;
 
 	var idx = $('.currTab').data('idx');
-	var tree = eval('treeObj'+(idx+1) );
+	var tree = window['treeObj'+(idx+1)];  //eval('treeObj'+(idx+1) );
 	var sel = tree.getSelectedNodes();
 	if(!sel.length)return;
 	sel=sel[0];
@@ -1042,7 +1048,7 @@ function applyPrint ( onlyDownload ) {
 
 function getSelectFiles () {
 	var idx = $('.currTab').data('idx');
-	var tree = eval('treeObj'+(idx+1) );
+	var tree = window['treeObj'+(idx+1)]; //eval('treeObj'+(idx+1) );
 	var sel = tree.getSelectedNodes();
 	return sel;
 }
@@ -1108,7 +1114,7 @@ function hidePrintCon() {
 
 			var id, nextOrder, nextObj;
 			var startOrder;
-			var targetNode = getPrevNextLeaf( node[0], 'next' );
+			targetNode = getPrevNextLeaf( node[0], 'next' );
 
 				startOrder = targetNode.order || getMaxMinOrder( getAllLeafs( targetNode ), 'max' ) ;
 				nextObj = getPrevNextLeaf( node[0], 'prev' );
@@ -1200,7 +1206,7 @@ function hidePrintCon() {
 			}
 
 			window.confirm('确定要删除吗？此操作不可恢复！', function(ok){
-				ok? whenCnfm() : '';
+				return ok? whenCnfm() : '';
 			});
 
 		}
@@ -1466,11 +1472,11 @@ function hidePrintCon() {
 		}
 		function showLog(str) {
 			return;
-			if (!log) log = $("#log");
+			/* if (!log) log = $("#log");
 			log.append("<li class='"+className+"'>"+str+"</li>");
 			if(log.children("li").length > 8) {
 				log.get(0).removeChild(log.children("li")[0]);
-			}
+			} */
 		}
 		function getTime() {
 			var now= new Date(),
@@ -1813,7 +1819,7 @@ function initShareTo (data, bForceUpdate) {
 
 function updateTreeObj (globalSet){
 	var idx = $('.currTab').data('idx');
-	var tree = eval( 'treeObj'+ (idx+1) );
+	var tree = window['treeObj'+(idx+1)]; //eval( 'treeObj'+ (idx+1) );
 	if(globalSet!==null) treeObj = tree;
 	return tree;
 }
@@ -2043,8 +2049,7 @@ function getFileKeys(node){
 			partPath = $.unique(partPath);
 			var delelteNodes = treeObj.getNodesByFilter(function (node) {
 				if( changedNodes.indexOf(node)>-1 ) return false;
-				if(node.path && partPath.indexOf(node.path)>-1 && !node.key
-					&& (!node.children || (node.children&&node.children.length==0) ) ){
+				if(node.path && partPath.indexOf(node.path)>-1 && !node.key && (!node.children || (node.children&&node.children.length==0) ) ){
 					return true;
 				}
 			});
@@ -2181,7 +2186,7 @@ function getFileKeys(node){
 
 					if(targetNode.isParent ){
 						$('.fFolder').show();
-						!targetNode.isFinish ? $('.fFinish').hide() : $('.fNotFinish').hide();
+						if(!targetNode.isFinish) $('.fFinish').hide(); else $('.fNotFinish').hide();
 						if(targetNode.isSign){
 							$('.fFinish, .fNotFinish').hide();
 						}
@@ -2201,7 +2206,7 @@ function getFileKeys(node){
 
 					if(targetNode.isParent){
 						$('.fFolder').show();
-						!targetNode.isFinish ? $('.fFinish').hide() : $('.fNotFinish').hide();
+						if( !targetNode.isFinish )  $('.fFinish').hide(); else $('.fNotFinish').hide();
 						if(targetNode.isSign){
 							$('.fFinish, .fNotFinish').hide();
 						}
@@ -2218,7 +2223,7 @@ function getFileKeys(node){
 					}
 				} else if( $('.templateFile_wrap').is(':visible') && targetNode.isTemplate) {
 					$('.templateMenu').show();
-					targetNode.isParent ? $('.fConfirmTemplate').hide() : $('.fConfirmTemplate').show();
+					if( targetNode.isParent ) $('.fConfirmTemplate').hide(); else $('.fConfirmTemplate').show();
 				} else {
 					if(targetNode.isParent && targetNode.level==0){
 						$('.rootMenu1').show();
@@ -2232,9 +2237,7 @@ function getFileKeys(node){
 
 						} else {
 							$('.unknownMenu').show();
-							targetNode.key.match(regex_can_be_convert)|| targetNode.key.match(regex_image)
-								? $('.fConvert').show()
-								: $('.fConvert').hide();
+							if( targetNode.key.match(regex_can_be_convert)|| targetNode.key.match(regex_image) ) $('.fConvert').show(); else $('.fConvert').hide();
 
 
 						}
@@ -2282,9 +2285,7 @@ function getFileKeys(node){
 						$('.fDownload').hide();
 					}
 
-					targetNode.key.match(regex_preview)
-					? $('.fPreView').show()
-					: $('.fPreView').hide();
+					if( targetNode.key.match(regex_preview) ) $('.fPreView').show(); else $('.fPreView').hide();
 
 					if(rootPerson.userid== targetNode.person ){
 						$('.receiveMenu .fRemove, .sendMenu .fRemove').show()
@@ -2346,7 +2347,6 @@ var companySetting = {
 		}
 	},
 	view: {
-		showLine: true,
 		dblClickExpand: false,
 		expandSpeed: "",
 		txtSelectedEnable:true,
@@ -2381,14 +2381,14 @@ function showTab (idx) {
 		$('.msgTitleMenu').hide();
 	}else if(idx==2||idx==1) {
 		$('.msgTitleMenu').show();
-		idx==1? $('.exitMember').hide() :  $('.exitMember').show()
+		if( idx==1 ) $('.exitMember').hide(); else  $('.exitMember').show();
 	}
 	$('.ztreeFile').hide().eq(idx).show();
 	$('.loadMoreIndi').hide();
 	$('.loadMore').hide().eq(idx).show();
 
 	$('.header ul li').removeClass('currTab').eq(idx).addClass('currTab');
-	treeObj = eval('treeObj'+(idx+1) );
+	treeObj = window['treeObj'+(idx+1)]; //eval('treeObj'+(idx+1) );
 
 	var sel = treeObj.getSelectedNodes();
 	updateMenu( sel );
@@ -2399,7 +2399,7 @@ function showTab (idx) {
 
 	searchByName( $('.searchTxt:visible').val() );
 
-	var waypoint = eval('tree'+ (idx+1) +'WayPoint');
+	var waypoint =  window['tree'+ (idx+1) +'WayPoint']; //eval('tree'+ (idx+1) +'WayPoint');
 	if(waypoint) waypoint.context.refresh();
 
 	if(typeof prevIdx=='undefined') return;
@@ -2529,8 +2529,8 @@ function shareNodePre (){
 		}
 
 
-		var nodes = companyTree.getCheckedNodes();
-		var stuffs =  getAllFiles(nodes);
+		nodes = companyTree.getCheckedNodes();
+		stuffs =  getAllFiles(nodes);
 
 		stuffs = stuffs.map( function(v) {
 			return {name: v.name, userid: v.userid, depart: v.getParentNode().name }
@@ -2586,6 +2586,8 @@ function shareNode (){
 	$( "#mydialog" ).data('role', null);
 	var isTopic = false;
 
+	var nodes, fileIDS, stuffs, selectRange, json;
+
 	if(dialogRole!='topic') {
 
 		var files = getAllFiles(sel);
@@ -2604,7 +2606,7 @@ function shareNode (){
 			fileArr.push( obj  );
 		});
 
-		var fileIDS = files.map(function(v){
+		fileIDS = files.map(function(v){
 			filePathS[ v.key.replace(/\./g, '\uff0e' ) ] = v.path;
 			return v.key;
 		});
@@ -2618,8 +2620,8 @@ function shareNode (){
 
 	if(!isSign){
 
-		var nodes = companyTree.getCheckedNodes();
-		var stuffs =  getAllFiles(nodes);
+		nodes = companyTree.getCheckedNodes();
+		stuffs =  getAllFiles(nodes);
 
 		stuffs = stuffs.map( function(v){
 			return {name: v.name, userid: v.userid, depart: v.getParentNode().name }
@@ -2638,7 +2640,7 @@ function shareNode (){
 			});
 		});
 
-		var selectRange=[];
+		selectRange=[];
 		var stuffKeys = ['userid', 'name'];
 		nodes.forEach(function(v){
 			var obj = {};
@@ -2658,9 +2660,9 @@ function shareNode (){
 	}
 
 	if(!isSign){
-		var json = {fromPerson: [ rootPerson ], toPerson: stuffs, selectRange:selectRange, fileIDS: fileIDS, filePathS: filePathS, oldShareID:shareID, msg:msg, existShareID: existShareID };
+		json = {fromPerson: [ rootPerson ], toPerson: stuffs, selectRange:selectRange, fileIDS: fileIDS, filePathS: filePathS, oldShareID:shareID, msg:msg, existShareID: existShareID };
 	} else {
-		var json = {fromPerson: [ rootPerson ], toPerson: window.curFlow.flowPerson.slice(0,1), flowName: $('.flowSelect').val(),
+		json = {fromPerson: [ rootPerson ], toPerson: window.curFlow.flowPerson.slice(0,1), flowName: $('.flowSelect').val(),
 		selectRange: window.curFlow.flowPerson,
 		fileIDS: fileIDS, filePathS: filePathS, msg:msg, isSign:isSign };
 	}
@@ -2791,6 +2793,7 @@ function viewDetail () {
 	updateMenu();
 
 	var condition = {  };
+	var p;
 
 	//in shareID root folder
 	if(sel.isParent && sel.level==1 && sel.shareID) {
@@ -2799,7 +2802,7 @@ function viewDetail () {
 
 	//sub folder that don't have shareID
 	if(sel.isParent && sel.level>1) {
-		var p = sel;
+		p = sel;
 		while( p && !p.shareID){
 			p = p.getParentNode();
 		}
@@ -2819,7 +2822,7 @@ function viewDetail () {
 		condition.toPerson = sel.userid;
 	}
 	if(!sel.isParent){
-		var p = sel.getParentNode();
+		p = sel.getParentNode();
 		while( p && !p.shareID){
 			p = p.getParentNode();
 		}
@@ -2843,9 +2846,7 @@ function viewDetail () {
 						.getUnique()
 						.join(',');
 
-			document.querySelector('.msgTitle .titleContent').innerHTML=( '群成员:<span class="memberList">'
-						+ userList
-						+ '</span> 标题:'+ windowTitle );
+			document.querySelector('.msgTitle .titleContent').innerHTML=( '群成员:<span class="memberList">' + userList + '</span> 标题:'+ windowTitle );
 
 		}
 
@@ -2888,12 +2889,13 @@ function appendShareMsg (v){
 	title = title.split('/').slice(0,2).join('/')+'/';
 
 	var titleReg = title.replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+	var content, $div;
 
 	// Text Message
 	if(v.text ){
-		var content = v.text.content.replace(new RegExp(titleReg,'ig'), '');
+		content = v.text.content.replace(new RegExp(titleReg,'ig'), '');
 
-		var $div = $('<div></div>');
+		$div = $('<div></div>');
 		$div.html(content);
 		$div.find('a').each(function  () {
 			if( $(this).html()=='' ) $(this).remove();
@@ -2910,9 +2912,9 @@ function appendShareMsg (v){
 	if(v.news ){
 
 		var item = v.news.articles.shift();
-		var content = item.title.replace(new RegExp(titleReg,'ig'), '');
+		content = item.title.replace(new RegExp(titleReg,'ig'), '');
 
-		var $div = $('<div></div>');
+		$div = $('<div></div>');
 		$div.html(content+'<br>');
 		$div.append( '<img class="msgImage" src="'+ item.picurl +'">' );
 
@@ -2930,9 +2932,9 @@ function appendShareMsg (v){
 	li.find('.msgDate').data( 'date', v.date );
 	li.on('click', function  () {
 		return;
-		var user = $(this).data('fromuser');
+		//var user = $(this).data('fromuser');
 		//user = v.touser.split('|').getUnique().filter(function(v){return !!v}).join(';');
-		if(user) sendUserMsg(user, windowTitle);
+		//if(user) sendUserMsg(user, windowTitle);
 	});
 	$('.msgTree ul').append(li);
 	$('.msgTree').scrollTop( 99999999999 );
@@ -3682,9 +3684,9 @@ $(function () {
 	        	}
 	        	return;
 
-	        	$post(host+'/generatePDFAtPrinter', data.result, function(ret){
+	        	/* $post(host+'/generatePDFAtPrinter', data.result, function(ret){
 	        		//console.log(ret);
-	        	}  );
+	        	}  ); */
 
 	        }
         }
@@ -3821,7 +3823,7 @@ $(function initPage () {
 		menuHeight = 42;
 
 		var pop = $('.addFilePopup');
-		pop.find( '>a' ).css({padding: '0 '+ ( Math.min( $(pop).width()*.23, 10) ) +'px'});
+		pop.find( '>a' ).css({padding: '0 '+ ( Math.min( $(pop).width()*0.23, 10) ) +'px'});
 
 		if(isWeiXin) {
 			$('.addImageBtn').show();
@@ -3933,7 +3935,7 @@ $(function initPage () {
 	updateContentTop();
 
 	$('[data-click]').off().on(clickE, function  () {
-		eval($(this).data('click'));
+		//eval($(this).data('click'));
 	});
 
 	$(document).click(function(e){
@@ -4052,7 +4054,7 @@ function openClient (address) {
 			break;
 		default:
 			return;
-			break;
+			//break;
 	}
 
 	exec(cmd, function(err,stdout,stderr){
@@ -4073,7 +4075,7 @@ function hideCompanyTree (){
 	updateTreeObj();
 
 	$(window).scrollTop(prevPos);
-};
+}
 
 function viewContact () {
 	var sel = companyTree.getSelectedNodes().shift();

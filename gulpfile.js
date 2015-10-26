@@ -9,13 +9,13 @@ var replace = require('gulp-replace');
 
 gulp.task('s1', function  () {
 	gulp.src([
-		'./js/jweixin-1.0.0.js',
+		'./js/jweixin-1.1.0.js',
 		'./js/glyphicon.js',
 		'./js/basket.full.min.js',
 		'./js/cookies.js',
 		])
 	.pipe(concat('s1.js'))
-	.pipe(strip())
+	//.pipe(strip())
 	.pipe(uglify())
 	.pipe(gulp.dest('build'))
 });
@@ -29,7 +29,7 @@ gulp.task('s2', function  () {
 		'js/jquery.js'
 	])
 	.pipe(concat('s2.js'))
-	.pipe(strip())
+	//.pipe(strip())
 	.pipe(uglify())
 	.pipe(gulp.dest('build'))
 });
@@ -45,16 +45,17 @@ gulp.task('s3', function  () {
 	'js/vendor/jquery.ui.widget.js',
 	'js/jquery.iframe-transport.js',
 	'js/jquery.fileupload.js',
-	'js/jquery.ba-throttle-debounce.min.js'
+	'js/jquery.ba-throttle-debounce.min.js',
+	'js/all.js'
 		])
 	.pipe(concat('s3.js'))
-	.pipe(strip())
+	//.pipe(strip())
 	.pipe(uglify())
 	.pipe(gulp.dest('build'))
 });
 
 
-gulp.task('script', function  () {
+gulp.task('script-jshint', function  () {
 	gulp.src([
 	'js/all.js'
 		])
@@ -81,13 +82,13 @@ gulp.task('script-lint', function  () {
             }))
 });
 
-gulp.task('script2', function  () {
+gulp.task('script', function  () {
 	gulp.src([
 	'js/all.js'
 		])
 	.pipe(concat('script.js'))
-	.pipe(strip())
-	//.pipe(uglify())
+	//.pipe(strip())
+	.pipe(uglify())
 	.pipe(gulp.dest('build'))
 });
 
@@ -111,6 +112,6 @@ gulp.task('watch', function  () {
 
 
 // default gulp task
-gulp.task('default', ['s1', 's2', 's3', 'script'], function() {
+gulp.task('default', ['s1', 's2', 's3'], function() {
 });
 

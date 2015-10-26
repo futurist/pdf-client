@@ -1,0 +1,8 @@
+{
+	"asi": true,
+	//"eqeqeq":false
+	"-W041": false,
+	//"evil": true,
+	"loopfunc": true
+}
+
