@@ -631,9 +631,44 @@ function applyTemplate () {
 
 					//if(win && win.window) return win.window.location.reload();
 				}
+
+				if(msg.key && msg.shareID){
+
+					msg.name = msg.title;
+
+					var t = treeObj2.getNodesByFilter(function  (v) {
+						return v.shareID == msg.shareID
+					}).shift();
+					if(t){
+						treeObj2.addNodes(t, -1, msg);
+					}
+
+					t = treeObj3.getNodesByFilter(function  (v) {
+						return v.shareID == msg.shareID
+					}).shift();
+					if(t){
+						treeObj3.addNodes(t, -1, msg);
+					}
+
+					return;
+				}
+
+				if(msg.files && msg.shareID){
+
+					if( msg.fromPerson.filter(function(v){return v.userid==rootPerson.userid}).length ){
+						initShareFrom( [].concat(msg), false, true,true );
+					} else {
+						initShareTo( [].concat(msg), false, true, true );
+					}
+
+					return;
+				}
+
+
 				if(typeof msg.isFinish!='undefined') {
 					return reloadTree2();
 				}
+
 				reloadTree2( msg.files ? msg.files[0].key : msg.key , msg.shareID, msg.showTab||false, msg.openShare, msg.openMessage);
 				break;
 
@@ -1674,10 +1709,10 @@ function init (data, isOnTop, isOpen){
 	}
 }
 
-function initShareFrom (data, bForceUpdate) {
+function initShareFrom (data, bForceUpdate, isPrepend, isAddNodes) {
 
 	root= treeObj2? treeObj2.getNodes()[0].children : [];
-	if(bForceUpdate) root = [];
+	if(isAddNodes || bForceUpdate) root = [];
 
 	for(var i=0; i<data.length; i++) {
 		var shareID = data[i].shareID;
@@ -1697,13 +1732,12 @@ function initShareFrom (data, bForceUpdate) {
 					v.path = "/"+ folderName  + v.path;
 					v.isSign = isSign;
 					v.shareID = shareID;
-					pathToObj( v );
-
-					var folder = root[root.length-1]
-					folder.shareID = shareID;
-					folder.isSign = isSign;
-					folder.isFinish = isFinish;
-					if(isFinish) folder.font = {color:'blue'};
+					pathToObj( v, isPrepend );
+					var pos = isPrepend?0:root.length-1;
+					root[pos].shareID = shareID;
+					root[pos].isSign = isSign;
+					root[pos].isFinish = isFinish;
+					if(isFinish) root[pos].font = {color:'blue'};
 
 					// folder.children.unshift({name:'task1', isTask:true});
 
@@ -1722,18 +1756,21 @@ function initShareFrom (data, bForceUpdate) {
 			v.isFinish = isFinish;
 			v.isParent = true;
 			if(v.isFinish) v.font = {color:'blue'};
-			root.push(v);
+			isPrepend ? root.unshift(v) : root.push(v);
 
 		}
 	}
 
-    zNodes2[0].children = root;
+	if(!isAddNodes){
+	    zNodes2[0].children = root;
 
-	$.fn.zTree.init($("#fileTree2"), setting, zNodes2);
-	treeObj2 = $.fn.zTree.getZTreeObj("fileTree2");
-	sendRoot = treeObj2.getNodes()[0];
-	treeObj2.expandNode(sendRoot);
-
+		$.fn.zTree.init($("#fileTree2"), setting, zNodes2);
+		treeObj2 = $.fn.zTree.getZTreeObj("fileTree2");
+		sendRoot = treeObj2.getNodes()[0];
+		treeObj2.expandNode(sendRoot);
+	} else {
+		treeObj2.addNodes(sendRoot, 0, root);
+	}
 	// if(!sendRoot){
 	// 	sendRoot = treeObj2.addNodes( null,  {userid:rootPerson.userid, name:'发件柜', title:'发件柜', isSend:true, isParent:true, children: root} );
 	// 	if(sendRoot) sendRoot = sendRoot[0];
@@ -1743,10 +1780,10 @@ function initShareFrom (data, bForceUpdate) {
 	addAttrToNode( sendRoot, {isSend:true} );
 }
 
-function initShareTo (data, bForceUpdate) {
+function initShareTo (data, bForceUpdate, isPrepend, isAddNodes) {
 
 	root= treeObj3? treeObj3.getNodes()[0].children : [];
-	if(bForceUpdate) root = [];
+	if(isAddNodes || bForceUpdate) root = [];
 
 	$('.bg_mask').hide();
 
@@ -1775,11 +1812,12 @@ function initShareTo (data, bForceUpdate) {
 					v.path = "/"+ folderName  + v.path;
 					v.isSign = isSign;
 					v.shareID = shareID;
-					pathToObj( v );
-					root[root.length-1].shareID = shareID;
-					root[root.length-1].isSign = isSign;
-					root[root.length-1].isFinish = isFinish;
-					if(isFinish) root[root.length-1].font = {color:'blue'};
+					pathToObj( v, isPrepend );
+					var pos = isPrepend?0:root.length-1;
+					root[pos].shareID = shareID;
+					root[pos].isSign = isSign;
+					root[pos].isFinish = isFinish;
+					if(isFinish) root[pos].font = {color:'blue'};
 				} catch(e){
 					alert('发件柜初始化错误');
 					return false;
@@ -1795,17 +1833,19 @@ function initShareTo (data, bForceUpdate) {
 			v.isFinish = isFinish;
 			v.isParent = true;
 			if(v.isFinish) v.font = {color:'blue'};
-			root.push(v);
+			isPrepend ? root.unshift(v) : root.push(v);
 		}
 	}
 
-
-    zNodes3[0].children = root;
-
-	$.fn.zTree.init($("#fileTree3"), setting, zNodes3);
-	treeObj3 = $.fn.zTree.getZTreeObj("fileTree3");
-	receiveRoot = treeObj3.getNodes()[0];
-	treeObj3.expandNode(receiveRoot);
+	if(!isAddNodes){
+	    zNodes3[0].children = root;
+		$.fn.zTree.init($("#fileTree3"), setting, zNodes3);
+		treeObj3 = $.fn.zTree.getZTreeObj("fileTree3");
+		receiveRoot = treeObj3.getNodes()[0];
+		treeObj3.expandNode(receiveRoot);
+	} else {
+		treeObj3.addNodes(receiveRoot, 0, root);
+	}
 
 	// if(!receiveRoot){
 	// 	receiveRoot = treeObj3.addNodes( null,  {userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: root} );
@@ -1910,6 +1950,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 		}
 
 		initShareFrom(data, true);
+		treeObj = treeObj2;
 		treeObj2.expandNode(sendRoot, true);
 		if(!tree2WayPoint) setupWayPoint2();
 
@@ -1932,6 +1973,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 
 		initShareTo(data, true);
 		treeObj3.expandNode(receiveRoot, true);
+		treeObj = treeObj3;
 		if(!tree3WayPoint) setupWayPoint3();
 
 		if(shareID) {
@@ -2390,14 +2432,16 @@ function showTab (idx) {
 	$('.header ul li').removeClass('currTab').eq(idx).addClass('currTab');
 	treeObj = window['treeObj'+(idx+1)]; //eval('treeObj'+(idx+1) );
 
-	var sel = treeObj.getSelectedNodes();
-	updateMenu( sel );
+	try{
+		var sel = treeObj.getSelectedNodes();
+		updateMenu( sel );
+	} catch(e){}
 
 	if(prevIdx==idx){
 		$(window).scrollTop(0);
 	}
 
-	searchByName( $('.searchTxt:visible').val() );
+	if(treeObj) searchByName( $('.searchTxt:visible').val() );
 
 	var waypoint =  window['tree'+ (idx+1) +'WayPoint']; //eval('tree'+ (idx+1) +'WayPoint');
 	if(waypoint) waypoint.context.refresh();
