@@ -213,7 +213,7 @@ basket.require(
 
 	basket.require(
 
-	{ url: 'js/jquery.ztree.all-3.5.js', unique:'12' },
+	{ url: 'js/jquery.ztree.all-3.5.js', unique:'122' },
 	{ url: 'js/jquery.ztree.exhide-3.5.js' },
 
 	{ url: 'js/dialog.build.js' },
@@ -1080,7 +1080,7 @@ function hidePrintCon() {
 			var newNode = { name:"添加新搜索", title:"添加新搜索", isFilter:true, isParent:false};
 			var pNode = treeObj.getNodes()[0];
 			treeObj.expandNode(pNode,true);
-			node = treeObj.addNodes(pNode, newNode);
+			node = treeObj.addNodes(pNode, 0, newNode);
 
 		}
 		function addTreeNode () {
@@ -1095,7 +1095,7 @@ function hidePrintCon() {
 			if (pNode) {
 				newNode.checked = pNode.checked;
 				treeObj.expandNode(pNode,true);
-				node = treeObj.addNodes(pNode, newNode);
+				node = treeObj.addNodes(pNode, 0, newNode);
 				// If targetNode is a file, move it into new folder
 				if(0&&!targetNode.isParent) {
 					if(node.length) node=node[0];
@@ -1108,7 +1108,7 @@ function hidePrintCon() {
 			} else {
 				pNode = treeObj.getNodes()[0];
 				treeObj.expandNode(pNode,true);
-				node = treeObj.addNodes(pNode, newNode);
+				node = treeObj.addNodes(pNode, 0, newNode);
 			}
 			if(!node) return;
 
@@ -1647,7 +1647,7 @@ function init (data, isOnTop, isOpen){
 		$.fn.zTree.init($("#fileTree"), setting, zNodes);
 		treeObj1 = $.fn.zTree.getZTreeObj("fileTree");
 	} else {
-		treeObj1.addNodes( treeObj1.getNodes()[0], root );
+		treeObj1.addNodes( treeObj1.getNodes()[0], 0, root );
 	}
 
 	treeObj1.expandNode(treeObj1.getNodes()[0], true);
@@ -3191,7 +3191,7 @@ function wxUploadImage() {
 function addNodes2 (zTree, parent, newNode, isLast) {
     // var zTree = $.fn.zTree.getZTreeObj(tree);
     if(!zTree) return;
-    var n = zTree.addNodes(parent, newNode);
+    var n = zTree.addNodes(parent, 0, newNode);
     if (!isLast && parent.children[0] != n[0]) {
         while(n.length) zTree.moveNode(parent.children[0], n.pop(), 'prev');
     }
@@ -3211,7 +3211,7 @@ function markFinish (isFinish) {
 function appendTree1(node) {
 	node.name = node.name||node.title;
 	var rootNode = treeObj1.getNodes()[0];
-	treeObj1.addNodes( rootNode , node );
+	treeObj1.addNodes( rootNode ,0, node );
 	treeObj1.expandNode( rootNode, true );
 	var sel =rootNode.children[0];
 	treeObj1.selectNode( sel );

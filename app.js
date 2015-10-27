@@ -2250,7 +2250,9 @@ app.post("/getSavedSign", function (req, res) {
           	v.signPersonName = user.name;
           }
 
-          v.color = user? user.color : getUserInfo(v.signPerson).color ;
+          if(!user) user = getUserInfo(v.signPerson||v.mainPerson);
+
+          if(user) v.color = user.color;
 
         });
 
@@ -3196,7 +3198,7 @@ function getSignIndex (shareID, fileKey, signID, callback) {
 
                 } else {
                   this.files.some(function(v,i){
-                    return v.signIDS.some(function(sign,sid){
+                    return v.signIDS && v.signIDS.some(function(sign,sid){
                       if(sign._id==signID){
                         fileIdx = i;
                         signIdx = sid;
