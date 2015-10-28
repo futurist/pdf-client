@@ -947,12 +947,6 @@ body .dialog-content, .dialog-background{
 	    	</select>
     	</span>
 
-    	<label style="display:none;"><input id="isExistShare" type="checkbox" /> 添加到已有共享</label>
-    	<div class="existShareCon">
-	    	<select id="existShareInput">
-	    		<option value="">请稍候加载...</option>
-	    	</select>
-    	</div>
 
     </div>
 
@@ -963,6 +957,16 @@ body .dialog-content, .dialog-background{
 
     <p>稍句话：(可留空)</p>
     <div class="shareMsg"><textarea id="shareMsg"></textarea></div>
+
+    <div>
+    	<label style="display:none;"><input id="isExistShare" type="checkbox" /> 添加到已有共享</label>
+    	<div class="existShareCon">
+	    	<select id="existShareInput">
+	    		<option value="">请稍候加载...</option>
+	    	</select>
+    	</div>
+    </div>
+
     <span>确认分享？</span>
     <a href="#mydialog-btn" class="dialog-close" onclick='$("#mydialog").trigger("dialog-close")'>取消</a>
     <a href="#mydialog-btn" class="dialog-confirm">确定</a>

@@ -655,11 +655,37 @@ function applyTemplate () {
 
 				if(msg.files && msg.shareID){
 
-					if( msg.fromPerson.filter(function(v){return v.userid==rootPerson.userid}).length ){
-						initShareFrom( [].concat(msg), false, true,true );
-					} else {
-						initShareTo( [].concat(msg), false, true, true );
+					var jump = function(){
+						var sel = treeObj.getNodesByParam('shareID',msg.shareID);
+						treeObj.expandNode( sel[0], true );
+						sel = sel.pop();
+						treeObj.selectNode(sel);
+						updateMenu(sel);
+						window.location.hash = 'path=' + getPath(sel)+'&shareID='+getShareID(sel);
+
+						if(msg.isSign && msg.flowSteps[0].person==rootPerson.userid){
+							openLink( makeViewURL(sel) );
+						}
 					}
+
+
+					if( msg.fromPerson.filter(function(v){return v.userid==rootPerson.userid}).length ){
+						initShareFrom( [].concat(msg), false, true,true);
+						setTimeout(function(){
+							showTab(1);
+							jump();
+						},100)
+
+
+
+					} else {
+						initShareTo( [].concat(msg), false, true, true);
+						setTimeout(function(){
+							showTab(2);
+							jump();
+						},100)
+					}
+
 
 					return;
 				}
@@ -1464,7 +1490,7 @@ function hidePrintCon() {
 
 
 			if(  treeNode.key.match(/\.pdf$/) ){
-				sendClientMsg( makeViewURL(treeNode) , treeNode.title);
+				openLink ( makeViewURL(treeNode) , treeNode.title);
 			} else if( treeNode.key.match(regex_preview) ) {
 				previewImage();
 			} else if( treeNode.key.match(regex_can_be_convert) ) {
@@ -1492,7 +1518,7 @@ function hidePrintCon() {
 				$(window).scrollTop( prevScrollPos );
 			}
 			if( isMobile&& !treeNode.isParent && treeNode.prevTime && (+new Date()- treeNode.prevTime)<3000 ){
-				if( $('.content_wrap').is(':visible') ) sendClientMsg( makeViewURL(treeNode) , treeNode.title);
+				if( $('.content_wrap').is(':visible') ) openLink ( makeViewURL(treeNode) , treeNode.title);
 			}
 			showLog("[ "+getTime()+" beforeClick ]&nbsp;&nbsp;" + treeNode.name );
 			return (treeNode.click != false);
@@ -1522,7 +1548,7 @@ function hidePrintCon() {
 		}
 
 
-		function sendClientMsg (url, text) {
+		function openLink  (url, text) {
 
 			var viewerURL = VIEWER_URL+'#file='+ FILE_HOST +url;
 
@@ -2416,7 +2442,7 @@ function showTab (idx) {
 	curSrcNode = null;
 
 	var prevIdx = $('.currTab').data('idx');
-	if(typeof idx=='undefined') idx = prevIdx;
+	if(typeof idx=='undefined') idx = prevIdx||0;
 
 	// hide right top menu of msgTitle
 	if(idx==0){
