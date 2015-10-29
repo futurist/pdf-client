@@ -1053,6 +1053,10 @@ function initPrintTree (data) {
 	$.fn.zTree.init( $("#printTree"), $.extend(setting, {data:{key:{title:'name'}} } ) , data);
 	treeObjPrint = $.fn.zTree.getZTreeObj("printTree");
 
+	var delNodes = treeObjPrint.getNodesByParam('status', -1).forEach(function  (v) {
+		treeObjPrint.removeNode(v);
+	});
+
 	var rootNode = treeObjPrint.getNodes()[0];
 	//treeObjPrint.addNodes( rootNode , root );
 
