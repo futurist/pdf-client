@@ -9,6 +9,7 @@ var replace = require('gulp-replace');
 var minifyHtml = require('gulp-minify-html');
 var minifyCss = require('gulp-minify-css');
 var htmlreplace = require('gulp-html-replace');
+var runSequence = require('run-sequence');
 
 
 gulp.task('html', function() {
@@ -24,11 +25,12 @@ gulp.task('html', function() {
     .pipe(htmlreplace({
     	css:{ src:'css/build1.css', tpl:'<link rel="stylesheet" href="%s" type="text/css">'},
     	s1:{ src:'build/s1.js', tpl:'<script type="text/javascript" src="%s"></script>'},
-    	s2s3:{
+    	//s2s3:{ src:'build/s1.js', tpl:''},
+    	s2s3111:{
     		src:[['build/s2.js','build/s3.js']],
-    		tpl:'<script type="text/javascript" src="%s"></script><script type="text/javascript" src="%s"></script>'
+    		//tpl:'<script type="text/javascript" src="%s"></script><script type="text/javascript" src="%s"></script>'
     	}
-     }) )
+     }, {keepUnassigned:false} ) )
     .pipe(replace(/manifest=""/, 'manifest="client2.manifest"'))
     .pipe(minifyHtml(opts))
     .pipe(gulp.dest('./'));
@@ -63,6 +65,7 @@ gulp.task('s1', function  () {
 		'./js/glyphicon.js',
 		'./js/basket.full.min.js',
 		'./js/cookies.js',
+		'./build/check-build.js',
 		])
 	.pipe(concat('s1.js'))
 	//.pipe(strip())
@@ -88,11 +91,12 @@ gulp.task('s2', function  () {
 
 // replace all.js file basket content with s2.js,s3.js block
 gulp.task('basket-script', function(){
-  gulp.src(['js/all.js'])
-  	.pipe(concat('all-build.js'))
+  gulp.src(['js/check.js'])
+  	.pipe(concat('check-build.js'))
     .pipe(replace(/\/\/<<--(.+)--[\s\S]+?\/\/-->>/g, '$1'))
     .pipe(replace(/\%random\%/g, +new Date()+Math.random() ))
-    .pipe(gulp.dest('js'));
+    .pipe(replace('//{BUILD_VER}', 'BUILD_VER=' + (+new Date()) ))
+    .pipe(gulp.dest('build'));
 });
 
 gulp.task('s3', function  () {
@@ -173,6 +177,7 @@ gulp.task('watch', function  () {
 
 
 // default gulp task
-gulp.task('default', ['s1', 's2', 's3', 'css', 'html', 'appCache'], function() {
+gulp.task('default', function() {
+	runSequence( 'basket-script', ['s2', 's3', 'css', 'html', 'appCache'], 's1' );
 });
 
