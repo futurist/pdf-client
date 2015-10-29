@@ -6,6 +6,56 @@ var jshint = require('gulp-jshint');
 var uglify = require('gulp-uglify');
 var strip = require('gulp-strip-comments');
 var replace = require('gulp-replace');
+var minifyHtml = require('gulp-minify-html');
+var minifyCss = require('gulp-minify-css');
+var htmlreplace = require('gulp-html-replace');
+
+
+gulp.task('html', function() {
+  var opts = {
+    conditionals: true,
+    spare:true,
+    comments:false,
+    quotes:true
+  };
+
+  return gulp.src('./treeSrc.html')
+    .pipe(concat('tree.html'))
+    .pipe(htmlreplace({
+    	css:{ src:'css/build1.css', tpl:'<link rel="stylesheet" href="%s" type="text/css">'},
+    	s1:{ src:'build/s1.js', tpl:'<script type="text/javascript" src="%s"></script>'},
+    	s2s3:{
+    		src:[['build/s2.js','build/s3.js']],
+    		tpl:'<script type="text/javascript" src="%s"></script><script type="text/javascript" src="%s"></script>'
+    	}
+     }) )
+    .pipe(replace(/manifest=""/, 'manifest="client2.manifest"'))
+    .pipe(minifyHtml(opts))
+    .pipe(gulp.dest('./'));
+});
+
+
+// replace all.js file basket content with s2.js,s3.js block
+gulp.task('appCache', function(){
+  gulp.src(['client.manifest'])
+  	.pipe(concat('client2.manifest'))
+    .pipe(replace(/#VERSION /, '#VERSION b'))
+    .pipe(gulp.dest('./'));
+});
+
+
+gulp.task('css', function  () {
+	gulp.src([
+		'./css/font-awesome.min.css',
+		'./css/zTreeStyle.css',
+		'./js/dialog.css',
+		'./js/selectivity-full.css',
+		'./css/tree.css',
+		])
+	.pipe(concat('build1.css'))
+	.pipe(minifyCss())
+	.pipe(gulp.dest('css'))
+});
 
 gulp.task('s1', function  () {
 	gulp.src([
@@ -20,6 +70,8 @@ gulp.task('s1', function  () {
 	.pipe(gulp.dest('build'))
 });
 
+
+
 gulp.task('s2', function  () {
 	gulp.src([
 		'js/fingerprint2.min.js',
@@ -32,6 +84,15 @@ gulp.task('s2', function  () {
 	//.pipe(strip())
 	.pipe(uglify())
 	.pipe(gulp.dest('build'))
+});
+
+// replace all.js file basket content with s2.js,s3.js block
+gulp.task('basket-script', function(){
+  gulp.src(['js/all.js'])
+  	.pipe(concat('all-build.js'))
+    .pipe(replace(/\/\/<<--(.+)--[\s\S]+?\/\/-->>/g, '$1'))
+    .pipe(replace(/\%random\%/g, +new Date()+Math.random() ))
+    .pipe(gulp.dest('js'));
 });
 
 gulp.task('s3', function  () {
@@ -112,6 +173,6 @@ gulp.task('watch', function  () {
 
 
 // default gulp task
-gulp.task('default', ['s1', 's2', 's3'], function() {
+gulp.task('default', ['s1', 's2', 's3', 'css', 'html', 'appCache'], function() {
 });
 

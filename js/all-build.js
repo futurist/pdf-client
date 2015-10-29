@@ -195,42 +195,23 @@ COMPANY_NAME = 'lianrun';
 
 
 PATHNAME = window.location.href.split('?').shift().split('#').shift();
-
+BASKETVER = '1.2';
 
 // if( window.localStorage['basket-ver-tree.html'] != BASKETVER ) alert(basket.clear());
 
 // if( !ISNW && typeof basket.get('js/ws.js')!=='object') alert('首次运行，确定后将进行缓存');
 
-
-/*
-
 basket.require(
-//<<--{ url: 'js/s2.js', unique:'%random%' }--
-{ url: 'js/fingerprint2.min.js' },
-{ url: 'js/reconnecting-websocket.js' },
-{ url: 'js/ws.js' },
-{ url: 'js/jquery.js' }
-//-->>
+{ url: 'js/s2.js', unique:'1446113219787.4006' }
 
 ).then(function() {
 
 	basket.require(
 
-	//<<--{ url: 'js/s3.js', unique:'%random%' }--
-	{ url: 'js/jquery.ztree.all-3.5.js', unique:'122' },
-	{ url: 'js/jquery.ztree.exhide-3.5.js' },
-
-	{ url: 'js/dialog.build.js' },
-	{ url: 'js/draggable.js' },
-	{ url: 'js/noframework.waypoints.min.js' },
-	{ url: 'js/selectivity-full.js' },
-	{ url: 'js/vendor/jquery.ui.widget.js' },
-	{ url: 'js/jquery.iframe-transport.js' },
-	{ url: 'js/jquery.fileupload.js' },
-	{ url: 'js/jquery.ba-throttle-debounce.min.js' }
-	//-->>
+	{ url: 'js/s3.js', unique:'1446113219787.4006' }
 
 	).then(function() {
+		window.localStorage['basket-ver-tree.html'] = BASKETVER;
 
 		INIT();
 
@@ -238,12 +219,6 @@ basket.require(
 
 
 });
-
-*/
-
-
-window.addEventListener("load", function(){ INIT() });
-
 
 function INIT(){
 // start the INITPAGE
