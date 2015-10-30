@@ -1376,6 +1376,7 @@ function getFilesData () {
 		init(data);
 		treeObj = treeObj1;
 
+		if(!urlQuery.tab)
 		if(!urlQuery.shareID){
 			locateNode( treeObj.getNodes()[0], urlQuery.path, null, true );
 		}
@@ -1445,7 +1446,7 @@ function locateNode (rootNode, path, shareID, switchTo){
 
 	} else {
 		if(switchTo){
-			showTab(0);
+			//showTab(0);
 		}
 	}
 }
@@ -1492,7 +1493,7 @@ function init (data, isOnTop, isOpen){
 
 	if( (!treeObj2||!treeObj3) && (urlQuery.shareID || urlQuery.tab>0) ) return $('.tree1>.ztree').hide();
 
-	showTab(0);
+	if(!urlQuery.tab) showTab(0);
 
 	if(sel){
 		treeObj1.cancelSelectedNode();
@@ -1679,6 +1680,7 @@ function getNodeByHash(tree, hash, switchTo){
 }
 
 function reloadTree1 (fileObj, switchTo){
+
 	$post(host+'/getfile', {person:rootPerson.userid}, function  (data) {
 		data = JSON.parse(data);
 		root = [];
@@ -1695,9 +1697,10 @@ function reloadTree1 (fileObj, switchTo){
 			locateNode( treeObj1.getNodes()[0],  fileObj.returnPath || fileObj.key || fileObj.hash, null, switchTo );
 		}
 
-		if(switchTo){
-			showTab(0);
+		if( switchTo ){
+			//showTab(0);
 		}
+
 	});
 
 }
@@ -1705,6 +1708,7 @@ function reloadTree1 (fileObj, switchTo){
 function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 	shareID = shareID || urlQuery.shareID;
 	var highlightTab = 0;
+	var isInit = !treeObj1 || !treeObj2 || !treeObj3; 
 
 	function openAction () {
 		openShare = openShare || urlQuery.openShare;
@@ -1731,6 +1735,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 		window.location.hash = window.location.hash.replace(/&openMessage[^&]+/,'');
 		urlQuery.openShare = 0;
 		urlQuery.openMessage = 0;
+		delete urlQuery.tab;
 	}
 
 
@@ -1745,17 +1750,20 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 			//isSwith = data.filter(function(v){ return v.shareID==shareID }).length>0 ? true : false;
 		}
 		if( urlQuery.tab) isSwith = urlQuery.tab!=1 ? false : true;
-		else if( urlQuery.path && !shareID ) isSwith = false;
+		else if( !fileKey && !shareID ) isSwith = false;
 
 		initShareFrom(data, true);
 		treeObj = treeObj2;
 		treeObj2.expandNode(sendRoot, true);
 		if(!tree2WayPoint) setupWayPoint2();
-		if(isSwith) showTab(1);
+		$('.selTab li').eq(1).data('loaded', true);
 
 		if(shareID) {
 			locateNode(sendRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, isSwith );
 		}
+
+		if( isSwith) showTab(1);
+		//delete urlQuery.tab;
 		openAction();
 	});
 
@@ -1770,17 +1778,20 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 			//isSwith = data.filter(function(v){ return v.shareID==shareID }).length>0 ? true : false;
 		}
 		if( urlQuery.tab) isSwith = urlQuery.tab!=2 ? false : true;
-		else if( urlQuery.path && !shareID ) isSwith = false;
+		else if( !fileKey && !shareID ) isSwith = false;
 
 		initShareTo(data, true);
 		treeObj3.expandNode(receiveRoot, true);
 		treeObj = treeObj3;
 		if(!tree3WayPoint) setupWayPoint3();
-		if(isSwith) showTab(2);
+		$('.selTab li').eq(2).data('loaded', true);
 		
 		if(shareID) {
 			locateNode(receiveRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, isSwith );
 		}
+		console.log(isSwith)
+		if( isSwith) showTab(2);
+		//delete urlQuery.tab;
 		openAction();
 
 	});
