@@ -3238,7 +3238,7 @@ function setupWayPoint3 () {
 }
 
 
-$(function  () {
+$(function initPage () {
 
 	var inputWidth = Math.min( $(window).width()-240, 200 );
 	$('.searchDIV input.searchTxt').width( inputWidth );
@@ -3264,6 +3264,10 @@ $(function  () {
 			rootPerson = userinfo;
 			updateClientHost();
 			if(ws.readyState==1) ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
+
+			if(userinfo.isLocked){
+				if(isNWJS) lockScreen();
+			}
 		}
 
 		$('.bg_mask').show();
@@ -3669,7 +3673,10 @@ function handleShortKey (evt) {
 
 $(function initPage () {
 
-	if(isNWJS) $('.commonFunc').show();
+	if(isNWJS) {
+		$('.commonFunc').show();
+		$('.lockScreen').show();
+	}
 
 	$('.addFileBtn').click(function  () {
 
@@ -3697,6 +3704,32 @@ $(function initPage () {
 	});
 	$(document).on('click', '.userChat', function  () {
 		sendUserMsg($(this).data('person'), '');
+	});
+
+	$('.lockForm').on('submit', function(e){
+		e.preventDefault();
+		var val = $('.lockInput').val();
+		if( !val ) return alert('请输入解锁密码');
+		$('.lockInput').val('');
+
+		if( $('.lock_screen').hasClass('setPass') ){
+
+			$post( host+'/updatePass', {person:rootPerson.userid, pass: window.btoa(val) }, function(data){
+				if(data){
+					rootPerson.lockPass = data;
+					$('.lock_screen').removeClass('setPass');
+				}
+			} );
+
+		} else {
+
+			$post( host+'/unlockScreen', {person:rootPerson.userid, pass: window.btoa(val) }, function(data){
+				if(data=='OK'){
+					$("body").removeClass('screenLocked');
+				}
+			} );
+
+		}
 	});
 
 	$('.msgTitle').click(function(){
@@ -4087,8 +4120,20 @@ function hideDialog () {
 	$("#confirm").trigger("dialog-close");
 }
 
+function lockScreen () {
+	if(!isNWJS) return;
+	$("body").addClass('screenLocked');
+	if(!rootPerson.lockPass){
+		$(".lock_screen").addClass('setPass');
+	} else {
+		$(".lock_screen").removeClass('setPass');
+	}
+	$post(host+'/lockScreen', {person:rootPerson.userid} );
+}
 
 
+
+window.lockScreen = lockScreen;
 window.shareNodePre = shareNodePre;
 window.removeTreeNode = removeTreeNode;
 window.renameTreeNode = renameTreeNode;

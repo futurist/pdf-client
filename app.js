@@ -1,7 +1,7 @@
 
 
 // require header
-
+var crypto = require('crypto');
 var qiniu = require('qiniu');
 var moment = require('moment');
 var path = require('path');
@@ -531,12 +531,85 @@ app.post("/getUpToken", function (req, res) {
 	res.send( qiniu_getUpToken() );
 });
 
+
+function updateStuffInfo (person, obj) {
+	STUFF_LIST && STUFF_LIST.some(function  (v) {
+      if(v.userid==person){
+      	_.each(obj, function  (val, key) {
+      		v[key] = val;
+      	});
+        return true;
+      }
+    });
+
+    COMPANY_TREE && COMPANY_TREE.some(function  (v) {
+      if(v.userid==person){
+        _.each(obj, function  (val, key) {
+      		v[key] = val;
+      	});
+        return true;
+      }
+    });
+}
+
+app.post("/updatePass", function (req, res) {
+  var pass = req.body.pass;
+  var person = req.body.person;
+  var md5 = crypto.createHash('md5'), md5Str = md5.update(pass).digest('hex');
+  col.updateOne({ role:'stuff', 'stuffList.userid':person }, {$set: {'stuffList.$.lockPass': md5Str} }, function(err,ret){
+  	if(err) res.end();
+  	if(!ret.result.nModified) {
+  		res.end();
+  	} else {
+
+	    updateStuffInfo( person, {lockPass: md5Str} );
+
+  		res.send(md5Str);
+  	}
+  });
+
+});
+
+app.post("/unlockScreen", function (req, res) {
+  var pass = req.body.pass;
+  var person = req.body.person;
+  var md5 = crypto.createHash('md5'), md5Str = md5.update(pass).digest('hex');
+
+  col.updateOne({ role:'stuff', 'stuffList.userid':person, 'stuffList.lockPass': md5Str }, {$set: {'stuffList.$.isLocked': false} }, function(err,ret){
+  	if(err) res.end();
+  	if(!ret.result.nModified) {
+  		res.end();
+  	} else {
+  		updateStuffInfo( person, {isLocked: false} );
+  		res.send('OK');
+  	}
+  });
+
+});
+
+app.post("/lockScreen", function (req, res) {
+  var person = req.body.person;
+
+  col.updateOne({ role:'stuff', 'stuffList.userid':person }, {$set: {'stuffList.$.isLocked': true} }, function(err,ret){
+  	if(err) res.end();
+  	if(!ret.result.nModified) {
+  		res.end();
+  	} else {
+	    updateStuffInfo( person, {isLocked: true} );
+  		res.send('OK');
+  	}
+  });
+
+});
+
+
+
 app.post("/getFinger", function (req, res) {
   var msgid = req.body.msgid;
   var reqData = getWsData(msgid);
   if(!reqData) return res.send('');
   var finger = reqData.finger;
-  var condition = {finger:finger, role:'finger', status:{$ne:-1}, date:{$gt: new Date(moment().subtract(1, 'days')) } };
+  var condition = {finger:finger, role:'finger', status:{$ne:-1}, date:{$gt: new Date(moment().subtract(14, 'days')) } };
 
   res.cookie('finger', finger);
 
@@ -1220,21 +1293,8 @@ app.post("/updateHost", function (req, res) {
       return res.send('');
     }
 
-    STUFF_LIST && STUFF_LIST.some(function  (v) {
-      if(v.userid==person){
-        v.client = hostname;
-        v.ip = ip;
-        return true;
-      }
-    });
 
-    COMPANY_TREE && COMPANY_TREE.some(function  (v) {
-      if(v.userid==person){
-        v.client = hostname;
-        v.ip = ip;
-        return true;
-      }
-    });
+    updateStuffInfo( person, { client:hostname, ip:ip } );
 
     console.log('updated host:', person, hostname, ip);
     res.send('OK');

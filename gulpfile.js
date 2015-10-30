@@ -4,7 +4,6 @@ var concat = require('gulp-concat');
 var jslint = require('gulp-jslint');
 var jshint = require('gulp-jshint');
 var uglify = require('gulp-uglify');
-var strip = require('gulp-strip-comments');
 var replace = require('gulp-replace');
 var minifyHtml = require('gulp-minify-html');
 var minifyCss = require('gulp-minify-css');
@@ -41,7 +40,7 @@ gulp.task('html', function() {
 gulp.task('appCache', function(){
   gulp.src(['client.manifest'])
   	.pipe(concat('client2.manifest'))
-    .pipe(replace(/#VERSION /, '#VERSION b'))
+    .pipe(replace(/#VERSION /, '#VERSION b'+(+new Date()) ))
     .pipe(gulp.dest('./'));
 });
 
@@ -68,7 +67,6 @@ gulp.task('s1', function  () {
 		'./build/check-build.js',
 		])
 	.pipe(concat('s1.js'))
-	//.pipe(strip())
 	.pipe(uglify())
 	.pipe(gulp.dest('build'))
 });
@@ -84,7 +82,6 @@ gulp.task('s2', function  () {
 		'js/jquery.js'
 	])
 	.pipe(concat('s2.js'))
-	//.pipe(strip())
 	.pipe(uglify())
 	.pipe(gulp.dest('build'))
 });
@@ -114,7 +111,6 @@ gulp.task('s3', function  () {
 	'js/all.js'
 		])
 	.pipe(concat('s3.js'))
-	//.pipe(strip())
 	.pipe(uglify())
 	.pipe(gulp.dest('build'))
 });
@@ -152,7 +148,6 @@ gulp.task('script', function  () {
 	'js/all.js'
 		])
 	.pipe(concat('script.js'))
-	//.pipe(strip())
 	.pipe(uglify())
 	.pipe(gulp.dest('build'))
 });

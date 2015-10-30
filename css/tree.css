@@ -550,6 +550,52 @@ span.tmpzTreeMove_arrow:before{
 		background-position: 50% 50%;
 	}
 
+	body.screenLocked{
+		overflow: hidden;
+	}
+	body.screenLocked .lock_screen{
+		display: flex;
+	}
+	.lock_screen.hidden{
+		display: none;
+	}
+	.lock_screen{
+		position: fixed;
+		top:0;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		z-index: 99999;
+		display: flex;
+		flex-direction: column;
+	    align-items: center;
+	    justify-content: center;
+		background: white;
+		background-repeat: no-repeat;
+		background-position: 50% 50%;
+	}
+	.lock_screen.setPass p{
+		display: block;
+	}
+	.lock_screen p{
+		display: none;
+		font: 18px/1 Arial;
+		color:red;
+		margin-bottom: 20px;
+	}
+	.lock_screen input{
+		font: 22px/1 Arial;
+	    height: 32px;
+	    border: 1px solid #bbb;
+	    background: none;
+	    padding: 0 10px;
+	    margin: 0;
+	}
+	.lock_screen input[type="password"]{
+		width: 100px;
+		margin-right: 10px;
+	}
+
 .selTab li span{
 	position: absolute;
 	right:0;
@@ -637,7 +683,9 @@ span.tmpzTreeMove_arrow:before{
     top: 1px;
 }
 
-.msgTitleMenuPop li.commonFunc {
+.msgTitleMenuPop li.commonFunc,
+.msgTitleMenuPop li.lockScreen
+{
 	display: none;
 }
 
@@ -653,6 +701,14 @@ span.tmpzTreeMove_arrow:before{
 .msgTitleMenuPop li.refreshPage:before {
 	font-family:'FontAwesome';
     content: "\f021";
+    font-size: 14px;
+    padding-right: 4px;
+    position: relative;
+    top: 1px;
+}
+.msgTitleMenuPop li.lockScreen:before {
+	font-family:'FontAwesome';
+    content: "\f023";
     font-size: 14px;
     padding-right: 4px;
     position: relative;

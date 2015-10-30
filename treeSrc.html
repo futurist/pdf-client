@@ -90,6 +90,10 @@
 
 
 <div class="bg_mask"></div>
+<div class="lock_screen hidden">
+	<p>初次使用，请设定密码：</p>
+	<div><form class="lockForm"><input class="lockInput" type="password" value=""><input type="submit" value="解锁"></form></div>
+</div>
 
 <iframe class="downloadIFrame" style="display:none"></iframe>
 
@@ -188,6 +192,7 @@
 			<li class="showContact" onclick="showContact()">员工目录</li>
 			<li class="commonFunc" onclick="commonFunc()">常用命令</li>
 			<li class="refreshPage" onclick="refreshPage()">刷新页面</li>
+			<li class="lockScreen" onclick="lockScreen()">锁定窗口</li>
 		</ul>
 	</div>
 
