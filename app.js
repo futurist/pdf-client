@@ -2328,7 +2328,7 @@ app.post("/getSavedSign", function (req, res) {
           	if(!file) return res.send('');
 
               var curFlowPos = doc.curFlowPos||0;
-              var curID = doc.isSign ? file.signIDS[curFlowPos]._id : null;
+              var curID = doc.isSign&&!doc.isFinish ? file.signIDS[curFlowPos]._id : null;
 
               if(file.signIDS){
 

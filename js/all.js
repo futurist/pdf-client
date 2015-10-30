@@ -1493,7 +1493,7 @@ function init (data, isOnTop, isOpen){
 
 	if( (!treeObj2||!treeObj3) && (urlQuery.shareID || urlQuery.tab>0) ) return $('.tree1>.ztree').hide();
 
-	if(!urlQuery.tab) showTab(0);
+	if(!urlQuery.tab && !urlQuery.shareID) showTab(0);
 
 	if(sel){
 		treeObj1.cancelSelectedNode();
