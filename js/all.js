@@ -1374,6 +1374,7 @@ function getFilesData () {
 		data = JSON.parse(data);
 		fileData = data;
 		init(data);
+		treeObj = treeObj1;
 
 		if(!urlQuery.shareID){
 			locateNode( treeObj.getNodes()[0], urlQuery.path, null, true );
@@ -1740,15 +1741,17 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 
 		var curTab = $('.currTab').data('idx');
 		if(switchTo=='auto'){
-			isSwith = curTab>0?false:true;
+			isSwith = curTab&&curTab>0?false:true;
 			//isSwith = data.filter(function(v){ return v.shareID==shareID }).length>0 ? true : false;
-			console.log(isSwith, 1)
 		}
+		if( urlQuery.tab) isSwith = urlQuery.tab!=1 ? false : true;
+		else if( urlQuery.path && !shareID ) isSwith = false;
 
 		initShareFrom(data, true);
 		treeObj = treeObj2;
 		treeObj2.expandNode(sendRoot, true);
 		if(!tree2WayPoint) setupWayPoint2();
+		if(isSwith) showTab(1);
 
 		if(shareID) {
 			locateNode(sendRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, isSwith );
@@ -1759,19 +1762,22 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 	$post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
 		if(!data) window.location.reload();
 		data = JSON.parse(data);
+		var isSwith = false;
 
 		var curTab = $('.currTab').data('idx');
 		if(switchTo=='auto'){
-			isSwith = curTab>0?false:true;
+			isSwith = curTab&&curTab>0?false:true;
 			//isSwith = data.filter(function(v){ return v.shareID==shareID }).length>0 ? true : false;
-			console.log(isSwith, 2)
 		}
+		if( urlQuery.tab) isSwith = urlQuery.tab!=2 ? false : true;
+		else if( urlQuery.path && !shareID ) isSwith = false;
 
 		initShareTo(data, true);
 		treeObj3.expandNode(receiveRoot, true);
 		treeObj = treeObj3;
 		if(!tree3WayPoint) setupWayPoint3();
-
+		if(isSwith) showTab(2);
+		
 		if(shareID) {
 			locateNode(receiveRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, isSwith );
 		}
