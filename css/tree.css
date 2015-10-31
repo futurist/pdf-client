@@ -324,6 +324,34 @@ span.tmpzTreeMove_arrow:before{
 	    overflow: auto;
 	}
 
+
+	.ztree li.level1 p.status:before {
+		font-family: "FontAwesome";
+		font-size:14px;
+	    content: "\f024";
+	    color: #BD4545;
+	    margin-right: 9px;
+	}
+	.ztree li.level1 p.status {
+	    margin: 10px 0 0 22px;
+	    color:red;
+	    cursor: pointer;
+	}
+
+	.ztree li.level1[data-finish] p.status:before {
+		color:#B1B1B1!important;
+	}
+	.ztree li.level1[data-finish] *{
+		color:#B1B1B1!important;
+	}
+	.ztree li.level1[data-finish] a.level1{
+		text-decoration: line-through;
+	}
+
+
+	.msgTree ul li[data-status]{
+		color: red;
+	}
 	.msgTree ul li{
 		padding: 10px 0;
     	border-bottom: 1px solid #eee;
@@ -404,9 +432,9 @@ span.tmpzTreeMove_arrow:before{
 	.inputMsg{
     	border: 1px solid #ccc;
 		border-radius: 4px;
-		 height: 48px;
+		 height: 32px;
 		 width: 365px;
-	     font: 28px/1 Arail;
+	     font: 18px/1 Arail;
 	    float: left;
 	    margin-bottom: 10px;
 	}
@@ -419,7 +447,7 @@ span.tmpzTreeMove_arrow:before{
 	.inputBtn2{
 	    width: 58px;
 	    height: 38px;
-        margin: 4px 0;
+        margin: 1px 0;
         vertical-align: top;
         background-color: rgb(70, 129, 183);
 	    border: none;
@@ -430,8 +458,8 @@ span.tmpzTreeMove_arrow:before{
 	.inputBtn{
 		float: right;
 	    margin-right: 10px;
-	    width: 80px;
-	    height: 44px;
+	    width: 60px;
+    	height: 36px;
         vertical-align: top;
             background-color: rgb(70,183,103);
 	    border: none;
@@ -439,8 +467,8 @@ span.tmpzTreeMove_arrow:before{
 	        color: white;
 	    font: 18px/1 "黑体";
 	}
-	.inputBtn.mileBtn{
-		background-color: rgb(70, 141, 183);
+	.inputBtn.statusBtn{
+		background-color: rgb(170, 33, 33);
 	}
 	.inputBtn.sendBtn{
 		margin-right: 78px;

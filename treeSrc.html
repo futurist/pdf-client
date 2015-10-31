@@ -91,7 +91,7 @@
 
 <div class="bg_mask"></div>
 <div class="lock_screen hidden">
-	<p>初次使用，请设定密码：</p>
+	<p><i class="fa fa-close closeLockScreen"></i> 初次使用，请设定密码：</p>
 	<div><form class="lockForm"><input class="lockInput" type="password" value=""><input type="submit" value="解锁"></form></div>
 </div>
 
@@ -278,8 +278,8 @@
 			<div style="clear:both;"></div>
 		</div>
 		<input class="inputBtn sendBtn" type="button" value="发送" onclick="sendShareMsg()" />
-		<!-- <input class="inputBtn mileBtn" type="button" value="里程" onclick="sendShareMsg('mile')" /> -->
 		<input class="inputBtn closeBtn" type="button" value="关闭"  onclick=" closeViewDetail()" />
+		<input class="inputBtn statusBtn" type="button" value="状态"  onclick=" sendShareMsg('status')" />
 	</div>
 </div>
 

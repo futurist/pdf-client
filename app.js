@@ -2573,7 +2573,18 @@ app.post("/getShareMsg", function (req, res) {
             return res.send('error');
           }
           var count = docs.length;
-          res.send( JSON.stringify(docs) );
+
+          col.find( {role:'share', shareID:{$in:shareA}}, {fields: {files:1} }).toArray(function  (err, docs2) {
+            console.log(err, docs2);
+            var files = [];
+            docs2.forEach(function  (v) {
+              files.concat( v.files  );
+            });
+            docs.unshift( {role:'files', files: files } );
+            res.send( JSON.stringify(docs) );
+
+          } );
+
       });
   }
 
@@ -3439,6 +3450,7 @@ app.post("/getSignHistory", function (req, res) {
 function SendShareMsg(req, res) {
   var person = req.body.person;
   var text = req.body.text;
+  var status = req.body.status;
   var shareID = parseInt(req.body.shareID);
   var path = req.body.path;
   var hash = req.body.hash;
@@ -3464,6 +3476,10 @@ function SendShareMsg(req, res) {
         return res.send('');	//没有此组权限
       }
 
+      if(status){
+        col.updateOne( { role:'share', shareID:shareID }, { $set:{statusText:text, statusDate:new Date() } }, function(err, data) {
+        });
+      }
 
       if(path.length){
         //get segmented path, Target Path segment and A link
@@ -3500,7 +3516,7 @@ function SendShareMsg(req, res) {
        "msgtype": "text",
        "text": {
          "content":
-         util.format('%s 对%s 留言：%s',
+         util.format('%s 对%s ' +  (status?'设置了状态':'留言') + '：%s',
             users[0].name,
             overAllPath,  // if we need segmented path:   pathName.join('-'),
             text
@@ -3513,6 +3529,7 @@ function SendShareMsg(req, res) {
       };
       if(hash) msg.hash = hash;
 
+      msg.status = status;
       msg.appRole = 'chat';
       sendWXMessage(msg, person);
 

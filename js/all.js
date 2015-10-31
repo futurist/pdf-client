@@ -544,6 +544,16 @@ function applyTemplate () {
 function addDiyDom(treeId, treeNode) {
 	var $li = $("#" + treeNode.tId);
 	var aObj = $("#" + treeNode.tId + "_a");
+
+	if(treeNode.level==1) {
+		if(treeNode.isFinish) $li.attr('data-finish', "1");
+		if(treeNode.statusText) {
+			var shareStr = treeNode.shareID ? ' data-shareid="'+ treeNode.shareID +'"' : '';
+			aObj.after('<p '+shareStr+' class="status">'+treeNode.statusText+' <span class="msgDate" data-date="'+ treeNode.statusDate +'"></span></p>');
+			updateMsgTime();
+		}
+	}
+
 	if ($("#diyBtn_"+treeNode.id).length>0 || !treeNode.fsize) return;
 
 	var shareID = getShareID(treeNode)||'';
@@ -1016,23 +1026,28 @@ function hidePrintCon() {
 			function whenCnfm(){
 				hideRMenu();
 				var nodes = treeObj.getSelectedNodes();
-				console.log(nodes[0]);
-				var shareID = getShareID(nodes[0]);
 
-				if (nodes && nodes.length>0) {
-					if (nodes[0].children && nodes[0].children.length > 0) {
-						var msg = "要删除的节点是目录，如果删除将连同内部的文件一起删掉。\n\n请确认！";
-						window.confirm(msg, function(ok){
-							if (ok==true){
-								$post(host+'/removeFolder', { path: getPath(nodes[0]), deleteAll: true}, function  () {} );
-								treeObj.removeNode(nodes[0]);
-							}
-						});
-					} else {
-						$post(host+'/removeFile', { hash:nodes[0].hash, key:nodes[0].key, shareID: shareID }, function  () {} );
-						treeObj.removeNode(nodes[0]);
+				nodes.forEach(function  (nn, ii) {
+					var theNode = nn;
+
+					if (theNode) {
+						var shareID = getShareID(theNode);
+						if (theNode.children && theNode.children.length > 0) {
+							var msg = "要删除的节点是目录，如果删除将连同内部的文件一起删掉。\n\n请确认！";
+							window.confirm(msg, function(ok){
+								if (ok==true){
+									$post(host+'/removeFolder', { path: getPath(theNode), deleteAll: true}, function  () {} );
+									treeObj.removeNode(theNode);
+								}
+							});
+						} else {
+							$post(host+'/removeFile', { hash:theNode.hash, key:theNode.key, shareID: shareID }, function  () {} );
+							treeObj.removeNode(theNode);
+						}
 					}
-				}
+
+				});
+				
 				updateMenu();
 			}
 
@@ -1284,7 +1299,7 @@ function hidePrintCon() {
 			var prevScrollPos = $(window).scrollTop();
 			if (treeNode.isParent && treeNode.level>0 && treeNode.click!==false) {
 				treeObj.expandNode(treeNode);
-				window.location.hash = 'path=' + getPath(treeNode)+'&shareID='+getShareID(treeNode);
+				window.location.hash = 'path=' + encodeURIComponent(getPath(treeNode)) +'&shareID='+getShareID(treeNode);
 				$(window).scrollTop( prevScrollPos );
 			}
 			if( isMobile&& !treeNode.isParent && treeNode.prevTime && (+new Date()- treeNode.prevTime)<3000 ){
@@ -1518,6 +1533,8 @@ function initShareFrom (data, bForceUpdate, isPrepend, isAddNodes) {
 		var isSign = data[i].isSign;
 		var isFinish = data[i].isFinish;
 		var msg = data[i].msg||'';
+		var statusText = data[i].statusText||'';
+		var statusDate = data[i].statusDate||'';
 		var fromPerson = data[i].fromPerson.map(function(v){return v.name});
 		var fromPersonStr =  '('+fromPerson.join(',')+')';
 		var toPerson = data[i].toPerson.map(function(v){return v.name});
@@ -1535,7 +1552,9 @@ function initShareFrom (data, bForceUpdate, isPrepend, isAddNodes) {
 					root[pos].shareID = shareID;
 					root[pos].isSign = isSign;
 					root[pos].isFinish = isFinish;
-					if(isFinish) root[pos].font = {color:'blue'};
+					root[pos].statusText = statusText;
+					root[pos].statusDate = statusDate;
+					if(isFinish) root[pos].font = {color:'blue',"text-decoration":'line-through'};
 
 					// folder.children.unshift({name:'task1', isTask:true});
 
@@ -1553,7 +1572,7 @@ function initShareFrom (data, bForceUpdate, isPrepend, isAddNodes) {
 			v.isSign = isSign;
 			v.isFinish = isFinish;
 			v.isParent = true;
-			if(v.isFinish) v.font = {color:'blue'};
+			if(v.isFinish) v.font = {color:'blue',"text-decoration":'line-through'};
 			isPrepend ? root.unshift(v) : root.push(v);
 
 		}
@@ -1592,6 +1611,8 @@ function initShareTo (data, bForceUpdate, isPrepend, isAddNodes) {
 		var isSign = data[i].isSign;
 		var isFinish = data[i].isFinish;
 		var msg = data[i].msg||'';
+		var statusText = data[i].statusText||'';
+		var statusDate = data[i].statusDate||'';
 		var fromPerson = data[i].fromPerson.map(function(v){return v.name});
 		var fromPersonStr =  '('+fromPerson.join(',')+')';
 		var toPerson = data[i].toPerson.length ? data[i].toPerson.map(function(v){return v.name}) : data[i].toPerson.name;
@@ -1615,7 +1636,9 @@ function initShareTo (data, bForceUpdate, isPrepend, isAddNodes) {
 					root[pos].shareID = shareID;
 					root[pos].isSign = isSign;
 					root[pos].isFinish = isFinish;
-					if(isFinish) root[pos].font = {color:'blue'};
+					root[pos].statusText = statusText;
+					root[pos].statusDate = statusDate;
+					if(isFinish) root[pos].font = {color:'blue',"text-decoration":'line-through'};
 				} catch(e){
 					alert('发件柜初始化错误');
 					return false;
@@ -1630,7 +1653,7 @@ function initShareTo (data, bForceUpdate, isPrepend, isAddNodes) {
 			v.isSign = isSign;
 			v.isFinish = isFinish;
 			v.isParent = true;
-			if(v.isFinish) v.font = {color:'blue'};
+			if(v.isFinish) v.font = {color:'blue',"text-decoration":'line-through'};
 			isPrepend ? root.unshift(v) : root.push(v);
 		}
 	}
@@ -2709,7 +2732,7 @@ function viewDetail () {
 
 		data.forEach(function  (v) {
 
-			appendShareMsg(v);
+			if(v.role== "shareMsg") appendShareMsg(v);
 		});
 	});
 }
@@ -2785,6 +2808,7 @@ function appendShareMsg (v){
 
 	var dataAttr = v._id? ' data-id="'+ v._id +'"' : '';
 	dataAttr = v.fromUser? ' data-fromuser="'+ v.fromUser +'"' : '';
+	dataAttr = v.status? ' data-status="'+ v.status +'"' : '';
 	var li = $('<li'+ dataAttr +'><span class="msgDate"></span> '+ content +'</li>');
 	li.find('.msgDate').data( 'date', v.date );
 	li.on('click', function  () {
@@ -2802,11 +2826,7 @@ function appendShareMsg (v){
 
 function updateMsgTime () {
 
-	if( !$('.msg_wrap').is(":visible") ){
-		// return;
-	}
-
-	$('.msg_wrap .msgDate').each(function(i, msgDate){
+	$('.msgDate').each(function(i, msgDate){
 
 		var date = $(msgDate).data('date');
 		if(!date) return true;
@@ -2854,7 +2874,7 @@ function getShareName (p){
 	return p && p.name;
 }
 
-function sendShareMsg ( state ) {
+function sendShareMsg ( status ) {
 	var sel = treeObj.getSelectedNodes();
 	if(!sel.length) return;
 	sel = sel[0];
@@ -2882,7 +2902,7 @@ function sendShareMsg ( state ) {
 		path += sel.hash;
 	}
 
-	var data = { person: rootPerson.userid, shareID:p.shareID, text:val, hash:hash, fileKey:sel.key, path:path.split('/'), fileName: fileName };
+	var data = { person: rootPerson.userid, shareID:p.shareID, text:val, hash:hash, fileKey:sel.key, path:path.split('/'), fileName: fileName, status:status };
 
 	$post(host+'/sendShareMsg', data , function(ret){
 		if(!ret){
@@ -2890,7 +2910,14 @@ function sendShareMsg ( state ) {
 		}
 		$('.msg_wrap .inputMsg').val('');
 
-		ret = JSON.parse(ret);
+		if(status){
+			if($('p[data-shareid="'+ p.shareID +'"]').length==0){
+				$('.curSelectedNode').closest('li.level1').find('a.level1').after( $('<p class="status" data-shareid="'+ p.shareID +'"></p>') );
+			}
+			$('p[data-shareid="'+ p.shareID +'"]').html(val+' <span class="msgDate" data-date="'+ (new Date().toISOString()) +'"></span>');
+			updateMsgTime();
+		}
+		//ret = JSON.parse(ret);
 		//appendShareMsg(ret);
 
 	});
@@ -3247,6 +3274,9 @@ $(function initPage () {
 	var el = $('.clearInput');
 	el.css( 'top', el.height()/2 +'px' );
 
+	$('.closeLockScreen').on('click', function  () {
+		closeLockScreen();
+	});
 	$('.clearInput').on('click', function  () {
 		delete treeObj.prevKeyword;
 		$(this).hide().prev().val('');
@@ -3276,7 +3306,8 @@ $(function initPage () {
 		$post(host+'/getCompanyTree', { company:COMPANY_NAME }, function  (data) {
 			data = JSON.parse( data );
 			companyNode = sortCompanyNode(data);
-			companyTree = $.fn.zTree.init($("#companyTree"), companySetting, companyNode);
+			$.fn.zTree.init($("#companyTree"), companySetting, companyNode);
+			companyTree = $.fn.zTree.getZTreeObj('companyTree');
 			companyTree.expandNode( companyTree.getNodes()[0] );
 		});
 
@@ -3600,6 +3631,22 @@ window.addEventListener('keydown', handleShortKey);
 
 function handleShortKey (evt) {
 
+	  var isLocked = $("body").hasClass('screenLocked');
+	  if(isLocked) return;
+
+      var isInput = false;
+      // Some shortcuts should not get handled if a control/input element
+      // is selected.
+      var curElement = document.activeElement || document.querySelector(':focus');
+      var curElementTagName = curElement && curElement.tagName.toUpperCase();
+      if (curElementTagName === 'INPUT' ||
+          curElementTagName === 'TEXTAREA' ||
+          curElementTagName === 'SELECT') {
+
+        isInput = true;
+      }
+
+
       var handled = false;
       var cmd = (evt.ctrlKey ? 1 : 0) |
             (evt.altKey ? 2 : 0) |
@@ -3705,6 +3752,14 @@ $(function initPage () {
 	$(document).on('click', '.userChat', function  () {
 		sendUserMsg($(this).data('person'), '');
 	});
+	$(document).on('click', 'p.status', function  () {
+		var shareID = $(this).data('shareID');
+		var sel = treeObj.getNodesByFilter(function  (v) {
+			return v.shareID==shareID && v.level==1;
+		}).shift();
+		treeObj.selectNode(sel);
+		viewDetail();
+	});
 
 	$('.lockForm').on('submit', function(e){
 		e.preventDefault();
@@ -3725,7 +3780,7 @@ $(function initPage () {
 
 			$post( host+'/unlockScreen', {person:rootPerson.userid, pass: window.btoa(val) }, function(data){
 				if(data=='OK'){
-					$("body").removeClass('screenLocked');
+					closeLockScreen();
 				}
 			} );
 
@@ -3862,6 +3917,7 @@ $(function initPage () {
 
 function setCompanyTreeCheck (isCheck) {
 	isCheck = !isCheck;
+	companyTree = $.fn.zTree.getZTreeObj('companyTree');
 	var allNodes = companyTree.getNodesByFilter( function(v){
 		v.nocheck = isCheck;
 		companyTree.updateNode(v);
@@ -4118,6 +4174,10 @@ function confirm (msg) {
 
 function hideDialog () {
 	$("#confirm").trigger("dialog-close");
+}
+
+function closeLockScreen () {
+	$("body").removeClass('screenLocked');
 }
 
 function lockScreen () {

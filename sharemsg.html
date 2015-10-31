@@ -82,6 +82,10 @@ body,html{
     overflow: auto;
 }
 
+.msgTree ul li[data-status]{
+	color: red;
+}
+
 .msgTree ul li{
 	padding: 10px 0;
 	border-bottom: 1px solid #eee;
@@ -161,8 +165,8 @@ body,html{
 	.inputBtn{
 		float: right;
 	    margin-right: 10px;
-	    width: 80px;
-	    height: 44px;
+	    width: 60px;
+    	height: 36px;
         vertical-align: top;
             background-color: rgb(70,183,103);
 	    border: none;
@@ -498,7 +502,7 @@ function initPage () {
 		}
 		data.forEach(function  (v) {
 
-			appendShareMsg(v);
+			if(v.role== "shareMsg") appendShareMsg(v);
 		});
 	});
 
@@ -546,7 +550,9 @@ function appendShareMsg (v) {
 
 	// Text Message
 	if(v.text ){
-		var content = v.text.content.replace(/[在|对].*留言/, '');
+		//var content = v.text.content.replace(/[在|对].*留言/, '');
+		var content = v.text.content.replace(new RegExp(titleReg,'ig'), '');
+
 		var $div = $('<div></div>');
 		$div.html(content);
 		$div.find('a').each(function  () {
@@ -577,6 +583,7 @@ function appendShareMsg (v) {
 
 	var dataAttr = v._id? ' data-id="'+ v._id +'"' : '';
 	dataAttr = v.fromUser? ' data-fromuser="'+ v.fromUser +'"' : '';
+	dataAttr = v.status? ' data-status="'+ v.status +'"' : '';
 	var li = $('<li'+ dataAttr +'><span class="msgDate"></span> '+ content +'</li>');
 	li.find('.msgDate').data( 'date', v.date );
 	li.on('click', function  () {
@@ -635,7 +642,7 @@ function prettyDate(time){
 
 function updateMsgTime () {
 
-	$('.msg_wrap .msgDate').each(function(i, msgDate){
+	$('.msgDate').each(function(i, msgDate){
 		var date = $(msgDate).data('date');
 		if(!date) return true;
 
@@ -741,22 +748,28 @@ function wxUploadImage() {
 
 }
 
-function sendShareMsg ( state ) {
+function sendShareMsg ( status ) {
 
 	var val = $('.inputMsg').val();
 	val = $.trim(val);
 	if(!val) return;
 
 
-	var data = { person: rootPerson.userid, shareID:shareID, text:val, fileKey:fileKey, path:sharePath?sharePath.split('/'):[] };
+	var data = { person: rootPerson.userid, shareID:shareID, text:val, fileKey:fileKey, path:sharePath?sharePath.split('/'):[], status:status };
 
-	$post(host+'/sendShareMsg', data , function(ret){
+	$post(host+'/sendShareMsg', data , function(ret) {
 		if(!ret){
 			return alert('消息发送错误，请重试');
 		}
 		$('.msg_wrap .inputMsg').val('');
 
-		ret = JSON.parse(ret);
+		if(status){
+			if($('p[data-shareid="'+ shareID +'"]').length==0){
+				$('.curSelectedNode').closest('li.level1').find('a.level1').after( $('<p class="status" data-shareid="'+ shareID +'"></p>') );
+			}
+			$('p[data-shareid="'+ shareID +'"]').html(val);
+		}
+		//ret = JSON.parse(ret);
 		//appendShareMsg(ret);
 		// closeViewDetail();
 	});
@@ -805,6 +818,8 @@ function closeViewDetail () {
 		<input class="inputBtn sendBtn" type="button" value="发送" onclick="sendShareMsg()" />
 		<!-- <input class="inputBtn mileBtn" type="button" value="里程" onclick="sendShareMsg('mile')" /> -->
 		<input class="inputBtn closeBtn" type="button" value="关闭"  onclick=" closeViewDetail()" />
+		<input class="inputBtn statusBtn" type="button" value="状态"  onclick=" sendShareMsg('status')" />
+
 	</div>
 </div>
 
