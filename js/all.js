@@ -1047,7 +1047,7 @@ function hidePrintCon() {
 					}
 
 				});
-				
+
 				updateMenu();
 			}
 
@@ -1731,7 +1731,7 @@ function reloadTree1 (fileObj, switchTo){
 function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 	shareID = shareID || urlQuery.shareID;
 	var highlightTab = 0;
-	var isInit = !treeObj1 || !treeObj2 || !treeObj3; 
+	var isInit = !treeObj1 || !treeObj2 || !treeObj3;
 
 	function openAction () {
 		openShare = openShare || urlQuery.openShare;
@@ -1808,7 +1808,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 		treeObj = treeObj3;
 		if(!tree3WayPoint) setupWayPoint3();
 		$('.selTab li').eq(2).data('loaded', true);
-		
+
 		if(shareID) {
 			locateNode(receiveRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, isSwith );
 		}
@@ -4187,8 +4187,8 @@ function lockScreen () {
 		$(".lock_screen").addClass('setPass');
 	} else {
 		$(".lock_screen").removeClass('setPass');
+		$post(host+'/lockScreen', {person:rootPerson.userid} );
 	}
-	$post(host+'/lockScreen', {person:rootPerson.userid} );
 }
 
 
