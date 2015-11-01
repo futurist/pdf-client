@@ -2574,13 +2574,19 @@ app.post("/getShareMsg", function (req, res) {
           }
           var count = docs.length;
 
-          col.find( {role:'share', shareID:{$in:shareA}}, {fields: {files:1} }).toArray(function  (err, docs2) {
-            console.log(err, docs2);
-            var files = [];
+          col.find( {role:'share', shareID:{$in:shareA}}, {fields: {files:1,shareID:1, isSign:1, msg:1} }).toArray(function  (err, docs2) {
+            //console.log(err, docs2);
+            if(err){
+              return res.end();
+            }
+
             docs2.forEach(function  (v) {
-              files.concat( v.files  );
+              v.files = v.files.map(function  (f) {
+                return { path:f.path, title:f.title, key:f.key }
+              });
             });
-            docs.unshift( {role:'files', files: files } );
+
+            docs.unshift( {role:'files', docs: docs2 } );
             res.send( JSON.stringify(docs) );
 
           } );

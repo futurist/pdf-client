@@ -2732,6 +2732,9 @@ function viewDetail () {
 
 		data.forEach(function  (v) {
 
+			if(v.role== "files"){
+				appendFiles(v);
+			}
 			if(v.role== "shareMsg") appendShareMsg(v);
 		});
 	});
@@ -2754,6 +2757,31 @@ function sendUserMsg (userid, groupName) {
 			}
 		});
 	}
+}
+
+function appendFiles (v){
+
+	if( !v || !$('.msg_wrap').is(':visible') ) return;
+	if( !v || ! (v.docs&&v.docs.length) ) return;
+	$('.msgTitle .titleContent').append('<div class="msgFile"><ul></ul></div>');
+	$('.msgFile ul').empty();
+
+	v.docs.forEach(function(f){
+		if(!f.files) return;
+
+		var str = f.files.map(function  (file) {
+			var action = ';';
+
+			if( /\.pdf$/i.test( file.key )  ) action =  'openLink(&quot;'+ file.key+'&shareID='+f.shareID+'&isSign='+(f.isSign?1:'') +'&quot;)';
+			if( regex_preview.test(file.key) ) action = 'previewImage(&quot;'+ FILE_HOST+file.key +'&quot;)';
+
+			return '<li class="msgFile"><a href="javascript:'+ action +'">'+file.path+file.title+'</a></li>';
+		});
+
+		$('.msgFile ul').append(str);
+
+	});
+
 }
 
 function appendShareMsg (v){
@@ -3790,6 +3818,7 @@ $(function initPage () {
 	$('.msgTitle').click(function(){
 		if( $(this).find('.titleContent').height()<20 ) return;
 		$(this).toggleClass('expend');
+		$('.msgTitle').scrollTop(0);
 	});
 
 	$('.combineShare').click(function(e){
@@ -4193,6 +4222,7 @@ function lockScreen () {
 
 
 
+window.openLink = openLink;
 window.lockScreen = lockScreen;
 window.shareNodePre = shareNodePre;
 window.removeTreeNode = removeTreeNode;

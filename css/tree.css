@@ -348,6 +348,16 @@ span.tmpzTreeMove_arrow:before{
 		text-decoration: line-through;
 	}
 
+	.msgFile{
+		margin-top:10px;
+	}
+	.msgFile ul li {
+	  text-align: left;
+	  padding: 10px 0;
+	  border-bottom: 1px solid #fff;
+	  font: 14px Arial;
+	  color: #666;
+	}
 
 	.msgTree ul li[data-status]{
 		color: red;
@@ -373,7 +383,8 @@ span.tmpzTreeMove_arrow:before{
 	    overflow: hidden;
 	}
 	.msgTitle.expend {
-		height: auto;
+		height: 100%;
+		overflow: scroll;
 	}
 
 	.msgTitle.expend:after {
