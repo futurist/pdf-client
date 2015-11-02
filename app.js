@@ -791,26 +791,27 @@ function getShareName ( colShare, addSlash ) {
 function imageToPDF (person, fileName, res, oldData, folder ){
 	var ext = path.extname(fileName);
 	var baseName = path.basename(fileName, ext);
-  var cmd = ' rm -f '+IMAGE_UPFOLDER+'/*.pdf; cd '+IMAGE_UPFOLDER+'; /bin/cp -f ../make.tex '+ baseName +'.tex; pdflatex "\\def\\IMG{'+ baseName + ext +'} \\input{'+ baseName +'.tex}"';
+  var imgFile = fileName.replace(IMAGE_UPFOLDER, '');
+  var cmd = ' rm -f '+IMAGE_UPFOLDER+'/*.pdf; cd '+IMAGE_UPFOLDER+'; /bin/cp -f ../make.tex '+ baseName +'.tex; pdflatex "\\def\\IMG{'+ imgFile +'} \\input{'+ baseName +'.tex}"';
     console.log(cmd);
 
   exec(cmd, function(err,stdout,stderr){
     // console.log(err, stdout);
-    if(err)  return res.send('');
+    if(err)  return res&&res.send('');
     console.log('pdf file info: ' + baseName,  err, stderr);
-    if (err||stderr) return res.send( '' );
+    if (err||stderr) return res&&res.send( '' );
 
     exec('cd '+IMAGE_UPFOLDER+'; rm -f '+baseName+'.tex *.log *.aux; ');
 
     qiniu_uploadFile(IMAGE_UPFOLDER+ baseName+ '.pdf', function(ret){
 
 
-      if(ret.error) return res.send('');
+      if(ret.error) return res&&res.send('');
 
       if(oldData){
 
-        ret.person = oldData.person;
-        ret.client = oldData.client;
+        if(oldData.person) ret.person = oldData.person;
+        if(oldData.client) ret.client = oldData.client;
         ret.title = oldData.title+'.pdf';
         ret.path = oldData.path;
         ret.srcFile = oldData.key;
@@ -824,7 +825,7 @@ function imageToPDF (person, fileName, res, oldData, folder ){
 	      console.log(ret);
 
 	      upfileFunc(ret, function(ret2){
-	        res.send(ret2);
+	        res&&res.send(ret2);
 	        wsBroadcast(ret2);
 	      });
 
@@ -849,7 +850,7 @@ function imageToPDF (person, fileName, res, oldData, folder ){
 
 		    upfileFunc(srcRet, function(srcRet2){
 		      upfileFunc(ret, function(ret2){
-		        res.send(ret2);
+		        res&&res.send(ret2);
 		        wsBroadcast(ret2);
 		      });
 		    });
@@ -988,14 +989,15 @@ app.post("/uploadPCImage", function (req, res) {
 
 });
 
-app.get("/uploadWXImage", function (req, res) {
+
+
+function uploadWXImage(req, res) {
   var mediaID = req.query.mediaID;
   var person = req.query.person;
-  var path = req.query.path;
-  var text = req.query.text;
-  var shareName = req.query.shareName;
   var shareID = safeEval( req.query.shareID );
   var isInMsg = safeEval(req.query.isInMsg);
+  var path = req.query.path;
+  var text = req.query.text;
 
   api.getMedia(mediaID, function(err, buffer, httpRes){
     if(err) {console.log(err); return res.send('');}
@@ -1009,7 +1011,7 @@ app.get("/uploadWXImage", function (req, res) {
     fs.writeFile(fileName, buffer, function(err){
       console.log(err, 'image file written', fileName);
       if (err) return res.send( '' );
-      // imageToPDF(person, fileName, res, null, path);
+      
 
 
       qiniu_uploadFile(fileName, function(srcRet) {
@@ -1035,9 +1037,11 @@ app.get("/uploadWXImage", function (req, res) {
               col.findOne(
                 {role:'share', shareID:shareID, 'files.key': ret.key }, { fields: {'files': { $elemMatch:{ files: { key: ret.key } } }, toPerson:1, fromPerson:1, msg:1, shareID:1  }   },  function(err, data){
 
+                  imageToPDF(person, fileName, res, data, path);
 
+                  var shareName = getShareName(data, true);
                   //get segmented path, Target Path segment and A link
-                 var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&picurl=%s">%s</a>', SHARE_MSG_URL, getShareName(data, true), shareID, encodeURIComponent(FILE_HOST+ret.key), shareName ) ;
+                 var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&picurl=%s">%s</a>', SHARE_MSG_URL, shareName, shareID, encodeURIComponent(FILE_HOST+ret.key), shareName ) ;
 
 
 
@@ -1050,10 +1054,10 @@ app.get("/uploadWXImage", function (req, res) {
                      {
                       "title": util.format('%s 在%s 上传了图片',
                         data.fromPerson.shift().name,
-                        getShareName(data, true)  // if we need segmented path:   pathName.join('-'),
+                        shareName  // if we need segmented path:   pathName.join('-'),
                       ),
                       "description": text || "查看消息记录",
-                      "url": util.format('%s#path=%s&shareID=%d&picurl=%s' , SHARE_MSG_URL, getShareName(data, true), shareID, encodeURIComponent(FILE_HOST+ret.key) ),
+                      "url": util.format('%s#path=%s&shareID=%d&picurl=%s' , SHARE_MSG_URL, shareName, shareID, encodeURIComponent(FILE_HOST+ret.key) ),
                      "picurl": FILE_HOST+ret.key
                    }
                    ] },
@@ -1091,7 +1095,9 @@ app.get("/uploadWXImage", function (req, res) {
     });
 
   });
-});
+}
+
+app.get("/uploadWXImage", uploadWXImage);
 
 app.post("/getJSConfig", function (req, res) {
 
@@ -1236,6 +1242,22 @@ app.post("/upfile", function (req, res) {
           msg.appRole = 'chat';
 
           sendWXMessage(msg, data.fromPerson[0].userid);
+
+
+          // convert image to pdf directly
+          var filename = ret.key;
+           var ext = filename.split(/\./).pop();
+
+          var baseName = moment().format('YYYYMMDDHHmmss') ;
+          var destPath = IMAGE_UPFOLDER+ baseName + '.'+ ext.toLowerCase();
+          var UPFOLDER = IMAGE_UPFOLDER+ baseName+'/';
+
+          var wget = 'mkdir '+ UPFOLDER +'; wget --restrict-file-names=nocontrol -P ' + UPFOLDER + ' -N "' + FILE_HOST+ filename +'"';
+          var child = exec(wget, function(err, stdout, stderr) {
+            console.log( err, stdout, stderr );
+            if(err) return;
+            imageToPDF(ret.person, UPFOLDER+path.basename(filename) , null, ret);
+          });
 
       } else {
 
@@ -4072,7 +4094,38 @@ wechat(config, wechat
 //   AgentID: '1' }
 
   //console.log(message);
-  return res.reply(message);
+
+
+  var person = message.FromUserName;
+  if (person==WX_COMPANY_ID) return;
+
+  var userInfo = getUserInfo(person);
+  if(message.MsgType=='image' && userInfo ) {
+
+    var shareID;
+    var condition = {role:'shareMsg', shareID:{$gt:0}, WXOnly:{$in: [null, false]} ,
+             touser: new RegExp('^'+ person +'\\||\\|'+ person +'\\||\\|'+ person +'$') };
+
+    col.findOne( condition , { sort: {date : -1}, limit:1, fields:{_id:0, fromUser:0} },
+      function  (err, msg) {
+
+        //console.log(condition, err, msg);
+        if(err||!msg) return;
+        if(!msg.shareID) return;
+
+        shareID = msg.shareID;
+
+
+        var req={query:{ mediaID: message.MediaId, person: person, shareID: shareID, isInMsg: true }};
+        var res = { send:function(){} };
+        uploadWXImage(req, res);
+
+      });
+  }
+
+
+
+  return res.reply('');
 })
 .text(function (message, req, res, next) {
 //**** message format:
@@ -4109,7 +4162,7 @@ wechat(config, wechat
     var shareID = p? parseInt( p.pop().replace(/\s*@/,'') ) :'';
     var content = message.Content.replace(re, '');
 
-    var condition = {role:'shareMsg', role : 'shareMsg', shareID:{$gt:0}, WXOnly:{$in: [null, false]} ,
+    var condition = {role:'shareMsg', shareID:{$gt:0}, WXOnly:{$in: [null, false]} ,
              touser: new RegExp('^'+ person +'\\||\\|'+ person +'\\||\\|'+ person +'$') };
 
     if(shareID) condition.shareID = shareID;

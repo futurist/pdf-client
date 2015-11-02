@@ -2812,8 +2812,10 @@ function appendShareMsg (v){
 	if(v.text ){
 		content = v.text.content.replace(new RegExp(titleReg,'ig'), '');
 		var c = content.split('：');
-		var t = c.pop().toHTML();
-		content = c.concat(t).join('：');
+		if(c.length>1){
+			var t = c.pop().toHTML();
+			content = c.concat(t).join('：');
+		}
 
 		$div = $('<div></div>');
 		$div.html(content);
@@ -2834,7 +2836,9 @@ function appendShareMsg (v){
 
 		$div = $('<div></div>');
 		$div.html(content+'<br>');
-		$div.append( '<p class="imgDesc">'+ item.description.replace(/^查看消息记录$/,'').toHTML() +'</p><img class="msgImage" src="'+ item.picurl +'">' );
+		var desc = item.description.replace(/^查看消息记录$/,'');
+		desc = desc? '<p class="imgDesc">'+ desc.toHTML() +'</p>' : '';
+		$div.append( desc+'<img class="msgImage" src="'+ item.picurl +'">' );
 
 		$div.find('a').each(function  () {
 			if( $(this).html()=='' ) $(this).remove();
