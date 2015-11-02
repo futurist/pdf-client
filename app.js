@@ -44,6 +44,7 @@ QiniuBucket = 'bucket01';
 FILE_HOST = 'http://7xkeim.com1.z0.glb.clouddn.com/';
 TREE_URL = "http://1111hui.com/pdf/client/tree.html";
 VIEWER_URL = "http://1111hui.com/pdf/webpdf/viewer.html";
+SHARE_MSG_URL = "http://1111hui.com/pdf/client/sharemsg.html";
 IMAGE_UPFOLDER = 'uploads/' ;
 var regex_image= /(gif|jpe?g|png|bmp)$/i;
 
@@ -985,6 +986,7 @@ app.get("/uploadWXImage", function (req, res) {
   var mediaID = req.query.mediaID;
   var person = req.query.person;
   var path = req.query.path;
+  var text = req.query.text;
   var shareName = req.query.shareName;
   var shareID = safeEval( req.query.shareID );
   var isInMsg = safeEval(req.query.isInMsg);
@@ -1012,6 +1014,7 @@ app.get("/uploadWXImage", function (req, res) {
           srcRet.client = '';
           srcRet.title = fileName.split('/').pop();
           srcRet.path = path || '/';
+          if(text) srcRet.imageDesc = text;
           if(shareID){
             srcRet.shareID = shareID;
             srcRet.role = 'share';
@@ -1028,7 +1031,7 @@ app.get("/uploadWXImage", function (req, res) {
 
 
                   //get segmented path, Target Path segment and A link
-                 var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, ret.key, shareID, shareName ) ;
+                 var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&picurl=%s">%s</a>', SHARE_MSG_URL, ret.key, shareID, encodeURIComponent(FILE_HOST+ret.key), shareName ) ;
 
 
 
@@ -1043,8 +1046,8 @@ app.get("/uploadWXImage", function (req, res) {
                         data.fromPerson.shift().name,
                         shareName  // if we need segmented path:   pathName.join('-'),
                       ),
-                      "description": "查看消息记录",
-                      "url": util.format('%s#path=%s&shareID=%d&openMessage=1', TREE_URL, ret.key, shareID ),
+                      "description": text || "查看消息记录",
+                      "url": util.format('%s#path=%s&shareID=%d&picurl=%s' , SHARE_MSG_URL, ret.key, shareID, encodeURIComponent(FILE_HOST+ret.key) ),
                      "picurl": FILE_HOST+ret.key
                    }
                    ] },
@@ -1200,7 +1203,7 @@ app.post("/upfile", function (req, res) {
         if( regex_image.test(ret.key) ) {
 
           //get segmented path, Target Path segment and A link
-         var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, ret.key, shareID, ret.shareName ) ;
+         var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&picurl=%s">%s</a>', SHARE_MSG_URL, ret.key, shareID, encodeURIComponent(FILE_HOST+ret.key) , ret.shareName ) ;
 
           var msg = {
            "touser": data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|'),
@@ -1214,7 +1217,7 @@ app.post("/upfile", function (req, res) {
                 ret.shareName  // if we need segmented path:   pathName.join('-'),
               ),
               "description": "查看消息记录",
-              "url": util.format('%s#path=%s&shareID=%d&openMessage=1', TREE_URL, ret.key, shareID ),
+              "url": util.format('%s#path=%s&shareID=%d&picurl=%s', SHARE_MSG_URL, ret.key, shareID, encodeURIComponent(FILE_HOST+ret.key) ),
              "picurl": FILE_HOST+ret.key
            }
            ] },
@@ -1552,7 +1555,7 @@ app.post("/markFinish", function (req, res) {
            "msgtype": "text",
            "text": {
              "content":
-             util.format('%s已由%s标记为：%s<a href="%s">查看共享</a>',
+             util.format('/%s/已由%s标记为：%s<a href="%s">查看共享</a>',
                 path.replace(/^\/|\/$/g,''),
                 personName,
                 isFinish?'已完成' : '未完成',
@@ -2201,7 +2204,7 @@ app.post("/saveCanvas", function (req, res) {
             var overAllPath = util.format('%s#file=%s&shareID=%d&isSign=%d', VIEWER_URL, FILE_HOST+ encodeURIComponent(fileKey), shareID, isSign?1:0 ) ;
             var content =
             colShare.isSign?
-            util.format('流程%d %s (%s-%s)标注已由%s更新，<a href="%s">查看文件</a>',
+            util.format('/流程%d %s (%s-%s)/标注已由%s更新，<a href="%s">查看文件</a>',
                     shareID,
                     msg,
                     colShare.flowName,
@@ -2209,7 +2212,7 @@ app.post("/saveCanvas", function (req, res) {
                     personName,
                     overAllPath  // if we need segmented path:   pathName.join('-'),
                   ) :
-            util.format('共享%d %s (%s)标注已由%s更新 <a href="%s">查看文件</a>',
+            util.format('/共享%d %s (%s)/标注已由%s更新 <a href="%s">查看文件</a>',
                     shareID,
                     msg,
                     colShare.fromPerson[0].name,
@@ -3024,7 +3027,7 @@ app.post("/finishSign", function (req, res) {
                          "msgtype": "text",
                          "text": {
                            "content":
-                           util.format('流程%d %s (%s-%s)已由%s签署,此流程已结束并转交至：%s, <a href="%s">查看文件</a>',
+                           util.format('/流程%d %s (%s-%s)/已由%s签署,此流程已结束并转交至：%s, <a href="%s">查看文件</a>',
                               colShare.shareID,
                               msg,
                               colShare.flowName,
@@ -3057,7 +3060,7 @@ app.post("/finishSign", function (req, res) {
                          "msgtype": "text",
                          "text": {
                            "content":
-                           util.format('流程%d %s (%s-%s)已由%s签署,此流程已结束 <a href="%s">查看文件</a>',
+                           util.format('/流程%d %s (%s-%s)/已由%s签署,此流程已结束 <a href="%s">查看文件</a>',
                               colShare.shareID,
                               msg,
                               colShare.flowName,
@@ -3777,7 +3780,7 @@ function sendWXMessage (msg, fromUser) {
 
   if(sharePath && msg.shareID){
     if(wxMsg.text) {
-      wxMsg.text.content += '\n\n<a href="http://1111hui.com/pdf/client/sharemsg.html#path='+ sharePath +'&shareID='+ msg.shareID +'">打开会话</a>';
+      wxMsg.text.content += '\n\n<a href="'+ SHARE_MSG_URL +'#path='+ sharePath +'&shareID='+ msg.shareID +'">打开会话</a>';
     }
   }
 

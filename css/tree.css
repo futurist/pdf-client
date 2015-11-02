@@ -351,6 +351,10 @@ span.tmpzTreeMove_arrow:before{
 	.msgFile{
 		margin-top:10px;
 	}
+	.msgFile ul li a.noPreview {
+		color: #000;
+		text-decoration: none;
+	}
 	.msgFile ul li {
 	  text-align: left;
 	  padding: 10px 0;
@@ -361,6 +365,10 @@ span.tmpzTreeMove_arrow:before{
 
 	.msgTree ul li[data-status]{
 		color: red;
+	}
+	.msgTree ul li p.imgDesc{
+	    padding: 10px;
+	    background-color: lightyellow;
 	}
 	.msgTree ul li{
 		padding: 10px 0;
@@ -384,6 +392,7 @@ span.tmpzTreeMove_arrow:before{
 	}
 	.msgTitle.expend {
 		height: 100%;
+		line-height: 2;
 		overflow: scroll;
 	}
 
@@ -392,7 +401,7 @@ span.tmpzTreeMove_arrow:before{
 		font-size:10px;
 		display: block;
 		margin:0 auto;
-		content:"\f206";
+		content:"\f0f4";
 	    position: relative;
 	    bottom: -7px;
 	    padding: 10px 0 2px 0;
@@ -758,7 +767,18 @@ span.tmpzTreeMove_arrow:before{
 .msgTitleMenu:before {
     content: "\f0c9";
 }
-
+.msgTitle.expend .titleContent:before{
+	content: "\f151";
+}
+.titleContent .titleh1{
+	padding-left: 30px;
+}
+.titleContent:before{
+	position: absolute;
+    left: 12px;
+    font: 20px/1 'FontAwesome';
+    content: "\f150";
+}
 .titleContent{
 	margin-right: 40px;
     word-wrap: break-word;

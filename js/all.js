@@ -29,6 +29,10 @@ var receiveRoot = null;
 
 window.savedSignData = [];
 
+String.prototype.toHTML = function() {
+    return this.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
 function eve (el, type){
     el= ('get' in el)? el.get(0) : el ;	//(typeof el['jquery']!='undefined')
     if(typeof type=='undefined') type='click';
@@ -549,7 +553,7 @@ function addDiyDom(treeId, treeNode) {
 		if(treeNode.isFinish) $li.attr('data-finish', "1");
 		if(treeNode.statusText) {
 			var shareStr = treeNode.shareID ? ' data-shareid="'+ treeNode.shareID +'"' : '';
-			aObj.after('<p '+shareStr+' class="status">'+treeNode.statusText+' <span class="msgDate" data-date="'+ treeNode.statusDate +'"></span></p>');
+			aObj.after('<p '+shareStr+' class="status">'+treeNode.statusText.toHTML()+' <span class="msgDate" data-date="'+ treeNode.statusDate +'"></span></p>');
 			updateMsgTime();
 		}
 	}
@@ -1333,26 +1337,17 @@ function hidePrintCon() {
 		}
 
 
-		function openLink  (url, text) {
+function openLink  (url, text) {
 
-			var viewerURL = VIEWER_URL+'#file='+ FILE_HOST +url;
+	var viewerURL = VIEWER_URL+'#file='+ FILE_HOST +url;
 
-			console.log(url);
 
-			if(isQT){
+	if( isNWJS ){
+		global._nwMain.showReader(viewerURL);
+	}else
+		window.location = viewerURL;
 
-				document.title = "";
-				//document.title = JSON.stringify({action:"openPDF", url:'http://1111hui.com/pdf/dragShape/path.html', text:text });
-				document.title = JSON.stringify({action:"openPDF", url:viewerURL, text:text });
-			} else{
-
-				if( isNWJS ){
-					global._nwMain.showReader(viewerURL);
-				}else
-					window.location = viewerURL;
-			}
-		}
-
+}
 
 
 function getFilesData () {
@@ -2726,7 +2721,7 @@ function viewDetail () {
 						.getUnique()
 						.join(',');
 
-			document.querySelector('.msgTitle .titleContent').innerHTML=( '群成员:<span class="memberList">' + userList + '</span> 标题:'+ windowTitle );
+			document.querySelector('.msgTitle .titleContent').innerHTML=( '<div class="titleh1">群成员:<span class="memberList">' + userList + '</span> 标题:'+ windowTitle +'</div>' );
 
 		}
 
@@ -2770,12 +2765,12 @@ function appendFiles (v){
 		if(!f.files) return;
 
 		var str = f.files.map(function  (file) {
-			var action = ';';
+			var action = '';
 
 			if( /\.pdf$/i.test( file.key )  ) action =  'openLink(&quot;'+ file.key+'&shareID='+f.shareID+'&isSign='+(f.isSign?1:'') +'&quot;)';
-			if( regex_preview.test(file.key) ) action = 'previewImage(&quot;'+ FILE_HOST+file.key +'&quot;)';
+			if( isWeiXin&& regex_image.test(file.key) || !isWeiXin&&regex_preview.test(file.key) ) action = 'previewImage(&quot;'+ FILE_HOST+file.key +'&quot;)';
 
-			return '<li class="msgFile"><a href="javascript:'+ action +'">'+file.path+file.title+'</a></li>';
+			return '<li class="msgFile"><a class="'+ (action?'preview':'noPreview') +'" href="javascript:'+ (action||'alert(&quot;此文件不提供预览，可到文件柜下载&quot;);') +'">'+file.path+file.title+'</a></li>';
 		});
 
 		$('.msgFile ul').append(str);
@@ -2783,6 +2778,7 @@ function appendFiles (v){
 	});
 
 }
+
 
 function appendShareMsg (v){
 	if( !v || !$('.msg_wrap').is(':visible') ) return;
@@ -2802,6 +2798,9 @@ function appendShareMsg (v){
 	// Text Message
 	if(v.text ){
 		content = v.text.content.replace(new RegExp(titleReg,'ig'), '');
+		var c = content.split('：');
+		var t = c.pop().toHTML();
+		content = c.concat(t).join('：');
 
 		$div = $('<div></div>');
 		$div.html(content);
@@ -2812,8 +2811,6 @@ function appendShareMsg (v){
 			}
 		});
 		content = $div.html().replace(/对\s+/, '');
-
-
 	}
 
 	// Text Message
@@ -2824,7 +2821,7 @@ function appendShareMsg (v){
 
 		$div = $('<div></div>');
 		$div.html(content+'<br>');
-		$div.append( '<img class="msgImage" src="'+ item.picurl +'">' );
+		$div.append( '<p class="imgDesc">'+ item.description.replace(/^查看消息记录$/,'').toHTML() +'</p><img class="msgImage" src="'+ item.picurl +'">' );
 
 		$div.find('a').each(function  () {
 			if( $(this).html()=='' ) $(this).remove();
@@ -3012,12 +3009,16 @@ function previewImage ( imgArray, curIndex ){
 		curIndex = curIndex || 0;
 	}
 
+	if( isWeiXin && !regex_image.test(imgArray[curIndex])  || !regex_preview.test(imgArray[curIndex])  ){
+		return alert('此文件不提供预览，可到文件柜下载');
+	}
+
 	if(isWeiXin) {
-		if( regex_image.test(imgArray[curIndex]) )
-			wx.previewImage({
-			    current: imgArray[curIndex], // 当前显示图片的http链接
-			    urls: imgArray // 需要预览的图片http链接列表
-			});
+		wx.previewImage({
+		    current: imgArray[curIndex], // 当前显示图片的http链接
+		    urls: imgArray // 需要预览的图片http链接列表
+		});
+
 	} else {
 
 		if(isNWJS)
@@ -3078,8 +3079,9 @@ function wxUploadImage() {
 		        	        var isInMsg = $('.msg_wrap').is(':visible');
 
 
-		        	        $.get(host+'/uploadWXImage', {mediaID:serverId, person:rootPerson.userid, path: path, shareID:shareID, isInMsg:isInMsg, shareName:shareName }, function(data){
-
+		        	        $.get(host+'/uploadWXImage', {mediaID:serverId, person:rootPerson.userid, path: folder, shareID:shareID, isInMsg:isInMsg, shareName:sharePath, text:$('.inputMsg').val() }, function(data){
+		        	        	$('.inputMsg').val('');
+		        	        	
 		        	        	if(!data) return alert('上传图片错误');
 		        	        	//appendTree1(data);
 
@@ -4250,7 +4252,6 @@ window.hideShare = hideShare;
 window.hideCompanyTree = hideCompanyTree;
 window.viewContact = viewContact;
 window.openClient = openClient;
-window.previewImage = previewImage;
 window.markFinish = markFinish;
 window.hideTemplateCon = hideTemplateCon;
 window.applyTemplatePre = applyTemplatePre;
