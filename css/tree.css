@@ -997,3 +997,6 @@ body .dialog-content, .dialog-background{
 	top: auto!important;
 }
 
+body.openMsg{
+	overflow: hidden;
+}

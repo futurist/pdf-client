@@ -3750,6 +3750,10 @@ function insertShareData (data, res, showTab){
 
 function sendWXMessage (msg, fromUser) {
 
+  var wxMsg = JSON.parse(JSON.stringify(msg));
+  var sharePath = JSON.stringify(msg).replace(/<[^>]+>/g,'').match(/\/[^/]+\//);
+  sharePath = sharePath? sharePath.pop() : '';
+
   if(!msg.msgID){
     msg.msgID = NewID();
   }
@@ -3767,6 +3771,18 @@ function sendWXMessage (msg, fromUser) {
 	    });
     }
 
+
+    if(sharePath && msg.shareID){
+      if(wxMsg.text) {
+        wxMsg.text.content += '\n\n<a href="'+ SHARE_MSG_URL +'#path='+ sharePath +'&shareID='+ msg.shareID +'&msgID='+ (msg.msgID||'') +'">打开会话</a>';
+      }
+      if(wxMsg.news) {
+        wxMsg.news.articles.forEach(function(v){
+          v.url+='&msgID='+(msg.msgID||'')
+        });
+      }
+    }
+
   }
 
   var msgTo = {};
@@ -3777,15 +3793,6 @@ function sendWXMessage (msg, fromUser) {
   // delete msg.toparty;
   // delete msg.totag;
 
-  var wxMsg = JSON.parse(JSON.stringify(msg));
-  var sharePath = JSON.stringify(msg).replace(/<[^>]+>/g,'').match(/\/[^/]+\//);
-  sharePath = sharePath? sharePath.pop() : '';
-
-  if(sharePath && msg.shareID){
-    if(wxMsg.text) {
-      wxMsg.text.content += '\n\n<a href="'+ SHARE_MSG_URL +'#path='+ sharePath +'&shareID='+ msg.shareID +'&msgID='+ msg.msgID +'">打开会话</a>';
-    }
-  }
 
   (msg.appRole=='chat'?api2:api).send(msgTo, wxMsg, function  (err, result) {
     console.log('sendWXMessage', msg.tryCount, err, result);

@@ -319,6 +319,9 @@ body,html{
 	max-width: 300px;
 }
 
+body.openMsg{
+	overflow: hidden;
+}
 
 </style>
 
@@ -895,6 +898,7 @@ function closeViewDetail () {
 	}
 	setInterval(function  () {closeWin(); }, 300);
 	closeWin();
+	$('body').removeClass('openMsg');
 }
 
 

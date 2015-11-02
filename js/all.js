@@ -2656,6 +2656,7 @@ function viewDetail () {
 	$('.header').hide();
 	$('.ztreeFile').hide();
 	$('.msg_wrap').show();
+	$('body').addClass('openMsg');
 
 	if(!isWeiXin) moveUploaderButton( $('.upHolder2') );
 
@@ -2886,6 +2887,8 @@ function closeViewDetail () {
 	moveUploaderButton( $('.upHolder1') );
 
 	updateMenu(sel);
+
+	$('body').removeClass('openMsg');
 }
 
 function addShareFiles () {
