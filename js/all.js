@@ -3013,10 +3013,11 @@ function previewImage ( imgArray, curIndex ){
 	}
 
 	if(isWeiXin) {
-		wx.previewImage({
-		    current: imgArray[curIndex], // 当前显示图片的http链接
-		    urls: imgArray // 需要预览的图片http链接列表
-		});
+		if( regex_image.test(imgArray[curIndex]) )
+			wx.previewImage({
+			    current: imgArray[curIndex], // 当前显示图片的http链接
+			    urls: imgArray // 需要预览的图片http链接列表
+			});
 	} else {
 
 		if(isNWJS)

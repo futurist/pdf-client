@@ -1182,13 +1182,15 @@ app.post("/upfile", function (req, res) {
 
   function upFun (ret) {
     res.send( JSON.stringify(ret) );
-    //wsSendClient(ret.person, ret);
 
     // Send WX Message when it's upload images & sound files to share Folder
 
 
     //if(! ret.isInMsg) return;
-    if(! ret.shareID) return;
+    if(! ret.shareID){
+      wsSendClient(ret.person, ret);
+      return;
+    }
 
     var shareID = ret.shareID;
 
