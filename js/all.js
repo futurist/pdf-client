@@ -2734,6 +2734,16 @@ function viewDetail () {
 			}
 			if(v.role== "shareMsg") appendShareMsg(v);
 		});
+
+
+		setTimeout(function  () {
+			var pos = 99999999999;
+			if(urlQuery.msgID){
+				pos = $('.msgTree li[data-msgid="'+ urlQuery.msgID +'"]').position().top;
+			}
+			$('.msgTree').scrollTop( pos );
+		}, 100);
+
 	});
 }
 
@@ -2834,8 +2844,10 @@ function appendShareMsg (v){
 	}
 
 	var dataAttr = v._id? ' data-id="'+ v._id +'"' : '';
-	dataAttr = v.fromUser? ' data-fromuser="'+ v.fromUser +'"' : '';
-	dataAttr = v.status? ' data-status="'+ v.status +'"' : '';
+	dataAttr += v.msgID? ' data-msgid="'+ v.msgID +'"' : '';
+	dataAttr += v.fromUser? ' data-fromuser="'+ v.fromUser +'"' : '';
+	dataAttr += v.status? ' data-status="'+ v.status +'"' : '';
+
 	var li = $('<li'+ dataAttr +'><span class="msgDate"></span> '+ content +'</li>');
 	li.find('.msgDate').data( 'date', v.date );
 	li.on('click', function  () {
@@ -2847,11 +2859,6 @@ function appendShareMsg (v){
 	$('.msgTree ul').append(li);
 
 	updateMsgTime();
-
-	setTimeout(function  () {
-		$('.msgTree').scrollTop( 99999999999 );
-	}, 100);
-
 }
 
 function updateMsgTime () {

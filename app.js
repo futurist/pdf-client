@@ -114,7 +114,7 @@ futurist.array_remove_item = function(array, item) {
 };
 
 function NewID () {
-  return +new Date()+Math.random().toString().slice(2,5)+'_';
+  return +new Date()+'_'+Math.random().toString().slice(2,5);
 }
 
 function qiniu_getUpToken() {
@@ -1216,7 +1216,7 @@ app.post("/upfile", function (req, res) {
                 data.fromPerson[0].name,
                 ret.shareName  // if we need segmented path:   pathName.join('-'),
               ),
-              "description": "查看消息记录",
+              "description": ret.text || "查看消息记录",
               "url": util.format('%s#path=%s&shareID=%d&picurl=%s', SHARE_MSG_URL, ret.key, shareID, encodeURIComponent(FILE_HOST+ret.key) ),
              "picurl": FILE_HOST+ret.key
            }
@@ -3750,6 +3750,9 @@ function insertShareData (data, res, showTab){
 
 function sendWXMessage (msg, fromUser) {
 
+  if(!msg.msgID){
+    msg.msgID = NewID();
+  }
   if(!msg.tryCount){
     var wsMsg = _.extend(msg, {fromUser: fromUser});
     col.insert( wsMsg );
@@ -3780,7 +3783,7 @@ function sendWXMessage (msg, fromUser) {
 
   if(sharePath && msg.shareID){
     if(wxMsg.text) {
-      wxMsg.text.content += '\n\n<a href="'+ SHARE_MSG_URL +'#path='+ sharePath +'&shareID='+ msg.shareID +'">打开会话</a>';
+      wxMsg.text.content += '\n\n<a href="'+ SHARE_MSG_URL +'#path='+ sharePath +'&shareID='+ msg.shareID +'&msgID='+ msg.msgID +'">打开会话</a>';
     }
   }
 
