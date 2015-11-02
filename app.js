@@ -782,6 +782,12 @@ app.post("/getJSTicket", function (req, res) {
 });
 
 
+function getShareName ( colShare, addSlash ) {
+  var a= (colShare.isSign?'流程':'共享')+colShare.shareID+ (colShare.msg?'['+colShare.msg+']':'' ) + '('+colShare.fromPerson.concat(colShare.toPerson).map(function(v){return v.name}).join(',')+')' ;
+  if(addSlash) a='/'+a+'/';
+  return a;
+}
+
 function imageToPDF (person, fileName, res, oldData, folder ){
 	var ext = path.extname(fileName);
 	var baseName = path.basename(fileName, ext);
@@ -1027,11 +1033,11 @@ app.get("/uploadWXImage", function (req, res) {
             if(isInMsg){
 
               col.findOne(
-                {role:'share', shareID:shareID, 'files.key': ret.key }, { fields: {'files': { $elemMatch:{ files: { key: ret.key } } }, toPerson:1, fromPerson:1, msg:1  }   },  function(err, data){
+                {role:'share', shareID:shareID, 'files.key': ret.key }, { fields: {'files': { $elemMatch:{ files: { key: ret.key } } }, toPerson:1, fromPerson:1, msg:1, shareID:1  }   },  function(err, data){
 
 
                   //get segmented path, Target Path segment and A link
-                 var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&picurl=%s">%s</a>', SHARE_MSG_URL, ret.key, shareID, encodeURIComponent(FILE_HOST+ret.key), shareName ) ;
+                 var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&picurl=%s">%s</a>', SHARE_MSG_URL, getShareName(data, true), shareID, encodeURIComponent(FILE_HOST+ret.key), shareName ) ;
 
 
 
@@ -1044,10 +1050,10 @@ app.get("/uploadWXImage", function (req, res) {
                      {
                       "title": util.format('%s 在%s 上传了图片',
                         data.fromPerson.shift().name,
-                        shareName  // if we need segmented path:   pathName.join('-'),
+                        getShareName(data, true)  // if we need segmented path:   pathName.join('-'),
                       ),
                       "description": text || "查看消息记录",
-                      "url": util.format('%s#path=%s&shareID=%d&picurl=%s' , SHARE_MSG_URL, ret.key, shareID, encodeURIComponent(FILE_HOST+ret.key) ),
+                      "url": util.format('%s#path=%s&shareID=%d&picurl=%s' , SHARE_MSG_URL, getShareName(data, true), shareID, encodeURIComponent(FILE_HOST+ret.key) ),
                      "picurl": FILE_HOST+ret.key
                    }
                    ] },
@@ -1203,7 +1209,7 @@ app.post("/upfile", function (req, res) {
         if( regex_image.test(ret.key) ) {
 
           //get segmented path, Target Path segment and A link
-         var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&picurl=%s">%s</a>', SHARE_MSG_URL, ret.key, shareID, encodeURIComponent(FILE_HOST+ret.key) , ret.shareName ) ;
+         var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&picurl=%s">%s</a>', SHARE_MSG_URL, getShareName(data, true), shareID, encodeURIComponent(FILE_HOST+ret.key) , ret.shareName ) ;
 
           var msg = {
            "touser": data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|'),
@@ -1217,7 +1223,7 @@ app.post("/upfile", function (req, res) {
                 ret.shareName  // if we need segmented path:   pathName.join('-'),
               ),
               "description": ret.text || "查看消息记录",
-              "url": util.format('%s#path=%s&shareID=%d&picurl=%s', SHARE_MSG_URL, ret.key, shareID, encodeURIComponent(FILE_HOST+ret.key) ),
+              "url": util.format('%s#path=%s&shareID=%d&picurl=%s', SHARE_MSG_URL, getShareName(data, true), shareID, encodeURIComponent(FILE_HOST+ret.key) ),
              "picurl": FILE_HOST+ret.key
            }
            ] },
@@ -1226,6 +1232,8 @@ app.post("/upfile", function (req, res) {
             role : 'shareMsg',
             shareID:shareID
           };
+
+          msg.appRole = 'chat';
 
           sendWXMessage(msg, data.fromPerson[0].userid);
 
@@ -3458,6 +3466,7 @@ app.post("/getSignHistory", function (req, res) {
 
 });
 
+
 function SendShareMsg(req, res) {
   var person = req.body.person;
   var text = req.body.text;
@@ -3513,9 +3522,7 @@ function SendShareMsg(req, res) {
         }
     } else {
 
-      var a= (data.isSign?'流程':'共享')+data.shareID+ (data.msg?'['+data.msg+']':'' ) + '('+data.toPerson.map(function(v){return v.name}).join(',')+')' ;
-      a='/'+a+'/';
-      var link = a;
+      var link = getShareName(data, true);
     }
 
 

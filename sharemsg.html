@@ -411,7 +411,7 @@ var urlQuery = searchToObject( window.location.hash );
 
 var shareID = urlQuery.shareID||277;
 var fileKey = urlQuery.fileKey;
-var sharePath = urlQuery.path||'/共享-277(杨吉明)/';
+var sharePath = urlQuery.sharePath||urlQuery.path||'/共享-277(杨吉明)/';
 var picUrl = urlQuery.picurl||'';
 
 windowTitle = sharePath;

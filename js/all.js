@@ -3097,8 +3097,7 @@ function wxUploadImage() {
 		        	        if(shareID) path = path.replace( /^\/[^/]+/, '' );
 		        	        var isInMsg = $('.msg_wrap').is(':visible');
 
-
-		        	        $.get(host+'/uploadWXImage', {mediaID:serverId, person:rootPerson.userid, path: folder, shareID:shareID, isInMsg:isInMsg, shareName:sharePath, text:$('.inputMsg').val() }, function(data){
+		        	        $.get(host+'/uploadWXImage', {mediaID:serverId, person:rootPerson.userid, path: path, shareID:shareID, isInMsg:isInMsg, shareName:shareName, text:$('.inputMsg').val() }, function(data){
 		        	        	$('.inputMsg').val('');
 		        	        	
 		        	        	if(!data) return alert('上传图片错误');
