@@ -27,6 +27,8 @@ var DragParentNode = null;
 var sendRoot = null;
 var receiveRoot = null;
 
+var picUrl = urlQuery&&urlQuery.picurl||'';
+
 window.savedSignData = [];
 
 String.prototype.toHTML = function() {
@@ -2843,9 +2845,12 @@ function appendShareMsg (v){
 		//if(user) sendUserMsg(user, windowTitle);
 	});
 	$('.msgTree ul').append(li);
-	$('.msgTree').scrollTop( 99999999999 );
 
 	updateMsgTime();
+
+	setTimeout(function  () {
+		$('.msgTree').scrollTop( 99999999999 );
+	}, 100);
 
 }
 
@@ -2981,6 +2986,10 @@ function initWX() {
 		wx.ready(function(){
 			window.wxReady = true;
 			//wxConfigMenu();
+			if(picUrl){
+				previewImage(picUrl);
+				picUrl='';
+			}
 			return;
 		});
 		wx.error(function(res){
@@ -3394,6 +3403,10 @@ $(function initPage () {
 		showTab(idx);
 	});
 
+	if(picUrl){
+		previewImage(picUrl);
+		picUrl='';
+	}
 
 });
 
@@ -3599,6 +3612,10 @@ $(function () {
 
 				var isInMsg = $('#fileupload1').parent().is('.upHolder2');
 				result.isInMsg = isInMsg;
+				if(isInMsg){
+					result.text = $('.inputMsg').val();
+					$('.inputMsg').val('');
+				}
 
         		$post(host+'/upfile', result, function(ret){  });
 

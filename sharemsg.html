@@ -690,7 +690,9 @@ function appendShareMsg (v) {
 		if(user) sendUserMsg(user, windowTitle);
 	});
 	$('.msgTree ul').append(li);
-	$('.msgTree').scrollTop( 99999999999 )
+	setTimeout(function  () {
+		$('.msgTree').scrollTop( 99999999999 );
+	}, 100);
 
 	updateMsgTime();
 
