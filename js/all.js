@@ -342,25 +342,30 @@ function applyTemplate () {
 
 //******* Websocket part **************
 
+	// open event *** please see check.js file *****
+	//ws.addEventListener('open', function(){}
 
-	ws.addEventListener('open', function(){
-		console.log('ws opened');
-		ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
-		updateClientHost();
-
-	});
 
 	ws.addEventListener('message', function(data){
 		if( !data || !data.data || !data.data.match(/^\s*{/) ) return;
-		var msg = JSON.parse(data.data);
+		try{
+			var msg = JSON.parse(data.data);
+		}catch(e){ return }
+
+		if(typeof msg!='object') return;
 
 		switch(msg.role){
 
 			case 'shareMsg':
 
 				// Update Message window, when the window is open
-				appendShareMsg(msg);
 
+				if( $('.msg_wrap').is(':visible') ){
+
+					var shareID = $('.msg_wrap').data('shareID');
+					if(shareID && msg.shareID==shareID) appendShareMsg(msg);
+
+				}
 
 				if (typeof nwNotify!='undefined') {
 
@@ -396,6 +401,14 @@ function applyTemplate () {
 				break;
 
 			case 'share':
+
+				if( $('.msg_wrap').is(':visible') ){
+
+					var shareID = $('.msg_wrap').data('shareID');
+					if(shareID && msg.shareID==shareID) appendFiles(msg);
+
+				}
+
 				if( msg.data && msg.data.isSign && isNWJS ) {
 					var viewerUrl1 = VIEWER_URL + '#file=' + FILE_HOST+msg.key + '&shareID=' + msg.data.shareID + '&isSign=1';
 					var viewerUrl2 = VIEWER_URL + '#file=' + FILE_HOST+ encodeURIComponent(msg.key) + '&shareID=' + msg.data.shareID + '&isSign=1';
@@ -2651,11 +2664,13 @@ function viewDetail () {
 	var sel = treeObj.getSelectedNodes();
 	if(!sel.length) return;
 	sel = sel[0];
+	var shareID = sel.shareID;
+	if(!shareID) return;
 
 	hideContentWrap();
 	$('.header').hide();
 	$('.ztreeFile').hide();
-	$('.msg_wrap').show();
+	$('.msg_wrap').show().data('shareID', shareID);
 	$('body').addClass('openMsg');
 
 	if(!isWeiXin) moveUploaderButton( $('.upHolder2') );
@@ -2769,26 +2784,42 @@ function sendUserMsg (userid, groupName) {
 
 function appendFiles (v){
 
-	if( !v || !$('.msg_wrap').is(':visible') ) return;
-	if( !v || ! (v.docs&&v.docs.length) ) return;
-	$('.msgTitle .titleContent').append('<div class="msgFile"><ul></ul></div>');
-	$('.msgFile ul').empty();
-
-	v.docs.forEach(function(f){
-		if(!f.files) return;
-
-		var str = f.files.map(function  (file) {
+	var addFile = function(file, shareID, isSign){
 			var action = '';
+			if( /\.pdf$/i.test( file.key )  ) action =  'openLink(&quot;'+ file.key+'&shareID='+(shareID||file.shareID||'')+'&isSign='+(isSign||file.isSign?1:'') +'&quot;)';
+			if( isWeiXin&& regex_image.test(file.key) || !isWeiXin&&regex_preview.test(file.key) ){
+				action = 'previewImage(&quot;'+ FILE_HOST+file.key +'&quot;)';
+			}
 
-			if( /\.pdf$/i.test( file.key )  ) action =  'openLink(&quot;'+ file.key+'&shareID='+f.shareID+'&isSign='+(f.isSign?1:'') +'&quot;)';
-			if( isWeiXin&& regex_image.test(file.key) || !isWeiXin&&regex_preview.test(file.key) ) action = 'previewImage(&quot;'+ FILE_HOST+file.key +'&quot;)';
+			return '<li class="msgFile" data-info="'+ JSON.stringify(file).replace(/\"/g,'&quot;') +'"><a class="'+ (action?'preview':'noPreview') +'" href="javascript:'+ (action||'alert(&quot;此文件不提供预览，可到文件柜下载&quot;);') +'">'+file.path+file.title+'</a></li>';
+	}
 
-			return '<li class="msgFile"><a class="'+ (action?'preview':'noPreview') +'" href="javascript:'+ (action||'alert(&quot;此文件不提供预览，可到文件柜下载&quot;);') +'">'+file.path+file.title+'</a></li>';
+
+	if( !v || !$('.msg_wrap').is(':visible') ) return;
+
+
+	if(v.docs&&v.docs.length){
+
+		$('.msgTitle .titleContent').append('<div class="msgFile"><ul></ul></div>');
+		$('.msgFile ul').empty();
+
+		v.docs.forEach(function(f){
+			if(!f.files) return;
+
+			var str = f.files.map(function  (file) {
+				return addFile(file, f.shareID, f.isSign);
+			});
+
+			$('.msgFile ul').append( str.join('') );
+
 		});
 
-		$('.msgFile ul').append(str);
+	} else if(v.key) {
 
-	});
+		var str = addFile(v, v.shareID, v.isSign);
+		$('.msgFile ul').append( str );
+
+	}
 
 }
 
@@ -2853,8 +2884,7 @@ function appendShareMsg (v){
 	dataAttr += v.fromUser? ' data-fromuser="'+ v.fromUser +'"' : '';
 	dataAttr += v.status? ' data-status="'+ v.status +'"' : '';
 
-	var li = $('<li'+ dataAttr +'><span class="msgDate"></span> '+ content +'</li>');
-	li.find('.msgDate').data( 'date', v.date );
+	var li = $('<li'+ dataAttr +'><span class="msgDate" data-date="'+ v.date +'"></span> '+ content +'</li>');
 	li.on('click', function  () {
 		return;
 		//var user = $(this).data('fromuser');
@@ -2864,6 +2894,9 @@ function appendShareMsg (v){
 	$('.msgTree ul').append(li);
 
 	updateMsgTime();
+
+	$('.msgTree').scrollTop( 9999999999 );
+
 }
 
 function updateMsgTime () {
@@ -3103,7 +3136,7 @@ function wxUploadImage() {
 
 		        	        $.get(host+'/uploadWXImage', {mediaID:serverId, person:rootPerson.userid, path: path, shareID:shareID, isInMsg:isInMsg, shareName:shareName, text:$('.inputMsg').val() }, function(data){
 		        	        	$('.inputMsg').val('');
-		        	        	
+
 		        	        	if(!data) return alert('上传图片错误');
 		        	        	//appendTree1(data);
 
@@ -3345,6 +3378,7 @@ $(function initPage () {
 			}
 
 			rootPerson = userinfo;
+
 			updateClientHost();
 			if(ws.readyState==1) ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
 

@@ -77,7 +77,6 @@ gulp.task('s2', function  () {
 	gulp.src([
 		'js/fingerprint2.min.js',
 		'js/reconnecting-websocket.js',
-		'js/ws.js',
 		'js/moment.js',
 		'js/jquery.js'
 	])
@@ -108,7 +107,9 @@ gulp.task('s3', function  () {
 	'js/jquery.iframe-transport.js',
 	'js/jquery.fileupload.js',
 	'js/jquery.ba-throttle-debounce.min.js',
-	'js/all.js'
+	'js/all.js',
+	'js/ws.js',
+
 		])
 	.pipe(concat('s3.js'))
 	.pipe(uglify())

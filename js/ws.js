@@ -5,7 +5,9 @@ function connectToWS(){
 	if(ws) ws.close();
 	ws = new ReconnectingWebSocket('ws://1111hui.com:3000', null, {debug:false, reconnectInterval:300 });
 	ws.onopen = function (e) {
-		ws.onmessage = function (e) {		
+		ws.onmessage = function (e) {
+			if(typeof onWSMessage=='function') onWSMessage(e);
+
 			if(e.data[0]!="{")return;
 	        var d=JSON.parse(e.data);
 	        var callObj= wsQueue[d.msgid];
@@ -18,6 +20,7 @@ function connectToWS(){
 			console.log("ws error: ", code, reason, bClean);
 		}
 		console.log('client ws ready');
+		if(typeof window.onWSReady=='function') window.onWSReady(e);
 	}
 }
 connectToWS();

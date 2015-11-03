@@ -128,6 +128,7 @@ body,html{
 }
 .msgTitle.expend {
 	height: 100%;
+	width: 100%;
 	line-height: 2;
 	overflow: scroll;
 }
@@ -326,6 +327,15 @@ body.openMsg{
 </style>
 
 
+<script type="text/javascript">
+
+function onWSReady(){
+	console.log('ws opened');
+	if( typeof ws=='object' && ws.readyState==1 && rootPerson.userid) ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
+}
+
+</script>
+
 <script type="text/javascript" src="js/zepto.js"></script>
 <script type="text/javascript" src="js/glyphicon.js"></script>
 <script type="text/javascript" src="/js/cookies.js"></script>
@@ -450,28 +460,34 @@ if(!DEBUG)
 
 if(isWeiXin) rootPerson.userid = wxUserInfo.UserId;
 
+onWSReady();
 
 
 //******* Websocket part **************
 
 
-ws.addEventListener('open', function(){
-	console.log('ws opened');
-	if(rootPerson.userid) ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
-
-});
+ws.addEventListener('open', onWSReady);
 
 ws.addEventListener('message', function(data){
 	if( !data || !data.data || !data.data.match(/^\s*{/) ) return;
-	var msg = JSON.parse(data.data);
+	try{
+		var msg = JSON.parse(data.data);
+	}catch(e){ return }
+
+	if(typeof msg!='object') return;
+
 
 	switch(msg.role) {
+
+		case 'share':
+
+			if(msg.shareID==shareID) appendFiles(msg);
+			break;
 
 		case 'shareMsg':
 
 			// Update Message window, when the window is open
-			appendShareMsg(msg);
-
+			if(msg.shareID==shareID) appendShareMsg(msg);
 			break;
 
 		case 'errMsg':
@@ -482,7 +498,7 @@ ws.addEventListener('message', function(data){
 });
 setInterval(function(){
 	if(ws&&ws.readyState==1&&rootPerson.userid) ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
-}, 1000);
+}, 10000);
 
 
 // ******************* WX Init Part ******************
@@ -624,28 +640,39 @@ function openLink  (url, text) {
 
 
 function appendFiles (v){
-
-	if( !v || ! (v.docs&&v.docs.length) ) return;
-	$('.msgTitle .titleContent').append('<div class="msgFile"><ul></ul></div>');
-	$('.msgFile ul').empty();
-
-	v.docs.forEach(function(f){
-		if(!f.files) return;
-
-		var str = f.files.map(function  (file) {
+	var addFile = function(file, shareID, isSign){
 			var action = '';
-			if( /\.pdf$/i.test( file.key )  ) action =  'openLink(&quot;'+ file.key+'&shareID='+f.shareID+'&isSign='+(f.isSign?1:'') +'&quot;)';
+			if( /\.pdf$/i.test( file.key )  ) action =  'openLink(&quot;'+ file.key+'&shareID='+(shareID||file.shareID||'')+'&isSign='+(isSign||file.isSign?1:'') +'&quot;)';
 			if( isWeiXin&& regex_image.test(file.key) || !isWeiXin&&regex_preview.test(file.key) ){
 				action = 'previewImage(&quot;'+ FILE_HOST+file.key +'&quot;)';
 			}
 
 			return '<li class="msgFile" data-info="'+ JSON.stringify(file).replace(/\"/g,'&quot;') +'"><a class="'+ (action?'preview':'noPreview') +'" href="javascript:'+ (action||'alert(&quot;此文件不提供预览，可到文件柜下载&quot;);') +'">'+file.path+file.title+'</a></li>';
+	}
+
+	if( !v ) return;
+	if(v.docs&&v.docs.length){
+
+		$('.msgTitle .titleContent').append('<div class="msgFile"><ul></ul></div>');
+		$('.msgFile ul').empty();
+
+		v.docs.forEach(function(f){
+			if(!f.files) return;
+
+			var str = f.files.map(function  (file) {
+				return addFile(file, f.shareID, f.isSign);
+			});
+
+			$('.msgFile ul').append( str.join('') );
+
 		});
 
+	} else if(v.key) {
 
-		$('.msgFile ul').append( str.join('') );
+		var str = addFile(v, v.shareID, v.isSign);
+		$('.msgFile ul').append( str );
 
-	});
+	}
 
 }
 
@@ -701,8 +728,7 @@ function appendShareMsg (v) {
 	dataAttr += v.fromUser? ' data-fromuser="'+ v.fromUser +'"' : '';
 	dataAttr += v.status? ' data-status="'+ v.status +'"' : '';
 
-	var li = $('<li'+ dataAttr +'><span class="msgDate"></span> '+ content +'</li>');
-	li.find('.msgDate').data( 'date', v.date );
+	var li = $('<li'+ dataAttr +'><span class="msgDate" data-date="'+ v.date +'"></span> '+ content +'</li>');
 	li.on('click', function  () {
 		return;
 		var user = $(this).data('fromuser');
@@ -712,6 +738,8 @@ function appendShareMsg (v) {
 	$('.msgTree ul').append(li);
 
 	updateMsgTime();
+
+	$('.msgTree').scrollTop( 9999999999 );
 
 }
 

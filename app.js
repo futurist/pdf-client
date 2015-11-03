@@ -1011,7 +1011,7 @@ function uploadWXImage(req, res) {
     fs.writeFile(fileName, buffer, function(err){
       console.log(err, 'image file written', fileName);
       if (err) return res.send( '' );
-      
+
 
 
       qiniu_uploadFile(fileName, function(srcRet) {
@@ -1021,7 +1021,7 @@ function uploadWXImage(req, res) {
           srcRet.isInMsg = isInMsg;
           srcRet.client = '';
           srcRet.title = fileName.split('/').pop();
-          srcRet.path = path || '/';
+          srcRet.path = path || (isInMsg?'/消息附件/':'/');
           if(text) srcRet.imageDesc = text;
           if(shareID){
             srcRet.shareID = shareID;
@@ -1034,10 +1034,12 @@ function uploadWXImage(req, res) {
 
             if(isInMsg){
 
-              col.findOne(
-                {role:'share', shareID:shareID, 'files.key': ret.key }, { fields: {'files': { $elemMatch:{ files: { key: ret.key } } }, toPerson:1, fromPerson:1, msg:1, shareID:1  }   },  function(err, data){
+              col.findOneAndUpdate(
+                {role:'share', shareID:shareID, 'files.key': ret.key }, { $inc:{'files.$.pdfCount':1} }, { fields: { files: { $elemMatch:{ files: { key: ret.key } } }, files:1, toPerson:1, fromPerson:1, msg:1, shareID:1  }   },  function(err, data) {
+                  data = data.value;
 
-                  imageToPDF(person, fileName, res, data, path);
+                	var pdfCount = 1;
+                  imageToPDF(person, fileName, null, srcRet, path, pdfCount);
 
                   var shareName = getShareName(data, true);
                   //get segmented path, Target Path segment and A link
@@ -1209,8 +1211,9 @@ app.post("/upfile", function (req, res) {
 
     var shareID = ret.shareID;
 
-    col.findOne(
-      {role:'share', shareID:shareID, 'files.key': ret.key }, { fields: {'files': { $elemMatch:{ files: { key: ret.key } } }, toPerson:1, fromPerson:1, msg:1  }   },  function(err, data){
+    col.findOneAndUpdate(
+      {role:'share', shareID:shareID, 'files.key': ret.key }, {$inc:{'files.$.pdfCount':1}}, { fields: {'files': { $elemMatch:{ files: { key: ret.key } } }, toPerson:1, fromPerson:1, msg:1  }   },  function(err, data){
+        data = data.value;
 
         if( regex_image.test(ret.key) ) {
 
@@ -1244,7 +1247,7 @@ app.post("/upfile", function (req, res) {
           sendWXMessage(msg, data.fromPerson[0].userid);
 
 
-          // convert image to pdf directly
+          // convert image to pdf directly for PC; for wx see uploadWXImage() function
           var filename = ret.key;
            var ext = filename.split(/\./).pop();
 
@@ -1256,7 +1259,8 @@ app.post("/upfile", function (req, res) {
           var child = exec(wget, function(err, stdout, stderr) {
             console.log( err, stdout, stderr );
             if(err) return;
-            imageToPDF(ret.person, UPFOLDER+path.basename(filename) , null, ret);
+            var pdfCount = 1;
+            imageToPDF(ret.person, UPFOLDER+path.basename(filename) , null, ret, pdfCount);
           });
 
       } else {

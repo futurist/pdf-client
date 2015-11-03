@@ -250,4 +250,10 @@ basket.require(
 }
 
 
+function onWSReady(){
+	console.log('ws opened');
+	if( typeof ws=='object' && ws.readyState==1 && rootPerson.userid) ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
+	if(typeof updateClientHost=='function') updateClientHost();
+}
+
 
