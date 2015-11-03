@@ -327,15 +327,6 @@ function applyTemplate () {
 
 	return;
 
-/*
-	$post(host+'/applyTemplate', { info: JSON.stringify(info), userid: rootPerson.userid, path:path }, function  (data) {
-		$('.bg_mask').hide();
-		hideTemplateCon();
-		reloadTree1(data);
-
-	});
-*/
-
 
 }
 
@@ -477,15 +468,31 @@ function applyTemplate () {
 
 
 				if(typeof msg.isFinish!='undefined') {
-					return reloadTree2();
+					$('li.level1[data-shareid="'+ msg.data.shareID +'"]').attr('data-finish', msg.isFinish?1:null);
+					return;
 				}
 
 				reloadTree2( msg.files ? msg.files[0].key : msg.key , msg.shareID, msg.showTab||false, msg.openShare, msg.openMessage);
 				break;
 
 			case 'addToShare':
+				msg.name = msg.title;
 
-				reloadTree2(msg.key, msg.shareID, msg.showTab||false, msg.openShare, msg.openMessage);
+				var node = treeObj2.getNodesByFilter(function  (v) {
+					return v.shareID==msg.shareID && v.level==1;
+				}).shift();
+				if(node){
+					treeObj2.addNodes(node, msg);
+				}
+
+				node = treeObj3.getNodesByFilter(function  (v) {
+					return v.shareID==msg.shareID && v.level==1;
+				}).shift();
+				if(node){
+					treeObj3.addNodes(node, msg);
+				}
+
+				//reloadTree2(msg.key, msg.shareID, msg.showTab||false, msg.openShare, msg.openMessage);
 				break;
 
 			case 'errMsg':
@@ -565,6 +572,7 @@ function addDiyDom(treeId, treeNode) {
 	var aObj = $("#" + treeNode.tId + "_a");
 
 	if(treeNode.level==1) {
+		if(treeNode.shareID) $li.attr('data-shareid', treeNode.shareID);
 		if(treeNode.isFinish) $li.attr('data-finish', "1");
 		if(treeNode.statusText) {
 			var shareStr = treeNode.shareID ? ' data-shareid="'+ treeNode.shareID +'"' : '';
@@ -1536,6 +1544,7 @@ function initShareFrom (data, bForceUpdate, isPrepend, isAddNodes) {
 
 	root= treeObj2? treeObj2.getNodes()[0].children : [];
 	if(isAddNodes || bForceUpdate) root = [];
+	data = [].concat(data);
 
 	for(var i=0; i<data.length; i++) {
 		var shareID = data[i].shareID;
@@ -1611,7 +1620,8 @@ function initShareTo (data, bForceUpdate, isPrepend, isAddNodes) {
 
 	root= treeObj3? treeObj3.getNodes()[0].children : [];
 	if(isAddNodes || bForceUpdate) root = [];
-
+	data = [].concat(data);
+	
 	$('.bg_mask').hide();
 
 	for(var i=0; i<data.length; i++){
@@ -2561,7 +2571,18 @@ function shareNode (){
 	$post(host+'/shareFile', {data: JSON.stringify(json) }, function(data) {
 		$( "#mydialog" ).trigger( "dialog-close" );
 		if(existShareID){
-			reloadTree2(files[0].key, data.shareID, true);
+			data.files.forEach(function(v){ v.name=v.title; });
+			var node, isFrom = data.fromPerson.filter(function(v){return v.userid==rootPerson.userid}).length>0;
+			data.files.push(getFileKeys(sel));
+			if( isFrom ){
+				node = treeObj2.getNodesByFilter(function(v){ return v.shareID==data.shareID && v.level==1 }).shift();
+				treeObj2.removeNode(node);
+				initShareFrom( data, true, false, true );
+			} else {
+				node = treeObj3.getNodesByFilter(function(v){ return v.shareID==data.shareID && v.level==1 }).shift();
+				treeObj3.removeNode(node);
+				initShareTo( data, true, false, true );
+			}
 			alert('添加共享文件成功，并已通知该组成员');
 		} else {
 			var alertMsg = isSign? '流程已转交给相关人员，后续更新会消息通知' : '共享成功，已通知此共享相关人员';
@@ -2842,10 +2863,14 @@ function appendShareMsg (v){
 	// Text Message
 	if(v.text ){
 		content = v.text.content.replace(new RegExp(titleReg,'ig'), '');
-		var c = content.split('：');
-		if(c.length>1){
-			var t = c.pop().toHTML();
-			content = c.concat(t).join('：');
+		if(content.match(/(附言|留言|状态)：/) ){
+
+			var c = content.split('：');
+			if(c.length>1){
+				var t = c.pop().toHTML();
+				content = c.concat(t).join('：');
+			}
+
 		}
 
 		$div = $('<div></div>');
@@ -3537,7 +3562,7 @@ function convertPDF () {
 		  	$('.bg_mask').hide();
 		    if(!ret) return alert('转换超时');
 			console.log(ret);
-			alert(ret.errMsg!='ok' ? ret.errMsg : '转换成功,已自动加入文件柜并高亮' );
+			alert(ret.errMsg!='ok' ? ret.errMsg : '转换成功,文件名：'+ ret.data.title+'.pdf' );
 		  },
 		  error: function(xhr, type){
 		  	showMainWindow();

@@ -1054,9 +1054,10 @@ function uploadWXImage(req, res) {
                    "news": {
                      "articles":[
                      {
-                      "title": util.format('%s 在%s 上传了图片',
+                      "title": util.format('%s 在%s 上传了图片%s',
                         data.fromPerson.shift().name,
-                        shareName  // if we need segmented path:   pathName.join('-'),
+                        shareName,  // if we need segmented path:   pathName.join('-'),
+                        ''
                       ),
                       "description": text || "查看消息记录",
                       "url": util.format('%s#path=%s&shareID=%d&picurl=%s' , SHARE_MSG_URL, shareName, shareID, encodeURIComponent(FILE_HOST+ret.key) ),
@@ -1066,6 +1067,7 @@ function uploadWXImage(req, res) {
                    "safe":"0",
                     date : new Date(),
                     role : 'shareMsg',
+                    titleTrail: '，<a href="'+ makeViewURL(ret.key.replace(/\.\w+$/, '.pdf'), ret.shareID) +'">点此标注</a>',
                     shareID:shareID
                   };
 
@@ -1227,9 +1229,10 @@ app.post("/upfile", function (req, res) {
            "news": {
              "articles":[
              {
-              "title": util.format('%s 在%s 上传了图片',
+              "title": util.format('%s 在%s 上传了图片%s',
                 data.fromPerson[0].name,
-                ret.shareName  // if we need segmented path:   pathName.join('-'),
+                ret.shareName,  // if we need segmented path:   pathName.join('-'),
+                ''
               ),
               "description": ret.text || "查看消息记录",
               "url": util.format('%s#path=%s&shareID=%d&picurl=%s', SHARE_MSG_URL, getShareName(data, true), shareID, encodeURIComponent(FILE_HOST+ret.key) ),
@@ -1239,6 +1242,7 @@ app.post("/upfile", function (req, res) {
            "safe":"0",
             date : new Date(),
             role : 'shareMsg',
+            titleTrail: '，<a href="'+ makeViewURL(ret.key.replace(/\.\w+$/, '.pdf'), ret.shareID) +'">点此标注</a>',
             shareID:shareID
           };
 
@@ -3641,7 +3645,7 @@ app.post("/shareFile", function (req, res) {
              "msgtype": "text",
              "text": {
                "content":
-               util.format('%s添加了新文件：%s; 操作者：%s%s <a href="%s">查看共享</a>',
+               util.format('/%s/添加了新文件：%s; 操作者：%s%s <a href="%s">查看共享</a>',
                   shareName,
                   data.files.map(function(v){
                     return util.format('<a href="%s#file=%s&shareID=%d&isSign=%d">%s</a>',
@@ -3792,6 +3796,7 @@ function sendWXMessage (msg, fromUser) {
   }
   if(!msg.tryCount){
     var wsMsg = _.extend(msg, {fromUser: fromUser});
+    if(msg.titleTrail) wsMsg.news.articles[0].title += msg.titleTrail;
     col.insert( wsMsg );
     msg.tryCount = 1;
 
