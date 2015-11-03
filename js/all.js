@@ -2862,7 +2862,7 @@ function appendShareMsg (v){
 
 	// Text Message
 	if(v.text ){
-		content = v.text.content.replace(new RegExp(titleReg,'ig'), '');
+		content = v.text.content.replace(new RegExp(titleReg,'ig'), '').replace( /[在|对]\s*\/[^/]+\/\s*/g, '' );
 		if(content.match(/(附言|留言|状态)：/) ){
 
 			var c = content.split('：');
@@ -2876,19 +2876,19 @@ function appendShareMsg (v){
 		$div = $('<div></div>');
 		$div.html(content);
 		$div.find('a').each(function  () {
-			if( $(this).html()=='' ) $(this).remove();
+			if( $(this).html().match(/^\s*$/) ) $(this).remove();
 			if( $(this).attr('href').match(new RegExp( '/tree.html' ,'i') ) ){
 				$(this).attr('href', 'javascript: closeViewDetail() ');
 			}
 		});
-		content = $div.html().replace(/对\s+/, '');
+		content = $div.html().replace(/\s+[在|对]\s+/, ' ');
 	}
 
 	// Text Message
 	if(v.news ){
 
 		var item = v.news.articles.shift();
-		content = item.title.replace(new RegExp(titleReg,'ig'), '');
+		content = item.title.replace( /[在|对]\s*\/[^/]+\/\s*/g, '' ).replace(/留言：/, '：');
 
 		$div = $('<div></div>');
 		$div.html(content+'<br>');
@@ -2900,7 +2900,7 @@ function appendShareMsg (v){
 			if( $(this).html()=='' ) $(this).remove();
 		});
 
-		content = $div.html().replace(/[在|对]\s+/, '');
+		content = $div.html().replace(/\s+[在|对]\s+/, ' ');
 
 	}
 
