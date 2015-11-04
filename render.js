@@ -89,6 +89,9 @@ var _MSGSIGN = "_PHANTOMDATA";
 var _DBSIGN = "_MONGODATA";
 var RES_TIMEOUT = 10000;
 
+setTimeout(function exitPage () {
+	phantom.exit(1);
+}, 2*60*1000 );
 
 function DB_MSG (json) {
 	console.log(_DBSIGN, JSON.stringify(json) );

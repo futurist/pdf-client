@@ -897,7 +897,7 @@ function applyPrint ( onlyDownload ) {
 		$.ajax({
 		  type: 'POST',
 		  url: host+'/printPDF',
-		  data: { server:server, printer:printer, onlyDownload:onlyDownload, fileKey:fileKey, shareID:shareID, person: rootPerson.userid },
+		  data: { server:server, printer:printer, isLabel: /标签模板/i.test(sel.title) , onlyDownload:onlyDownload, fileKey:fileKey, shareID:shareID, person: rootPerson.userid },
 		  // type of data we are expecting in return:
 		  dataType: 'json',
 		  timeout: CONVERT_TIMEOUT,

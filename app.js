@@ -783,7 +783,7 @@ app.post("/getJSTicket", function (req, res) {
 
 
 function getShareName ( colShare, addSlash ) {
-  var a= (colShare.isSign?'流程':'共享')+colShare.shareID+ (colShare.msg?'['+colShare.msg+']':'' ) + '('+colShare.fromPerson.concat(colShare.toPerson).map(function(v){return v.name}).join(',')+')' ;
+  var a= (colShare.isSign?'流程':'共享')+colShare.shareID+ (colShare.msg?'['+colShare.msg+']':'' ) + '('+colShare.fromPerson[0].name + '>'+(colShare.toPerson.slice(0,3)).map(function(v){return v.name}).join(',')+ (colShare.toPerson.length>3?'...':'') +')' ;
   if(addSlash) a='/'+a+'/';
   return a;
 }
@@ -3636,7 +3636,7 @@ app.post("/shareFile", function (req, res) {
           res.send(colShare);
 
           var shareID = colShare.shareID;
-          var shareName = util.format('共享%d(%s)[%s]', shareID, colShare.msg, colShare.toPerson.map(function(v){return v.name}).join(',') );
+          var shareName = getShareName(colShare, true);
 
             var overAllPath = util.format('%s#path=%s&shareID=%d', TREE_URL, encodeURIComponent( shareName+data.files[0].key ), shareID ) ;
             var wxmsg = {
@@ -3645,7 +3645,8 @@ app.post("/shareFile", function (req, res) {
              "msgtype": "text",
              "text": {
                "content":
-               util.format('/%s/添加了新文件：%s; 操作者：%s%s <a href="%s">查看共享</a>',
+               util.format('%s在 %s添加了新文件：%s; 操作者：%s%s <a href="%s">查看共享</a>',
+                  data.fromPerson[0].depart+'-'+data.fromPerson[0].name,
                   shareName,
                   data.files.map(function(v){
                     var isPDF = /\.pdf$/i.test(v.key);
