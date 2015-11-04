@@ -692,7 +692,7 @@ function appendShareMsg (v) {
 	// Text Message
 	if(v.text ){
 		//var content = v.text.content.replace(/[在|对].*留言/, '');
-		content = v.text.content.replace( /[在|对]*\s*\/[^/]+\/\s*/g, '' );
+		content = v.text.content.replace( /[了|在|对]*\s*\/[^/]+\/\s*/g, '' );
 		if(content.match(/(附言|留言|状态)：/) ){
 
 			var c = content.split('：');

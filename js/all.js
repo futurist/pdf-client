@@ -416,13 +416,18 @@ function applyTemplate () {
 						return v.shareID == msg.shareID
 					}).shift();
 					if(t){
+						msg.path = '/'+ t.title +'/';
+						msg.isSend = true;
 						treeObj2.addNodes(t, -1, msg);
 					}
 
 					t = treeObj3.getNodesByFilter(function  (v) {
 						return v.shareID == msg.shareID
 					}).shift();
+
 					if(t){
+						msg.path = '/'+ t.title +'/';
+						msg.isReceive = true;
 						treeObj3.addNodes(t, -1, msg);
 					}
 
@@ -2862,7 +2867,7 @@ function appendShareMsg (v){
 
 	// Text Message
 	if(v.text ){
-		content = v.text.content.replace(new RegExp(titleReg,'ig'), '').replace( /[在|对]\s*\/[^/]+\/\s*/g, '' );
+		content = v.text.content.replace(new RegExp(titleReg,'ig'), '').replace( /[了|在|对]\s*\/[^/]+\/\s*/g, '' );
 		if(content.match(/(附言|留言|状态)：/) ){
 
 			var c = content.split('：');
