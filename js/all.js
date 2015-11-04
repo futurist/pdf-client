@@ -1585,7 +1585,6 @@ function initShareFrom (data, bForceUpdate, isPrepend, isAddNodes) {
 					root[pos].isFinish = isFinish;
 					root[pos].statusText = statusText;
 					root[pos].statusDate = statusDate;
-					if(isFinish) root[pos].font = {color:'blue',"text-decoration":'line-through'};
 
 					// folder.children.unshift({name:'task1', isTask:true});
 
@@ -1603,7 +1602,6 @@ function initShareFrom (data, bForceUpdate, isPrepend, isAddNodes) {
 			v.isSign = isSign;
 			v.isFinish = isFinish;
 			v.isParent = true;
-			if(v.isFinish) v.font = {color:'blue',"text-decoration":'line-through'};
 			isPrepend ? root.unshift(v) : root.push(v);
 
 		}
@@ -1670,7 +1668,6 @@ function initShareTo (data, bForceUpdate, isPrepend, isAddNodes) {
 					root[pos].isFinish = isFinish;
 					root[pos].statusText = statusText;
 					root[pos].statusDate = statusDate;
-					if(isFinish) root[pos].font = {color:'blue',"text-decoration":'line-through'};
 				} catch(e){
 					alert('发件柜初始化错误');
 					return false;
@@ -1685,7 +1682,6 @@ function initShareTo (data, bForceUpdate, isPrepend, isAddNodes) {
 			v.isSign = isSign;
 			v.isFinish = isFinish;
 			v.isParent = true;
-			if(v.isFinish) v.font = {color:'blue',"text-decoration":'line-through'};
 			isPrepend ? root.unshift(v) : root.push(v);
 		}
 	}
@@ -2126,7 +2122,7 @@ function getFileKeys(node){
 						$('.fFolder').show();
 						if(!targetNode.isFinish) $('.fFinish').hide(); else $('.fNotFinish').hide();
 						if(targetNode.isSign){
-							$('.fFinish, .fNotFinish').hide();
+							//$('.fFinish, .fNotFinish').hide();
 						}
 					} else {
 						$('.fFile').show();
@@ -2146,7 +2142,7 @@ function getFileKeys(node){
 						$('.fFolder').show();
 						if( !targetNode.isFinish )  $('.fFinish').hide(); else $('.fNotFinish').hide();
 						if(targetNode.isSign){
-							$('.fFinish, .fNotFinish').hide();
+							//$('.fFinish, .fNotFinish').hide();
 						}
 					} else {
 						$('.fFile').show();
@@ -3247,6 +3243,10 @@ function markFinish (isFinish) {
 	var shareID = getShareID(sel);
 	$post(host+'/markFinish', { personName:rootPerson.name, person:rootPerson.userid, path:getPath(sel), shareID:shareID, isFinish: isFinish }, function  (data) {
 		//console.log(data);
+		if(data){
+			$('.fFinish, .fNotFinish').hide();
+			$( isFinish? '.fFinish': '.fNotFinish').css('display', 'table-cell');
+		}
 	});
 }
 
