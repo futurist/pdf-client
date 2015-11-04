@@ -3648,9 +3648,10 @@ app.post("/shareFile", function (req, res) {
                util.format('/%s/添加了新文件：%s; 操作者：%s%s <a href="%s">查看共享</a>',
                   shareName,
                   data.files.map(function(v){
-                    return util.format('<a href="%s#file=%s&shareID=%d&isSign=%d">%s</a>',
-                      VIEWER_URL,
-                      FILE_HOST+ encodeURIComponent(v.key),
+                    var isPDF = /\.pdf$/i.test(v.key);
+                    return util.format('<a href="%s#%s&shareID=%d&isSign=%d">%s</a>',
+                      isPDF? VIEWER_URL : TREE_URL,
+                      isPDF? 'file='+FILE_HOST+ encodeURIComponent(v.key) : 'path='+ encodeURIComponent( shareName+v.key),
                       shareID,
                       colShare.isSign?1:0,
                       v.title

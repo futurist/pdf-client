@@ -1309,7 +1309,7 @@ function hidePrintCon() {
 			if(  treeNode.key.match(/\.pdf$/) ){
 				openLink ( makeViewURL(treeNode) , treeNode.title);
 			} else if( treeNode.key.match(regex_preview) ) {
-				previewImage();
+				previewImage( FILE_HOST+treeNode.key );
 			} else if( treeNode.key.match(regex_can_be_convert) ) {
 				window.confirm('此文件可转为PDF进行预，现在转换为PDF吗?', function(ok){
 					if(ok)convertPDF();
@@ -1476,17 +1476,24 @@ function locateNode (rootNode, path, shareID, switchTo){
 		updateMenu(targetNode);
 		if(targetNode.isParent) treeObj.expandNode(targetNode, true);
 		setTimeout(function(){
-			var p = targetNode.isParent ? targetNode : targetNode.getParentNode();
-			if(!p) p = targetNode;
+			var p;
+			if(shareID){
+				p = targetNode.isParent ? targetNode : targetNode.getParentNode();
+				if(!p) p = targetNode;
+			} else {
+				p = targetNode;
+			}
 			var offset = $('#'+p.tId).offset();
 			if(switchTo) $(window).scrollTop( offset.top-100 );
-		}, 0);
+		}, 100);
 
 	} else {
 		if(switchTo){
 			//showTab(0);
 		}
 	}
+
+	return targetNode;
 }
 
 function getSubStr (str, len) {
@@ -1745,8 +1752,9 @@ function reloadTree1 (fileObj, switchTo){
 			locateNode( treeObj1.getNodes()[0],  fileObj.returnPath || fileObj.key || fileObj.hash, null, switchTo );
 		}
 
-		if( switchTo ){
-			//showTab(0);
+		if( !urlQuery.tab && !urlQuery.shareID ){
+			showTab(0);
+
 		}
 
 	});
@@ -1756,9 +1764,41 @@ function reloadTree1 (fileObj, switchTo){
 function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 	shareID = shareID || urlQuery.shareID;
 	var highlightTab = 0;
-	var isInit = !treeObj1 || !treeObj2 || !treeObj3;
+	var foundNodes = {};
 
-	function openAction () {
+	function openAction (  ) {
+		var switchTab;
+		var targetNode;
+		var initFinished = treeObj2 && treeObj3;
+		if( urlQuery.tab) switchTab = safeEval(urlQuery.tab);
+		if(!switchTab && initFinished&& shareID){
+
+			if(foundNodes.from){
+				switchTab = 1;
+				targetNode = foundNodes.from;
+			}
+
+			if(foundNodes.to){
+				switchTab = 2;
+				targetNode = foundNodes.to;
+			}
+
+		}
+
+		if( switchTab ){
+			showTab(switchTab);
+
+			setTimeout(function(){
+				var p = targetNode.isParent ? targetNode : targetNode.getParentNode();
+				if(!p) p = targetNode;
+				var offset = $('#'+p.tId).offset();
+				$(window).scrollTop( offset.top-100 );
+			}, 100);
+
+		}
+
+
+
 		openShare = openShare || urlQuery.openShare;
 		openMessage = openMessage || urlQuery.openMessage;
 		if(shareID && (openShare || openMessage ) ) {
@@ -1775,15 +1815,12 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 		}else if(openMessage==3){
 			shareFile();
 
-		} else if(urlQuery.tab) {
-			showTab( urlQuery.tab );
 		}
 
 		window.location.hash = window.location.hash.replace(/&openShare[^&]+/,'');
 		window.location.hash = window.location.hash.replace(/&openMessage[^&]+/,'');
 		urlQuery.openShare = 0;
 		urlQuery.openMessage = 0;
-		delete urlQuery.tab;
 	}
 
 
@@ -1807,12 +1844,12 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 		$('.selTab li').eq(1).data('loaded', true);
 
 		if(shareID) {
-			locateNode(sendRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, isSwith );
+			var node = locateNode(sendRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, false );
+			foundNodes.from = node;
 		}
-
-		if( isSwith) showTab(1);
-		//delete urlQuery.tab;
 		openAction();
+
+		
 	});
 
 	$post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
@@ -1835,11 +1872,9 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 		$('.selTab li').eq(2).data('loaded', true);
 
 		if(shareID) {
-			locateNode(receiveRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, isSwith );
+			var node = locateNode(receiveRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, false );
+			foundNodes.to = node;
 		}
-		console.log(isSwith)
-		if( isSwith) showTab(2);
-		//delete urlQuery.tab;
 		openAction();
 
 	});
@@ -2765,7 +2800,7 @@ function viewDetail () {
 						.getUnique()
 						.join(',');
 
-			document.querySelector('.msgTitle .titleContent').innerHTML=( '<div class="titleh1">群成员:<span class="memberList">' + userList + '</span> 标题:'+ windowTitle +'</div>' );
+			$('.msgTitle').html( '<div class="titleContent"><div class="titleh1">群成员:<span class="memberList">' + userList + '</span> 标题:'+ windowTitle +'</div></div>' );
 
 		}
 
@@ -2867,7 +2902,7 @@ function appendShareMsg (v){
 
 	// Text Message
 	if(v.text ){
-		content = v.text.content.replace(new RegExp(titleReg,'ig'), '').replace( /[了|在|对]\s*\/[^/]+\/\s*/g, '' );
+		content = v.text.content.replace( /[了|在|对]*\s*\/(共享|流程)[^/]+\/\s*/, '' );
 		if(content.match(/(附言|留言|状态)：/) ){
 
 			var c = content.split('：');
@@ -2882,8 +2917,9 @@ function appendShareMsg (v){
 		$div.html(content);
 		$div.find('a').each(function  () {
 			if( $(this).html().match(/^\s*$/) ) $(this).remove();
-			if( $(this).attr('href').match(new RegExp( '/tree.html' ,'i') ) ){
-				$(this).attr('href', 'javascript: closeViewDetail() ');
+			var href=  $(this).attr('href');
+			if( href.match(new RegExp( '/tree.html' ,'i') ) ){
+				$(this).attr('href', 'javascript: closeViewDetail("'+ href.split('#').pop() +'") ');
 			}
 		});
 		content = $div.html().replace(/\s+[在|对]\s+/, ' ');
@@ -2893,7 +2929,7 @@ function appendShareMsg (v){
 	if(v.news ){
 
 		var item = v.news.articles.shift();
-		content = item.title.replace( /[在|对]\s*\/[^/]+\/\s*/g, '' ).replace(/留言：/, '：');
+		content = item.title.replace( /[在|对]*\s*\/(共享|流程)[^/]+\/\s*/, '' );
 
 		$div = $('<div></div>');
 		$div.html(content+'<br>');
@@ -2943,7 +2979,13 @@ function updateMsgTime () {
 }
 
 
-function closeViewDetail () {
+function closeViewDetail (hash) {
+	var hashObj = searchToObject( '#'+hash );
+	if(hashObj.shareID){
+		hashObj.shareID = safeEval(hashObj.shareID);
+		locateNode( treeObj.getNodes()[0], hashObj.path, hashObj.shareID, true );
+	}
+
 	var sel = treeObj.getSelectedNodes()[0];
 	$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
 	$('.msg_wrap').hide();
@@ -3094,10 +3136,10 @@ function previewImage ( imgArray, curIndex ){
 		if( !$.isArray(imgArray) ) imgArray = [imgArray];
 		curIndex = curIndex || 0;
 	}
-
-	if( isWeiXin && !regex_image.test(imgArray[curIndex])  || !regex_preview.test(imgArray[curIndex])  ){
-		return alert('此文件不提供预览，可到文件柜下载');
+	if( !isWeiXin&& !regex_preview.test(imgArray[curIndex])	|| isWeiXin&& !regex_image.test(imgArray[curIndex]) ) {
+		return alert( '此文件不提供预览，可到文件柜下载');
 	}
+
 
 	if(isWeiXin) {
 		wx.previewImage({
@@ -4353,6 +4395,7 @@ window.hidePrintCon = hidePrintCon;
 window.applyPrint = applyPrint;
 window.viewDetail = viewDetail;
 window.viewTemplateImage = viewTemplateImage;
+window.getPath = getPath;
 
 
 window.alert = alert;

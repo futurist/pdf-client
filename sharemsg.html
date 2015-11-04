@@ -692,7 +692,7 @@ function appendShareMsg (v) {
 	// Text Message
 	if(v.text ){
 		//var content = v.text.content.replace(/[在|对].*留言/, '');
-		content = v.text.content.replace( /[了|在|对]*\s*\/[^/]+\/\s*/g, '' );
+		content = v.text.content.replace( /[了|在|对]*\s*\/(共享|流程)[^/]+\/\s*/, '' );
 		if(content.match(/(附言|留言|状态)：/) ){
 
 			var c = content.split('：');
@@ -718,7 +718,7 @@ function appendShareMsg (v) {
 	if(v.news ){
 
 		var item = v.news.articles.shift();
-		content = item.title.replace( /[在|对]*\s*\/[^/]+\/\s*/g, '' );
+		content = item.title.replace( /[在|对]*\s*\/(共享|流程)[^/]+\/\s*/, '' );
 		$div = $('<div></div>');
 		$div.html(content+'<br>');
 		var desc = item.description.replace(/^查看消息记录$/,'');
