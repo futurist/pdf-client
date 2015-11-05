@@ -893,9 +893,8 @@ function applyPrint ( onlyDownload ) {
 
     var downloadUrl = host+'/downloadFile2/'+ fileKey.split('/').pop() +'?key='+ fileKey +'&shareID='+shareID+'&person='+rootPerson.userid;
 
-	//$('.bg_mask').show();
-	var aObj = $('#'+sel.tId+'_a');
-	aObj.prepend('<i class="fa fa-spinner fa-pulse jobStatus" title="准备打印中..."></i>');
+
+	setJobStatus(sel, '准备打印中...');
 
 		$.ajax({
 		  type: 'POST',
@@ -906,29 +905,23 @@ function applyPrint ( onlyDownload ) {
 		  timeout: CONVERT_TIMEOUT,
 		  success: function(data){
 		  	showMainWindow();
-		    //$('.bg_mask').hide();
 		    aObj.find('.jobStatus').remove();
 			if(!data || data.errMsg){
-				var icon = $('<i class="fa fa-times-circle jobError jobStatus" title="打印失败：打印服务故障"></i>');
-				aObj.prepend(icon);
-				icon.click(function(){ $(this).remove() });
-				alert(sel.title+' 打印失败：打印服务故障');
+
+				setJobStatus(sel, sel.title+' 打印失败：打印服务故障', 'jobError');
+
 			} else {
-				var icon = $('<i class="fa fa-check-circle jobSuccess jobStatus" title="打印任务安排成功"></i>');
-				aObj.prepend(icon);
-				icon.click(function(){ $(this).remove() });
-				alert(sel.title+' 打印任务安排成功，请等待打印机打印');
+
+				setJobStatus(sel, sel.title+' 打印任务安排成功', 'jobSuccess');
+				
 			}
 			console.log(data);
 		  },
 		  error: function(xhr, type){
 		  	showMainWindow();
-		    //$('.bg_mask').hide();
-		    alert(sel.title+' 打印超时');
-		    aObj.find('.jobStatus').remove();
-		    var icon = $('<i class="fa fa-times-circle jobError jobStatus" title="打印超时"></i>');
-			aObj.prepend(icon);
-			icon.click(function(){ $(this).remove() });
+
+		    setJobStatus(sel, sel.title+' 打印超时', 'jobError');
+
 		  }
 		});
 		
@@ -1827,6 +1820,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 			setTimeout(function(){
 				var p = targetNode.isParent ? targetNode : targetNode.getParentNode();
 				if(!p) p = targetNode;
+				p = targetNode;
 				var offset = $('#'+p.tId).offset();
 				$(window).scrollTop( offset.top-100 );
 				
@@ -3633,6 +3627,21 @@ var regex_can_be_convert = /(docx?|xlsx?|pptx?|txt)$/i;
 var UploadNonImage = false;
 var CONVERT_TIMEOUT = 2*60*1000 ; 	//5 mins
 
+function setJobStatus (sel, title, className) {
+	var aObj = $('#'+sel.tId+'_a');
+	if(!className){
+		aObj.prepend('<i class="fa fa-spinner fa-pulse jobStatus" title="'+title+'"></i>');
+	} else {
+		aObj.find('.jobStatus').remove();
+		var fa = /error/i.test(className)? ' fa-times-circle ' : ' fa-check-circle ';
+		var icon = $('<i class="fa jobStatus '+ fa + className +'" title="'+title+'"></i>');
+		aObj.prepend(icon);
+		icon.click(function(){ $(this).remove() });
+		alert(title);
+	}
+}
+
+
 function convertPDF () {
 	var sel = getSelectFiles().shift();
 	if(!sel || sel.isParent) return;
@@ -3648,18 +3657,18 @@ function convertPDF () {
 	$('.fConvert').hide();
 
 	if( sel.key.match( regex_image ) ){
-		$('.bg_mask').show();
+		setJobStatus(sel, '正在转换中...');
 		$post(host+'/uploadPCImage', {person:rootPerson.userid, data: data }, function(ret){
 			//console.log(ret);
 			showMainWindow();
-			$('.bg_mask').hide();
-			if(!ret) alert('转换文件发生错误');
+			if(!ret){
+				setJobStatus(sel, '转换文件发生错误', 'jobError');
+			}
 		}  );
 	}
 
 	if( sel.key.match( regex_can_be_convert ) ){
-
-		$('.bg_mask').show();
+		setJobStatus(sel, '正在转换中...');
 		$.ajax({
 		  type: 'POST',
 		  url: host+'/generatePDFAtPrinter',
@@ -3669,15 +3678,15 @@ function convertPDF () {
 		  timeout: CONVERT_TIMEOUT,
 		  success: function(ret){
 		  	showMainWindow();
-		  	$('.bg_mask').hide();
-		    if(!ret) return alert('转换超时');
+		    if(!ret) return setJobStatus(sel, '转换超时', 'jobError');
 			console.log(ret);
-			alert(ret.errMsg!='ok' ? ret.errMsg : '转换成功,文件名：'+ ret.data.title+'.pdf' );
+			var isErr = ret.errMsg!='ok';
+			var msg = (isErr ? ret.errMsg : '转换成功,文件名：'+ ret.data.title+'.pdf' );
+			setJobStatus(sel, msg, isErr?'jobError': 'jobSuccess');
 		  },
 		  error: function(xhr, type){
 		  	showMainWindow();
-		  	$('.bg_mask').hide();
-		    alert('连接超时或转换服务发生故障，请告知管理员');
+		    setJobStatus(sel, '连接超时或转换服务发生故障，请告知管理员', 'jobError');
 		  }
 		});
 	}
@@ -4306,7 +4315,8 @@ function searchByName (keyword) {
 	var nodes = treeObj.getNodesByFilter( function(p){
 		if(p.level==0) return false;
 
-		if( ( (p.title||p.name)+' '+(p.userid||'')+' '+(p.mobile||'') ).match( new RegExp(keyword, 'i')) ){
+		var text = (p.title||p.name)+' '+(p.userid||'')+' '+(p.mobile||'');
+		if( ( text ).match( new RegExp(keyword, 'i')) ){
 
 			nodes2 = nodes2.concat( treeObj.transformToArray(p) );
 
@@ -4320,6 +4330,8 @@ function searchByName (keyword) {
 	} );
 
 	treeObj.showNodes(nodes2);
+
+	$(window).scrollTop(0);
 
 	// var nodes2 = $.grep(nodes, function(v, i){
 	// 	return nodes.indexOf( v.getParentNode() )==-1;
