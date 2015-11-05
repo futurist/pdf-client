@@ -929,13 +929,14 @@ function getSelectFiles () {
 
 
 function openPrintCon (){
-
+	var sel = treeObj.getSelectedNodes();
+	updateMenu( sel );
+	
 	treeObj = treeObjPrint;
 	hideContentWrap();
 	$('.print_wrap').show();
 
 	$('.print_wrap .msgTitle').html('请选择打印机');
-	updateMenu( treeObj.getSelectedNodes() );
 
 	$(window).scrollTop(0);
 }
@@ -1412,10 +1413,9 @@ function getFilesData () {
 		data = JSON.parse(data);
 		fileData = data;
 		init(data);
-		treeObj = treeObj1;
 
-		if(!urlQuery.tab)
-		if(!urlQuery.shareID){
+		if(!urlQuery.tab && !urlQuery.shareID){
+			treeObj = treeObj1;
 			locateNode( treeObj.getNodes()[0], urlQuery.path, null, true );
 		}
 
@@ -1762,7 +1762,8 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 	var highlightTab = 0;
 	var foundNodes = {};
 
-	function openAction (  ) {
+	var swithTabFunc = function  () {
+
 		var switchTab;
 		var targetNode;
 		var initFinished = treeObj2 && treeObj3;
@@ -1784,16 +1785,22 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 		if( switchTab ){
 			showTab(switchTab);
 
+			if(targetNode)
 			setTimeout(function(){
 				var p = targetNode.isParent ? targetNode : targetNode.getParentNode();
 				if(!p) p = targetNode;
 				var offset = $('#'+p.tId).offset();
 				$(window).scrollTop( offset.top-100 );
+				
+				openAction();
+
 			}, 100);
 
 		}
 
+	}
 
+	function openAction (  ) {
 
 		openShare = openShare || urlQuery.openShare;
 		openMessage = openMessage || urlQuery.openMessage;
@@ -1843,7 +1850,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 			var node = locateNode(sendRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, false );
 			foundNodes.from = node;
 		}
-		openAction();
+		swithTabFunc();
 
 		
 	});
@@ -1871,7 +1878,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 			var node = locateNode(receiveRoot, fileKey||urlQuery.path, shareID||urlQuery.shareID, false );
 			foundNodes.to = node;
 		}
-		openAction();
+		swithTabFunc();
 
 	});
 
