@@ -2015,7 +2015,7 @@ app.post("/applyTemplate2", function (req, res) {
 app.post("/getTemplateFiles", function (req, res) {
   // find signIDS.length > 0
   // http://stackoverflow.com/questions/7811163/how-to-query-for-documents-where-array-size-is-greater-than-one-1-in-mongodb/15224544#15224544
-  col.find( { role:'upfile', isTemplate:true, status:{$ne:-1}, 'signIDS.0':{$exists:true} } , {limit:2000,fields:{drawData:0,inputData:0,signIDS:0} } ).sort({title:1,date:-1}).toArray(function(err, docs){
+  col.find( { role:'upfile', isTemplate:{$gt:0}, status:{$ne:-1}, 'signIDS.0':{$exists:true} } , {limit:2000,fields:{drawData:0,inputData:0,signIDS:0} } ).sort({title:1,date:-1}).toArray(function(err, docs){
     if(err) {
       return res.send('error');
     }
@@ -4380,8 +4380,10 @@ function updateCompanyTree () {
           s.pId = s.department[0];
           s.departmentNames = namedDep;
           s.depart = namedDep?namedDep[0]:'';
-          companyTree.push(s);
-          if( ! _.where(stuffList, {userid:s.userid }).length ) stuffList.push(s);
+          if(s.status==1){
+	          companyTree.push(s);
+	          if( ! _.where(stuffList, {userid:s.userid }).length ) stuffList.push(s);
+          }
 
         });
         if(i==departs.length){

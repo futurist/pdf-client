@@ -666,6 +666,7 @@ function pathToObj (v, isOnTop, isOpen) {
 	var title = v.title;
 	var str = path.split('/');
 	var p = root;
+	var node;
 	//if(!file) str.splice(str.length-2, 2);
 	var name;
 	loop1:
@@ -684,11 +685,11 @@ function pathToObj (v, isOnTop, isOpen) {
 		if(i==str.length-2 && !file ){
 			//it's folder Leaf node
 			var folder = $.extend( { person:rootPerson.userid, name:name, oldName:name, oldPath:v.path, isParent:true}, v);
-			p.push(folder);
+			p.push(node=folder);
 
 		}else{
 			//it's normal folder
-			p.push( {name:getSubStr(str[i], 50), title: str[i], open:!!isOpen, children:[]} );
+			p.push( node={name:getSubStr(str[i], 50), title: str[i], open:!!isOpen, children:[]} );
 		}
 		p = p[p.length-1].children;
 	}
@@ -700,10 +701,11 @@ function pathToObj (v, isOnTop, isOpen) {
 		if( file.match(regex_can_be_convert)  )   treeNode.iconSkin='canBeConverted';
 		if( file.match( /\.pdf$/i )  )  treeNode.iconSkin='pdf';
 
-		if(!isOnTop) p.push( $.extend( treeNode, v) );
-		else p.unshift( $.extend( treeNode, v) );
+		if(!isOnTop) p.push( node=$.extend( treeNode, v) );
+		else p.unshift( node=$.extend( treeNode, v) );
 	}
 
+	return node;
 	//else we are creating empty folder LEAF
 
 }
@@ -838,12 +840,11 @@ function addPictureCon() {
 function initTemplateFileTree (data) {
 	root= [];
 	data.forEach(function(v){
-		pathToObj( v );
-		root[root.length-1].isTemplate = v.isTemplate;
+		var node = pathToObj( v );
+		node.isTemplate = v.isTemplate;
 	});
 
 	zNodesTemplate.children = root;
-
 	$.fn.zTree.init($("#fileTreeTemplate"), setting, zNodesTemplate);
 	treeObjTemplate = $.fn.zTree.getZTreeObj("fileTreeTemplate");
 
@@ -851,7 +852,7 @@ function initTemplateFileTree (data) {
 
 	treeObjTemplate.expandNode( rootNode, true );
 	treeObjTemplate.selectNode( rootNode );
-	addAttrToNode( treeObjTemplate, {isTemplate:1} );
+	//addAttrToNode( treeObjTemplate, {isTemplate:1} );
 }
 
 function initPrintTree (data) {
@@ -1335,14 +1336,16 @@ function hidePrintCon() {
 			className = (className === "dark" ? "":"dark");
 			if(curSrcNode && treeNode.open) return true;
 
+			var isFileList = $('.content_wrap').is(':visible');
+
 			var prevScrollPos = $(window).scrollTop();
 			if (treeNode.isParent && treeNode.level>0 && treeNode.click!==false) {
 				treeObj.expandNode(treeNode);
-				window.location.hash = 'path=' + encodeURIComponent(getPath(treeNode)) +'&shareID='+getShareID(treeNode);
+				if(isFileList) window.location.hash = 'path=' + encodeURIComponent(getPath(treeNode)) +'&shareID='+getShareID(treeNode);
 				$(window).scrollTop( prevScrollPos );
 			}
 			if( isMobile&& !treeNode.isParent && treeNode.prevTime && (+new Date()- treeNode.prevTime)<3000 ){
-				if( $('.content_wrap').is(':visible') ) openLink ( makeViewURL(treeNode) , treeNode.title);
+				if( isFileList ) openLink ( makeViewURL(treeNode) , treeNode.title);
 			}
 			showLog("[ "+getTime()+" beforeClick ]&nbsp;&nbsp;" + treeNode.name );
 			return (treeNode.click != false);
@@ -2252,7 +2255,7 @@ function getFileUrl(targetNode){
 	var shareStr = treeNode.level==0?'':
 		( treeNode.isSend||treeNode.isReceive||treeNode.isSign ? '&shareID='+ getShareID(treeNode) : '' );
 	shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
-	shareStr += treeNode.isTemplate ? '&isTemplate=1' : '';
+	shareStr += treeNode.isTemplate ? '&isTemplate='+treeNode.isTemplate : '';
 
 	return !treeNode.isParent ? VIEWER_URL+'#file='+(FILE_HOST+treeNode.key)+shareStr : '';
 
