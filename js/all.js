@@ -8,8 +8,8 @@ function INIT(){
 		window.treeObj1 = null;
 		window.treeObj2 = null;
 		window.treeObj3 = null;
-		var treeObjTemplate = null;
-		var treeObjPrint = null;
+		window.treeObjTemplate = null;
+		window.treeObjPrint = null;
 
 		window.tree1WayPoint =null;
 		window.tree2WayPoint =null;
@@ -851,7 +851,7 @@ function initTemplateFileTree (data) {
 
 	treeObjTemplate.expandNode( rootNode, true );
 	treeObjTemplate.selectNode( rootNode );
-	addAttrToNode( treeObjTemplate, {isTemplate:true} );
+	addAttrToNode( treeObjTemplate, {isTemplate:1} );
 }
 
 function initPrintTree (data) {
@@ -929,15 +929,21 @@ function getSelectFiles () {
 
 
 function openPrintCon (){
+
+	if(!treeObjPrint){
+		return setTimeout(function(){openPrintCon()}, 100);
+	}
+
 	var sel = treeObj.getSelectedNodes();
-	updateMenu( sel );
-	
+
 	treeObj = treeObjPrint;
 	hideContentWrap();
 	$('.print_wrap').show();
 
 	$('.print_wrap .msgTitle').html('请选择打印机');
 
+	var selPrint = treeObjPrint.getSelectedNodes();
+	updateMenu( selPrint );
 	$(window).scrollTop(0);
 }
 
@@ -1291,7 +1297,7 @@ function hidePrintCon() {
 		function makeViewURL (treeNode) {
 			var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
 			shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
-			shareStr += treeNode.isTemplate ? '&isTemplate=1' : '';
+			shareStr += treeNode.isTemplate ? '&isTemplate='+treeNode.isTemplate : '';
 			return treeNode.key + shareStr;
 		}
 		function onDblClick (event, treeId, treeNode) {
@@ -1398,7 +1404,7 @@ function getFilesData () {
 	zNodes = [{userid:rootPerson.userid, name:'['+rootPerson.name+']的文件柜',  title: rootPerson.depart+ "-"+rootPerson.name+'的文件柜', isParent:true, children: []}];
 	zNodes2 =  [{userid:rootPerson.userid, name:'发件柜', title:'发件柜', isSend:true, isParent:true, children: []}] ;
     zNodes3 = [{userid:rootPerson.userid, name:'收件柜', title:'收件柜', isReceive:true, isParent:true, children: []}] ;
-    zNodesTemplate = {userid:rootPerson.userid, name:'模板文件柜', title:'模板文件柜', isTemplate:true, isParent:true, children: []} ;
+    zNodesTemplate = {userid:rootPerson.userid, name:'模板文件柜', title:'模板文件柜', isTemplate:1, isParent:true, children: []} ;
     zNodesPrint = {userid:rootPerson.userid, name:'打印机列表', title:'打印机列表', isPrint:true, isParent:true, children: []} ;
 
 	fileKeys = ["person", "date", "client", "title", "path", "key", "fname", "hash", "type", "fsize", "order", "imageWidth", "imageHeight", 'isTemplate', 'drawData', 'inputData', 'server', 'signIDS'];
@@ -2252,6 +2258,23 @@ function getFileUrl(targetNode){
 
 }
 
+function openSetTemplate () {
+	var templateData = [
+		{	
+			id:1,
+			name:'普通模板'
+		},
+		{	
+			id:2,
+			name:'标签模板'
+		}
+	];
+	var str = templateData.map(function  (v) {
+		return '<li><a href="javascript:setFileTemplate('+ v.id +');">'+ v.name +'</a></li>';
+	});
+	var html='<ul class="templateSel">'+ str.join('') +'</ul>'
+	alert(html);
+}
 
 function setFileTemplate (isSet) {
 	var sel = treeObj.getSelectedNodes();
@@ -4403,6 +4426,7 @@ window.applyPrint = applyPrint;
 window.viewDetail = viewDetail;
 window.viewTemplateImage = viewTemplateImage;
 window.getPath = getPath;
+window.openSetTemplate = openSetTemplate;
 
 
 window.alert = alert;

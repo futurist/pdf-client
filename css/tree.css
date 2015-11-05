@@ -122,10 +122,6 @@ span.tmpzTreeMove_arrow:before{
 
 
 
-.ztree li span.button.chk{
-	margin-top: 5px;
-}
-
 .ztree li span.button.ico_open:before{
     content: "\f07c";
     /*content: "\f115";*/
@@ -152,6 +148,101 @@ span.tmpzTreeMove_arrow:before{
 }
 .ztree li span.button.pdf_ico_docu:before {
     content: "\f1c1";
+}
+
+
+.ztree li span.button.chk {
+  color: #3296A2;
+  font-family: FontAwesome;
+  padding-top: 10px;
+
+  margin: 0px;
+  cursor: auto;
+  width: 12px;
+  display: inline-block;
+  padding-top: 10px;
+  padding-left: 2px;
+}
+.ztree li span.button.chk.checkbox_false_full:before {
+  content: "\f096";
+}
+.ztree li span.button.chk.checkbox_false_full_focus:before {
+  content: "\f096";
+}
+.ztree li span.button.chk.checkbox_false_part:before {
+  content: "\f096";
+  color: #aaaaaa;
+}
+.ztree li span.button.chk.checkbox_false_part_focus:before {
+  content: "\f096";
+}
+.ztree li span.button.chk.checkbox_false_disable:before {
+  content: "\f096";
+  color: #808080;
+}
+.ztree li span.button.chk.checkbox_true_full:before {
+  content: "\f046";
+}
+.ztree li span.button.chk.checkbox_true_full_focus:before {
+  content: "\f046";
+}
+.ztree li span.button.chk.checkbox_true_part:before {
+  content: "\f14a";
+}
+.ztree li span.button.chk.checkbox_true_part_focus:before {
+  content: "\f14a";
+}
+.ztree li span.button.chk.checkbox_true_full_focus:before {
+  content: "\f046";
+}
+.ztree li span.button.chk.checkbox_true_part:before {
+  content: "\f046";
+  color: #aaaaaa;
+}
+.ztree li span.button.chk.checkbox_true_part_focus:before {
+  content: "\f046";
+}
+.ztree li span.button.chk.checkbox_true_disable:before {
+  content: "\f046";
+  color: #808080;
+}
+.ztree li span.button.chk.radio_false_full:before {
+  content: "\f10c";
+}
+.ztree li span.button.chk.radio_false_full_focus:before {
+  content: "\f10c";
+  color: #ffff00;
+}
+.ztree li span.button.chk.radio_false_part:before {
+  content: "\f10c";
+  color: #aaaaaa;
+}
+.ztree li span.button.chk.radio_false_part_focus:before {
+  content: "\f10c";
+  color: #ffff00;
+}
+.ztree li span.button.chk.radio_false_disable:before {
+  content: "\f1db";
+  color: #808080;
+}
+.ztree li span.button.chk.radio_true_full:before {
+  content: "\f192";
+}
+.ztree li span.button.chk.radio_true_full_focus:before {
+  content: "\f192";
+  color: #ffff00;
+}
+.ztree li span.button.chk.radio_true_part:before {
+  content: "\f192";
+  color: #aaaaaa;
+}
+.ztree li span.button.chk.radio_true_part_focus:before {
+  content: "\f192";
+  color: #aaaaaa;
+}
+.ztree li span.button.chk.radio_true_disable:before {
+  content: "\f1db";
+  color: #808080;
 }
 
 
@@ -1001,99 +1092,17 @@ body.openMsg{
 	overflow: hidden;
 }
 
+ul.templateSel li{
+	margin-bottom: 20px;
+}
 
 
-.ztree li span.button.chk {
-  color: #3296A2;
-  font-family: FontAwesome;
-  padding-top: 10px;
-
-  margin: 0px;
-  cursor: auto;
-  width: 12px;
-  display: inline-block;
-  padding-top: 10px;
-  padding-left: 2px;
+p.button>a:active{
+    background-color: #eee;
 }
-.ztree li span.button.chk.checkbox_false_full:before {
-  content: "\f096";
-}
-.ztree li span.button.chk.checkbox_false_full_focus:before {
-  content: "\f096";
-}
-.ztree li span.button.chk.checkbox_false_part:before {
-  content: "\f096";
-  color: #aaaaaa;
-}
-.ztree li span.button.chk.checkbox_false_part_focus:before {
-  content: "\f096";
-}
-.ztree li span.button.chk.checkbox_false_disable:before {
-  content: "\f096";
-  color: #808080;
-}
-.ztree li span.button.chk.checkbox_true_full:before {
-  content: "\f046";
-}
-.ztree li span.button.chk.checkbox_true_full_focus:before {
-  content: "\f046";
-}
-.ztree li span.button.chk.checkbox_true_part:before {
-  content: "\f14a";
-}
-.ztree li span.button.chk.checkbox_true_part_focus:before {
-  content: "\f14a";
-}
-.ztree li span.button.chk.checkbox_true_full_focus:before {
-  content: "\f046";
-}
-.ztree li span.button.chk.checkbox_true_part:before {
-  content: "\f046";
-  color: #aaaaaa;
-}
-.ztree li span.button.chk.checkbox_true_part_focus:before {
-  content: "\f046";
-}
-.ztree li span.button.chk.checkbox_true_disable:before {
-  content: "\f046";
-  color: #808080;
-}
-.ztree li span.button.chk.radio_false_full:before {
-  content: "\f10c";
-}
-.ztree li span.button.chk.radio_false_full_focus:before {
-  content: "\f10c";
-  color: #ffff00;
-}
-.ztree li span.button.chk.radio_false_part:before {
-  content: "\f10c";
-  color: #aaaaaa;
-}
-.ztree li span.button.chk.radio_false_part_focus:before {
-  content: "\f10c";
-  color: #ffff00;
-}
-.ztree li span.button.chk.radio_false_disable:before {
-  content: "\f1db";
-  color: #808080;
-}
-.ztree li span.button.chk.radio_true_full:before {
-  content: "\f192";
-}
-.ztree li span.button.chk.radio_true_full_focus:before {
-  content: "\f192";
-  color: #ffff00;
-}
-.ztree li span.button.chk.radio_true_part:before {
-  content: "\f192";
-  color: #aaaaaa;
-}
-.ztree li span.button.chk.radio_true_part_focus:before {
-  content: "\f192";
-  color: #aaaaaa;
-}
-.ztree li span.button.chk.radio_true_disable:before {
-  content: "\f1db";
-  color: #808080;
+p.button>a{
+	display: inline-block;
+    padding: 8px 16px;
+    border: 1px solid #ccc;
 }
 
