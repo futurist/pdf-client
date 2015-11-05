@@ -415,7 +415,16 @@ span.tmpzTreeMove_arrow:before{
 	    overflow: auto;
 	}
 
+	.ztree i {
+		font:14px "FontAwesome";
+	}
 
+	.ztree .jobError{
+		color:red;
+	}
+	.ztree .jobSuccess{
+		color:green;
+	}
 	.ztree li.level1 p.status:before {
 		font-family: "FontAwesome";
 		font-size:14px;
@@ -423,6 +432,7 @@ span.tmpzTreeMove_arrow:before{
 	    color: #BD4545;
 	    margin-right: 9px;
 	}
+
 	.ztree li.level1 p.status {
 	    margin: 10px 0 0 22px;
 	    color:red;

@@ -893,7 +893,9 @@ function applyPrint ( onlyDownload ) {
 
     var downloadUrl = host+'/downloadFile2/'+ fileKey.split('/').pop() +'?key='+ fileKey +'&shareID='+shareID+'&person='+rootPerson.userid;
 
-	$('.bg_mask').show();
+	//$('.bg_mask').show();
+	var aObj = $('#'+sel.tId+'_a');
+	aObj.prepend('<i class="fa fa-spinner fa-pulse jobStatus" title="准备打印中..."></i>');
 
 		$.ajax({
 		  type: 'POST',
@@ -904,19 +906,33 @@ function applyPrint ( onlyDownload ) {
 		  timeout: CONVERT_TIMEOUT,
 		  success: function(data){
 		  	showMainWindow();
-		    $('.bg_mask').hide();
-			if(!data || data.errMsg) alert('打印失败：打印服务故障');
-			else alert('打印任务安排成功，请等待打印机打印');
+		    //$('.bg_mask').hide();
+		    aObj.find('.jobStatus').remove();
+			if(!data || data.errMsg){
+				var icon = $('<i class="fa fa-times-circle jobError jobStatus" title="打印失败：打印服务故障"></i>');
+				aObj.prepend(icon);
+				icon.click(function(){ $(this).remove() });
+				alert(sel.title+' 打印失败：打印服务故障');
+			} else {
+				var icon = $('<i class="fa fa-check-circle jobSuccess jobStatus" title="打印任务安排成功"></i>');
+				aObj.prepend(icon);
+				icon.click(function(){ $(this).remove() });
+				alert(sel.title+' 打印任务安排成功，请等待打印机打印');
+			}
 			console.log(data);
-			hidePrintCon();
 		  },
 		  error: function(xhr, type){
 		  	showMainWindow();
-		    $('.bg_mask').hide();
-		    alert('打印超时');
-
+		    //$('.bg_mask').hide();
+		    alert(sel.title+' 打印超时');
+		    aObj.find('.jobStatus').remove();
+		    var icon = $('<i class="fa fa-times-circle jobError jobStatus" title="打印超时"></i>');
+			aObj.prepend(icon);
+			icon.click(function(){ $(this).remove() });
 		  }
 		});
+		
+		hidePrintCon();
 
 }
 
@@ -935,7 +951,8 @@ function openPrintCon (){
 		return setTimeout(function(){openPrintCon()}, 100);
 	}
 
-	var sel = treeObj.getSelectedNodes();
+	var sel = treeObj.getSelectedNodes().shift();
+	if(!sel) return;
 
 	treeObj = treeObjPrint;
 	hideContentWrap();
@@ -943,12 +960,23 @@ function openPrintCon (){
 
 	$('.print_wrap .msgTitle').html('请选择打印机');
 
-	var selPrint = treeObjPrint.getSelectedNodes();
+	var hideList=[], selPrint = treeObjPrint.getSelectedNodes().shift();
+
+	if(sel.isTemplate!=2){
+		hideList = treeObjPrint.getNodesByFilter( function(v){
+			return !v.isParent&&v.type=='label';
+		} );
+		treeObjPrint.hideNodes( hideList );
+	}
+
 	updateMenu( selPrint );
 	$(window).scrollTop(0);
 }
 
 function hidePrintCon() {
+	var nodes = treeObj.getNodesByParam("isHidden", true);
+	treeObjPrint.showNodes(nodes);
+
 	updateTreeObj();
 	$('.print_wrap').hide();
 	showContentWrap();
@@ -1296,9 +1324,10 @@ function hidePrintCon() {
 		}
 
 		function makeViewURL (treeNode) {
-			var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+getShareID(treeNode) : '';
+			var shareID = getShareID(treeNode);
+			var shareStr = treeNode.isSend||treeNode.isReceive ? '&shareID='+shareID : '';
 			shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
-			shareStr += treeNode.isTemplate ? '&isTemplate='+treeNode.isTemplate : '';
+			if(!shareID) shareStr += treeNode.isTemplate ? '&isTemplate='+treeNode.isTemplate : '';
 			return treeNode.key + shareStr;
 		}
 		function onDblClick (event, treeId, treeNode) {
@@ -2251,11 +2280,12 @@ function getFileKeys(node){
 		}
 
 function getFileUrl(targetNode){
+	var shareID = getShareID(treeNode);
 	var treeNode = targetNode;
 	var shareStr = treeNode.level==0?'':
-		( treeNode.isSend||treeNode.isReceive||treeNode.isSign ? '&shareID='+ getShareID(treeNode) : '' );
+		( treeNode.isSend||treeNode.isReceive||treeNode.isSign ? '&shareID='+ shareID : '' );
 	shareStr += shareStr && treeNode.isSign ? '&isSign=1' : '';
-	shareStr += treeNode.isTemplate ? '&isTemplate='+treeNode.isTemplate : '';
+	if(!shareID) shareStr += treeNode.isTemplate ? '&isTemplate='+treeNode.isTemplate : '';
 
 	return !treeNode.isParent ? VIEWER_URL+'#file='+(FILE_HOST+treeNode.key)+shareStr : '';
 
