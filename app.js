@@ -1269,7 +1269,15 @@ app.post("/upfile", function (req, res) {
 
       } else {
 
-         var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=0">%s</a>', TREE_URL, ret.key, shareID, getShareName(data, true) ) ;
+          var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=0">%s</a>', TREE_URL, ret.key, shareID, getShareName(data, true) ) ;
+          var isPDF = /\.pdf$/i.test(v.key);
+          var url = util.format('<a href="%s#%s&shareID=%d&isSign=%d">%s</a>',
+                      isPDF? VIEWER_URL : TREE_URL,
+                      isPDF? 'file='+FILE_HOST+ encodeURIComponent(ret.key) : 'path='+ encodeURIComponent( getShareName(data, true)+ret.key),
+                      shareID,
+                      data.isSign,
+                      ret.title
+               );
 
           var msg = {
            "touser": data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|'),
@@ -1280,7 +1288,7 @@ app.post("/upfile", function (req, res) {
              util.format('%s 在%s 上传了文件：%s',
               data.fromPerson[0].name,
               getShareName(data, true),
-               util.format('<a href="%s#path=%s&shareID=%d&openMessage=0">%s</a>', TREE_URL, ret.key, shareID, ret.title )
+              url
              )
            },
             "safe":"0",
@@ -1949,7 +1957,8 @@ app.post("/applyTemplate2", function (req, res) {
   			signIDS: signIDS || doc.signIDS,
   			inputData:doc.inputData|| {} ,
   			hash: +new Date()+Math.random().toString().slice(2,5)+'_'+'',
-  			order:0
+  			order:0,
+      		isTemplate : info.isTemplate
   		};
 
   		var data = {};
