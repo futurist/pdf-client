@@ -146,8 +146,9 @@ function applyTemplatePre () {
 
 	    var str = '<h2 style="text-align:left;">确认流程:';
 	    str += '<span class="viewTemplateImage"><a href="javascript:viewTemplateImage(&quot;'+ (sel.templateImage||'') +'&quot;);">'+sel.title+'</a></span>';
-	    str += '</h2><div class="stepsCon">';
-
+	    str += '</h2>';
+	    str += '<div class="flowTitle">捎句话：<input type="text" name="flowTitle" value=""></div>';
+	    str += '<div class="stepsCon">';
 	    savedSignData.forEach(function  (v, i) {
 	    	var person = v&&v.realPerson ? ' data-person="'+ v.realPerson.map(function(x){return x.userid}).join('|') +'" ' : '';
 	    	var mainPerson = v&&v.realMainPerson ? 'data-main-person="'+v.realMainPerson.userid+'"' : '';
@@ -315,11 +316,14 @@ function applyTemplate () {
 
 	if(!path) path='/';
 
+	var flowTitle = $('input[name=flowTitle]').val();
+	$('input[name=flowTitle]').val('');
+
 	hideDialog();
 
 	$('.bg_mask').show();
 
-	$post(host+'/applyTemplate2', { info: JSON.stringify(info), userid: rootPerson.userid, path:path, signIDS:savedSignData }, function  (data) {
+	$post(host+'/applyTemplate2', { info: JSON.stringify(info), flowTitle:flowTitle, userid: rootPerson.userid, path:path, signIDS:savedSignData }, function  (data) {
 		$('.bg_mask').hide();
 		hideTemplateCon();
 	});

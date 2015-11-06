@@ -1921,6 +1921,7 @@ function placerholderToUser (fromUserId, placeholder, getFullInfo) {
 app.post("/applyTemplate2", function (req, res) {
 
 	var data = req.body;
+  var flowTitle = data.flowTitle;
 	var path = data.path;
   	var userid = data.userid;
   var info = data.info;
@@ -1964,7 +1965,7 @@ app.post("/applyTemplate2", function (req, res) {
   		var data = {};
       data.role = 'share';
       data.flowName = doc.title;
-      data.msg = '';
+      data.msg = flowTitle;
       data.isSign = true;
       data.date = new Date();
       data.files = [fileInfo];

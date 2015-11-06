@@ -921,6 +921,14 @@ span.tmpzTreeMove_arrow:before{
 	line-height: 36px;
 }
 
+.flowTitle{
+	text-align: left;
+    padding-bottom: 10px;
+}
+.flowTitle input{
+	font:18px Arial;
+	padding:4px 10px;
+}
 .stepsCon{
 	display: table;
 }
