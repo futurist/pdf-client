@@ -238,7 +238,7 @@ function initRedisQ () {
 	redisWSQ.process(function  (task, cb) {
 
 	    var key = task.clientName+ task.from +':'+task.msg.msgID;
-		
+
 	    var client = WSCLIENT[task.clientName+task.from];
 
 	    if(!client || !client.ws){
@@ -325,10 +325,20 @@ wss.on('connection', function connection(ws) {
       // msg format: { clientName:clientName, clientRole:'printer', clientOrder:1 }
       var suffix = (msg.from? ':'+msg.from: '');
       var clientFullName = msg.clientName+suffix;
+
+      if(WSCLIENT[clientFullName+msg.timeStamp]){
+      	WSCLIENT[clientFullName+msg.timeStamp].ws.send( JSON.stringify({ role:'exitApp' }) );
+      	return;
+      }
+
+
       if(WSCLIENT[clientFullName]) {
         var prevTimeStamp = WSCLIENT[clientFullName].timeStamp;
         if( prevTimeStamp && prevTimeStamp != msg.timeStamp ){
-          WSCLIENT[clientFullName].ws.send( JSON.stringify({ role:'exitApp' }) );
+
+          WSCLIENT[clientFullName+prevTimeStamp] = WSCLIENT[clientFullName];
+          WSCLIENT[clientFullName+prevTimeStamp].ws.send( JSON.stringify({ role:'exitApp' }) );
+
         } else {
           return;
         }
