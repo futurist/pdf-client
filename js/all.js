@@ -349,6 +349,10 @@ function applyTemplate () {
 
 		if(typeof msg!='object') return;
 
+		if(msg.msgID){
+			ws.send( JSON.stringify({ type:'msgDone', msgID:msg.msgID, clientName:rootPerson.userid, from:isMobile?'mobile':'pc' }) );
+		}
+
 		switch(msg.role){
 
 			case 'shareMsg':
@@ -2960,7 +2964,7 @@ function appendShareMsg (v){
 	// Text Message
 	if(v.text ){
 		content = v.text.content.replace( /[了|在|对]*\s*\/(共享|流程)[^/]+\/\s*/, '' );
-		if(content.match(/(附言|留言|状态)：/) ){
+		if(content.match(/(留言|状态)：/) ){
 
 			var c = content.split('：');
 			if(c.length>1){
@@ -3088,6 +3092,7 @@ function sendShareMsg ( status ) {
 	var val = $('.inputMsg').val();
 	val = $.trim(val);
 	if(!val) return;
+	$('.msg_wrap .inputMsg').val('');
 
 	var p = sel;
 	while( p && !p.shareID){
@@ -3112,9 +3117,9 @@ function sendShareMsg ( status ) {
 
 	$post(host+'/sendShareMsg', data , function(ret){
 		if(!ret){
+			$('.msg_wrap .inputMsg').val(val);
 			return alert('消息发送错误，请重试');
 		}
-		$('.msg_wrap .inputMsg').val('');
 
 		if(status){
 			if($('p[data-shareid="'+ p.shareID +'"]').length==0){

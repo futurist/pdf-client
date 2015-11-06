@@ -34,7 +34,10 @@ var handlebars = require('express-handlebars');
 var flash = require('connect-flash');
 
 
-var redis = require("redis"),
+var redis = require("redis");
+var redisq = require('redisq');
+
+redisWSQ=null;
 redisClient = redis.createClient(6379, '127.0.0.1', {});
 
 qiniu.conf.ACCESS_KEY = '2hF3mJ59eoNP-RyqiKKAheQ3_PoZ_Y3ltFpxXP0K';
@@ -47,6 +50,7 @@ VIEWER_URL = "http://1111hui.com/pdf/webpdf/viewer.html";
 SHARE_MSG_URL = "http://1111hui.com/pdf/client/sharemsg.html";
 IMAGE_UPFOLDER = 'uploads/' ;
 var regex_image= /(gif|jpe?g|png|bmp)$/i;
+
 
 
 var fileStorage = multer.diskStorage({
@@ -76,7 +80,9 @@ function replaceConsole () {
 }
 replaceConsole();
 
-
+String.prototype.toHTML = function() {
+    return this.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
 function safeEval (str) {
   try{
     var ret = JSON.parse(str);
@@ -208,7 +214,43 @@ redisClient.on('error', function (err) {
 
 redisClient.on('connect', function(err){
   console.log('Connected to Redis server' + err);
+
+  initRedisQ();
+
 });
+
+function initRedisQ () {
+
+	redisq.options({redis:redisClient});
+	redisWSQ = redisq.queue('websocketMsgQueue');
+
+	redisWSQ.process(function  (task, cb) {
+
+	    var key = task.clientName+ task.from +':'+task.msg.msgID;
+		
+	    var client = WSCLIENT[task.clientName+task.from];
+
+	    if(!client || !client.ws){
+	    	delete REDISQ_CB[key];
+	    	return cb();
+	    }
+
+	    client.ws.send( JSON.stringify(task.msg)  );
+	    REDISQ_CB[key] = cb;
+
+		setTimeout( function  () {
+		    var cb = REDISQ_CB[key];
+		    redisWSQ.stats(function(err, stat){ console.log('wssend', cb?'timeout':'success', key, stat.counters); });
+			if(cb){
+				cb('timeout');
+				delete REDISQ_CB[key];
+			}
+		}, 3000 );
+
+	}, 1);
+
+	// redisWSQ.push(obj) function in ws Message event--->
+}
 
 
 
@@ -231,6 +273,7 @@ var wss = new WebSocketServer({ port: 3000 });
 var JOBS = {};  // store printer jobs same format as WSMSG
 var WSMSG = {}; // store client persistent message
 var WSCLIENT = {};
+var REDISQ_CB = {};
 wss.on('connection', function connection(ws) {
 
   // https://github.com/websockets/ws/issues/361
@@ -298,6 +341,17 @@ wss.on('connection', function connection(ws) {
       return;
     }
 
+    if(msg.type=='msgDone' && msg.msgID) {
+    	var from = msg.from;
+    	var clientName = msg.clientName;
+    	var key = clientName+':'+from+':'+msg.msgID;
+    	var cb = REDISQ_CB[key];
+    	if(cb){
+    		cb();
+    		delete REDISQ_CB[key];
+    	}
+    }
+
     var msgid = msg.msgid;
     if(msgid){
         delete msg.msgid;
@@ -314,14 +368,27 @@ wss.on('connection', function connection(ws) {
 });
 
 function wsSendClient (clientName, msg) {
-  console.log('wssend', clientName);
+	if(!clientName) return;
   var lastClient;
   ['',':mobile',':pc'].forEach(function sendToClient (v) {
     var client = WSCLIENT[clientName+v];
     if(!client || !client.ws) return true;
     msg.clientName = clientName;
+    if(!msg.msgID) msg.msgID = NewID();
 
-    client.ws.send( JSON.stringify(msg)  );
+    if(redisWSQ){
+    	// if we have redis queue startup, using queue to send
+    	console.log(v, clientName, msg.msgID);
+
+		redisWSQ.push( {msg:msg, clientName:clientName, from:v } );
+
+    } else {
+
+    	// no redis queue, send directly
+		client.ws.send( JSON.stringify(msg)  );
+
+    }
+
     lastClient = client;
   });
 
@@ -783,7 +850,7 @@ app.post("/getJSTicket", function (req, res) {
 
 
 function getShareName ( colShare, addSlash ) {
-  var a= (colShare.isSign?'流程':'共享')+colShare.shareID+ (colShare.msg?'['+colShare.msg+']':'' ) + '('+colShare.fromPerson[0].name + '>'+(colShare.toPerson.slice(0,3)).map(function(v){return v.name}).join(',')+ (colShare.toPerson.length>3?'...':'') +')' ;
+  var a= (colShare.isSign?'流程':'共享')+colShare.shareID+ (colShare.msg?'['+colShare.msg.toHTML()+']':'' ) + '('+colShare.fromPerson[0].name + '>'+(colShare.toPerson.slice(0,3)).map(function(v){return v.name}).join(',')+ (colShare.toPerson.length>3?'...':'') +')' ;
   if(addSlash) a='/'+a+'/';
   return a;
 }
@@ -1728,7 +1795,7 @@ app.post("/signInWeiXin", function (req, res) {
 
             var colShare = result;
             var flowName = colShare.flowName;
-            var msg = colShare.msg;
+            var msg = colShare.msg.toHTML();
             var isSign = colShare.isSign;
 
             var curFlowPos = colShare.curFlowPos;
@@ -2247,7 +2314,7 @@ app.post("/saveCanvas", function (req, res) {
             var file = colShare.files.filter(function(v){ return v.key==filename; })[0];
             var fileKey = file.key;
             var flowName = colShare.flowName;
-            var msg = colShare.msg;
+            var msg = colShare.msg.toHTML();
             var isSign = colShare.isSign;
             var overAllPath = util.format('%s#file=%s&shareID=%d&isSign=%d', VIEWER_URL, FILE_HOST+ encodeURIComponent(fileKey), shareID, isSign?1:0 ) ;
             var content =
@@ -2560,7 +2627,7 @@ app.post("/getShareFrom", function (req, res) {
     return res.send('');
   }, 15000);
 
-  var condition = { 'fromPerson.userid': person, role:'share' };
+  var condition = { 'fromPerson.userid': person, role:'share', status:{$ne:-1} };
   if(startShareID) condition.shareID = {$lt: startShareID };
 
   col.find( condition , {limit:50, fields:{ fileIDS:0, filePathS:0, selectRange:0, 'files.drawData':0,'files.inputData':0,'files.signIDS':0}, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
@@ -2583,7 +2650,7 @@ app.post("/getShareTo", function (req, res) {
   }, 15000);
   //col.aggregate([ {$match:{role:'share'}}, {$unwind:'$toPerson'}, { $match: {'toPerson.userid': person} } ] ).sort({shareID:-1}).toArray(function(err, docs){
   //col.find( { 'toPerson.userid': person, role:'share' } , {limit:500, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
-  var condition = { $or:[ {'toPerson.userid':person}, { 'toPerson':{$elemMatch: {$elemMatch:{'userid': person } } } } ], role:'share' };
+  var condition = { $or:[ {'toPerson.userid':person}, { 'toPerson':{$elemMatch: {$elemMatch:{'userid': person } } } } ], role:'share', status:{$ne:-1} };
   if(startShareID) condition.shareID = {$lt: startShareID };
 
   col.find( condition , {limit:50, fields:{fileIDS:0, filePathS:0, selectRange:0, 'files.drawData':0,'files.inputData':0,'files.signIDS':0},  timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
@@ -2981,7 +3048,7 @@ app.post("/finishSign", function (req, res) {
                        "content":
                        util.format('%s 文件 %s 增加了新的签名：%s, <a href="%s">查看文件</a>',
 
-                          (colShare.isSign?'流程':'共享') + colShare.shareID + '('+ colShare.fromPerson[0].name + ' '+ (colShare.isSign?colShare.flowName : colShare.msg) +')',
+                          (colShare.isSign?'流程':'共享') + colShare.shareID + '('+ colShare.fromPerson[0].name + ' '+ (colShare.isSign?colShare.flowName : colShare.msg.toHTML()) +')',
 
                           colShare.files[fileIdx].title,
 
@@ -3016,7 +3083,7 @@ app.post("/finishSign", function (req, res) {
 
                   var fileKey = file.key;
                   var flowName = colShare.flowName;
-                  var msg = colShare.msg;
+                  var msg = colShare.msg.toHTML();
                   var title = getSubStr( '流程'+shareID+flowName+ (msg), 50);
                   var overAllPath = util.format('%s#file=%s&shareID=%d&isSign=1', VIEWER_URL, FILE_HOST+ encodeURIComponent(fileKey), shareID ) ;
 
@@ -3655,7 +3722,7 @@ app.post("/shareFile", function (req, res) {
              "msgtype": "text",
              "text": {
                "content":
-               util.format('%s在 %s添加了新文件：%s; 操作者：%s%s <a href="%s">查看共享</a>',
+               util.format('%s在 %s添加了新文件：%s; 操作者：%s%s',
                   data.fromPerson[0].depart+'-'+data.fromPerson[0].name,
                   shareName,
                   data.files.map(function(v){
@@ -3669,8 +3736,7 @@ app.post("/shareFile", function (req, res) {
                        )
                   }).join(','),
                   data.fromPerson[0].name,
-                  data.msg? ', 附言：'+data.msg : '',
-                  overAllPath  // if we need segmented path:   pathName.join('-'),
+                  data.msg? ', 附言：'+data.msg.toHTML() : ''
                 )
              },
              "safe":"0",
@@ -3733,7 +3799,7 @@ function insertShareData (data, res, showTab){
                       var content = util.format('%s创建了/共享%d%s/，相关文档：%s，收件人：%s\n%s',
                           data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                           shareID,
-                          data.msg?'-'+data.msg:'',
+                          data.msg?'-'+data.msg.toHTML():'',
                           // data.files.length,
                           data.files.map(function(v){return '<a href="'+ makeViewURL(v.key, shareID) +'">'+v.title+'</a>'}).join('，'),
                           data.selectRange.map(function(v){
@@ -3748,7 +3814,7 @@ function insertShareData (data, res, showTab){
                       var content = util.format('%s创建了新话题/共享%d%s/，收件人：%s\n%s',
                           data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                           shareID,
-                          data.msg?'-'+data.msg:'',
+                          data.msg?'-'+data.msg.toHTML():'',
                           data.selectRange.map(function(v){
                             return v.depart? ''+v.depart+'-'+v.name+'' : '【'+v.name+'】' }).join('；'),
                           '<a href="'+ treeUrl +'">查看共享</a>'
@@ -3757,15 +3823,14 @@ function insertShareData (data, res, showTab){
 
                   } else {
                     var treeUrl = makeViewURL(data.files[0].key, shareID, 1);
-                    var content = util.format('/流程%d %s/发起了流程：%s，文档：%s，经办人：%s%s\n%s',
+                    var content = util.format('/流程%d %s/发起了流程：%s，文档：%s，经办人：%s%s',
                         shareID,
                         data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                         data.flowName,
-                        data.files.map(function(v){return ''+v.title+''}).join('，'),
+                        data.files.map(function(v){return '<a href="'+ treeUrl +'">'+v.title+'</a>'}).join('，'),
                         data.selectRange.map(function(v){
                           return v.depart? ''+v.depart+'-'+v.name+'' : '【'+v.name+'】' }).join('；'),
-                        data.msg ? '，附言：\n'+data.msg : '',
-                        '<a href="'+ treeUrl +'">查看文件</a>'
+                        data.msg ? '，附言：\n'+data.msg.toHTML() : ''
                       );
                   }
                   var msg = {
