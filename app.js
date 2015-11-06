@@ -81,16 +81,43 @@ function replaceConsole () {
 }
 replaceConsole();
 
+
+var htmlEscapeMap = {
+	'"': '&quot;',
+	// '&': '&amp;',
+	'\'': '&#x27;',
+	'/': '&#x002F;', //'&#x47;',
+	'\n': '<br>',
+	'<': '&lt;',
+	// See https://mathiasbynens.be/notes/ambiguous-ampersands: in HTML, the
+	// following is not strictly necessary unless it’s part of a tag or an
+	// unquoted attribute value. We’re only escaping it to support those
+	// situations, and for XML support.
+	'>': '&gt;',
+	// In Internet Explorer ≤ 8, the backtick character can be used
+	// to break out of (un)quoted attribute values or HTML comments.
+	// See http://html5sec.org/#102, http://html5sec.org/#108, and
+	// http://html5sec.org/#133.
+	'`': '&#x60;'
+};
+var htmlEscapeMapInvert = _.invert(htmlEscapeMap);
 String.prototype.toHTML = function() {
-    return this && he.encode(this).replace(/\n/g,'<br>');
+	//return this && he.escape(this).replace(/\n/g,'<br>').replace(/\//g, '&#47;');
+    //return this && he.encode(this).replace(/\n/g,'<br>').replace(/\//g, '&#47;');
     //.replace(/&/g,'&amp;')
     //return this && this.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>').replace(/\//g, '&#47;');
+    return this&& this.replace(new RegExp( _.keys(htmlEscapeMap).join('|'), 'g'), function($0) {
+    	return htmlEscapeMap[$0];
+    });
 }
 
 String.prototype.toTEXT = function() {
-    return this && he.decode(this, {isAttributeValue:false}).replace(/<br>/g,'\n');
+    //return this && he.decode(this, {isAttributeValue:false}).replace(/<br>/g,'\n').replace(/&#47;/g, '/');
     //.replace(/&/g,'&amp;')
     //return this && this.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/<br>/g,'\n').replace(/&#47;/g, '/');
+    return this&& this.replace(new RegExp( _.keys(htmlEscapeMapInvert).join('|'), 'g'), function($0) {
+    	return htmlEscapeMapInvert[$0];
+    });
 }
 
 function safeEval (str) {
@@ -3895,7 +3922,9 @@ function insertShareData (data, res, showTab){
 
 function sendWXMessage (msg, fromUser) {
 
-  var wxMsg = JSON.parse(JSON.stringify(msg).toTEXT() );
+
+  var wxMsg = JSON.parse( JSON.stringify(msg) );
+
   var sharePath = JSON.stringify(msg).replace(/<[^>]+>/g,'').match(/\/[^/]+\//);
   sharePath = sharePath? sharePath.pop() : '';
 
@@ -3920,7 +3949,8 @@ function sendWXMessage (msg, fromUser) {
 
     if(sharePath && msg.shareID){
       if(wxMsg.text) {
-        wxMsg.text.content = wxMsg.text.content + '\n\n<a href="'+ SHARE_MSG_URL +'#path='+ sharePath +'&shareID='+ msg.shareID +'&msgID='+ (msg.msgID||'') +'">打开会话</a>';
+      	console.log( wxMsg.text.content.toTEXT() )
+        wxMsg.text.content = wxMsg.text.content.toTEXT() + '\n\n<a href="'+ SHARE_MSG_URL +'#path='+ sharePath +'&shareID='+ msg.shareID +'&msgID='+ (msg.msgID||'') +'">打开会话</a>';
       }
       if(wxMsg.news) {
         wxMsg.news.articles.forEach(function(v){
