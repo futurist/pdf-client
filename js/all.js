@@ -522,7 +522,7 @@ function applyTemplate () {
 
 	});
 	setInterval(function(){
-		if(ws&&ws.readyState==1&&rootPerson.userid) ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
+		if(ws&&ws.readyState==1&&rootPerson.userid) ws.send( JSON.stringify({ type:'clientConnected', timeStamp:WS_TIMESTAMP, clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
 	}, 30000);
 
 
@@ -2971,15 +2971,15 @@ function appendShareMsg (v){
 	// Text Message
 	if(v.text ){
 		content = v.text.content.replace( /[了|在|对]*\s*\/(共享|流程)[^/]+\/\s*/, '' );
-		if(content.match(/(留言|状态)：/) ){
+		// if(content.match(/(留言|状态)：/) ){
 
-			var c = content.split('：');
-			if(c.length>1){
-				var t = c.pop().toHTML();
-				content = c.concat(t).join('：');
-			}
+		// 	var c = content.split('：');
+		// 	if(c.length>1){
+		// 		var t = c.pop().toHTML();
+		// 		content = c.concat(t).join('：');
+		// 	}
 
-		}
+		// }
 
 		$div = $('<div></div>');
 		$div.html(content);
@@ -3525,7 +3525,7 @@ $(function initPage () {
 			rootPerson = userinfo;
 
 			updateClientHost();
-			if(ws.readyState==1) ws.send( JSON.stringify({ type:'clientConnected', clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
+			if(ws.readyState==1) ws.send( JSON.stringify({ type:'clientConnected', timeStamp:WS_TIMESTAMP, clientName: rootPerson.userid , clientRole:'client', from:isMobile?'mobile':'pc', pcName:1 }) );
 
 			if(userinfo.isLocked){
 				if(isNWJS) lockScreen();
@@ -4283,7 +4283,7 @@ function viewContact () {
 	var sel = companyTree.getSelectedNodes().shift();
 	if(!sel) return;
 	var str = '';
-	str += '<p>'+ sel.name + '('+sel.userid  +')</p>';
+	str += '<p><a href="javascript:openClient(\''+sel.mobile+'\')">'+ sel.name  +'</a></p>';
 	if(sel.client) str += '<p><a href="javascript:openClient(\''+ sel.client +'\')">'+ sel.client +'</a></p>';
 	if(sel.ip) str += '<p><a href="javascript:openClient(\''+ sel.ip +'\')">'+ sel.ip +'</a></p>';
 	str += '<p><a href="tel:'+sel.mobile+'">'+ sel.mobile +'</a></p>';

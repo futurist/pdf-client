@@ -36,6 +36,7 @@ var flash = require('connect-flash');
 
 var redis = require("redis");
 var redisq = require('redisq');
+var he = require('he');
 
 redisWSQ=null;
 redisClient = redis.createClient(6379, '127.0.0.1', {});
@@ -81,13 +82,15 @@ function replaceConsole () {
 replaceConsole();
 
 String.prototype.toHTML = function() {
+    return this && he.encode(this).replace(/\n/g,'<br>');
     //.replace(/&/g,'&amp;')
-    return this && this.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>').replace(/\//g, '&#47;');
+    //return this && this.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>').replace(/\//g, '&#47;');
 }
 
 String.prototype.toTEXT = function() {
+    return this && he.decode(this, {isAttributeValue:false}).replace(/<br>/g,'\n');
     //.replace(/&/g,'&amp;')
-    return this && this.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/<br>/g,'\n').replace(/&#47;/g, '/');
+    //return this && this.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/<br>/g,'\n').replace(/&#47;/g, '/');
 }
 
 function safeEval (str) {
@@ -127,7 +130,8 @@ futurist.array_remove_item = function(array, item) {
 };
 
 function NewID () {
-  return +new Date()+'_'+Math.random().toString().slice(2,5);
+  // return +new Date()+'_'+Math.random().toString().slice(2,5);
+  return Math.random().toString(36).slice(-15);
 }
 
 function qiniu_getUpToken() {
@@ -321,13 +325,18 @@ wss.on('connection', function connection(ws) {
       // msg format: { clientName:clientName, clientRole:'printer', clientOrder:1 }
       var suffix = (msg.from? ':'+msg.from: '');
       var clientFullName = msg.clientName+suffix;
-      if(WSCLIENT[clientFullName]){
-        WSCLIENT[clientFullName].ws.send( JSON.stringify({ role:'exitApp' }) );
-        //return;
+      if(WSCLIENT[clientFullName]) {
+        var prevTimeStamp = WSCLIENT[clientFullName].timeStamp;
+        if( prevTimeStamp && prevTimeStamp != msg.timeStamp ){
+          WSCLIENT[clientFullName].ws.send( JSON.stringify({ role:'exitApp' }) );
+        } else {
+          return;
+        }
+
       }
 
       console.log( 'client up', clientFullName );
-      WSCLIENT[clientFullName] = _.extend( msg, {ws:ws, timeStamp:+new Date()} );
+      WSCLIENT[clientFullName] = _.extend( msg, {ws:ws} );
 
       if(msg.clientRole == 'printer') {
 
@@ -1074,7 +1083,7 @@ function uploadWXImage(req, res) {
   var shareID = safeEval( req.query.shareID );
   var isInMsg = safeEval(req.query.isInMsg);
   var path = req.query.path;
-  var text = req.query.text;
+  var text = req.query.text&&req.query.text.toHTML();
 
   api.getMedia(mediaID, function(err, buffer, httpRes){
     if(err) {console.log(err); return res.send('');}
@@ -3586,7 +3595,7 @@ app.post("/getSignHistory", function (req, res) {
 
 function SendShareMsg(req, res) {
   var person = req.body.person;
-  var text = req.body.text;
+  var text = req.body.text&&req.body.text.toHTML();
   var status = req.body.status;
   var shareID = parseInt(req.body.shareID);
   var path = req.body.path;
@@ -3623,7 +3632,7 @@ function SendShareMsg(req, res) {
         var pathName = [];
         path.forEach(function(v,i){
           var a = '/'+path.slice(0,i+1).join('/')+'/';
-          pathName.push( util.format('<a href="%s#path=%s&shareID=%d">%s</a>', TREE_URL, encodeURIComponent(a), shareID, v) );
+          pathName.push( util.format('<a href="%s#path=%s&shareID=%d">%s</a>', TREE_URL, encodeURIComponent(a), shareID, getShareName(data, true) ) );
         });
         if(fileHash) {
           var a =  '/'+path.join('/')+'/' + fileHash;
@@ -3643,7 +3652,7 @@ function SendShareMsg(req, res) {
     }
 
 
-     var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, encodeURIComponent(link), shareID, a ) ;
+     var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, encodeURIComponent(link), shareID, link ) ;
 
       var msg = {
        "touser": data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|'),
