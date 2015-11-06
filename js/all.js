@@ -355,6 +355,12 @@ function applyTemplate () {
 
 		switch(msg.role){
 
+			case 'exitApp':
+				if(isNWJS){
+					global.exitApp();
+				}
+				break;
+				
 			case 'shareMsg':
 
 				// Update Message window, when the window is open

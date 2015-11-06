@@ -36,6 +36,14 @@ var nwMain = (function(gui) {
 		}
 
 	}
+	
+	function exitApp() {
+		$.post( host+'/exitApp', function(ret){
+			Cookies.expire('userid');
+			Cookies.expire('finger');
+			gui.App.quit();
+		});
+	}
 
 
 	function initNW(){
@@ -75,13 +83,7 @@ var nwMain = (function(gui) {
 		});
 
 		var menuItem3 = new gui.MenuItem({ label: '注销并退出' });
-		menuItem3.on('click',function(e) {
-			$.post( host+'/exitApp', function(ret){
-				Cookies.expire('userid');
-				Cookies.expire('finger');
-				gui.App.quit();
-			});
-		});
+		menuItem3.on('click', exitApp);
 
 		menu.append(menuItem1);
 		menu.append(menuItem3);
@@ -316,6 +318,7 @@ var nwMain = (function(gui) {
 	global._nwMain = exports;
 	global.popupList = popupList;
 	global.updateHostName = updateHostName;
+	global.exitApp = exitApp;
 
 	return exports;
 })(gui);
