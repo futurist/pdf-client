@@ -81,8 +81,15 @@ function replaceConsole () {
 replaceConsole();
 
 String.prototype.toHTML = function() {
-    return this.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    //.replace(/&/g,'&amp;')
+    return this && this.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>').replace(/\//g, '&#47;');
 }
+
+String.prototype.toTEXT = function() {
+    //.replace(/&/g,'&amp;')
+    return this && this.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/<br>/g,'\n').replace(/&#47;/g, '/');
+}
+
 function safeEval (str) {
   try{
     var ret = JSON.parse(str);
@@ -314,7 +321,10 @@ wss.on('connection', function connection(ws) {
       // msg format: { clientName:clientName, clientRole:'printer', clientOrder:1 }
       var suffix = (msg.from? ':'+msg.from: '');
       var clientFullName = msg.clientName+suffix;
-      if(WSCLIENT[clientFullName]) return;
+      if(WSCLIENT[clientFullName]){
+        WSCLIENT[clientFullName].ws.send( JSON.stringify({ role:'exitApp' }) );
+        //return;
+      }
 
       console.log( 'client up', clientFullName );
       WSCLIENT[clientFullName] = _.extend( msg, {ws:ws, timeStamp:+new Date()} );
@@ -850,7 +860,7 @@ app.post("/getJSTicket", function (req, res) {
 
 
 function getShareName ( colShare, addSlash ) {
-  var a= (colShare.isSign?'流程':'共享')+colShare.shareID+ (colShare.msg?'['+colShare.msg.toHTML()+']':'' ) + '('+colShare.fromPerson[0].name + '>'+(colShare.toPerson.slice(0,3)).map(function(v){return v.name}).join(',')+ (colShare.toPerson.length>3?'...':'') +')' ;
+  var a= (colShare.isSign?'流程':'共享')+colShare.shareID+ (colShare.msg?'['+colShare.msg+']':'' ) + '('+colShare.fromPerson[0].name + '>'+(colShare.toPerson.slice(0,3)).map(function(v){return v.name}).join(',')+ (colShare.toPerson.length>3?'...':'') +')' ;
   if(addSlash) a='/'+a+'/';
   return a;
 }
@@ -1795,7 +1805,7 @@ app.post("/signInWeiXin", function (req, res) {
 
             var colShare = result;
             var flowName = colShare.flowName;
-            var msg = colShare.msg.toHTML();
+            var msg = colShare.msg&&colShare.msg.toHTML();
             var isSign = colShare.isSign;
 
             var curFlowPos = colShare.curFlowPos;
@@ -2031,8 +2041,8 @@ app.post("/applyTemplate2", function (req, res) {
 
   		var data = {};
       data.role = 'share';
-      data.flowName = doc.title;
-      data.msg = flowTitle;
+      data.flowName = doc.title&&doc.title.toHTML();
+      data.msg = flowTitle&&flowTitle.toHTML();
       data.isSign = true;
       data.date = new Date();
       data.files = [fileInfo];
@@ -2314,7 +2324,7 @@ app.post("/saveCanvas", function (req, res) {
             var file = colShare.files.filter(function(v){ return v.key==filename; })[0];
             var fileKey = file.key;
             var flowName = colShare.flowName;
-            var msg = colShare.msg.toHTML();
+            var msg = colShare.msg&&colShare.msg.toHTML();
             var isSign = colShare.isSign;
             var overAllPath = util.format('%s#file=%s&shareID=%d&isSign=%d', VIEWER_URL, FILE_HOST+ encodeURIComponent(fileKey), shareID, isSign?1:0 ) ;
             var content =
@@ -2670,7 +2680,7 @@ app.post("/getShareMsg", function (req, res) {
   var toPerson = req.body.toPerson;
   var shareID = parseInt(req.body.shareID);
   var hash = req.body.hash;
-  var keyword = req.body.keyword;
+  var keyword = req.body.keyword&&req.body.keyword.toHTML();
 
   var condition = {  role:'shareMsg' };
   if(shareID) condition.shareID = parseInt(shareID,10);
@@ -3048,7 +3058,7 @@ app.post("/finishSign", function (req, res) {
                        "content":
                        util.format('%s 文件 %s 增加了新的签名：%s, <a href="%s">查看文件</a>',
 
-                          (colShare.isSign?'流程':'共享') + colShare.shareID + '('+ colShare.fromPerson[0].name + ' '+ (colShare.isSign?colShare.flowName : colShare.msg.toHTML()) +')',
+                          (colShare.isSign?'流程':'共享') + colShare.shareID + '('+ colShare.fromPerson[0].name + ' '+ (colShare.isSign?colShare.flowName : colShare.msg) +')',
 
                           colShare.files[fileIdx].title,
 
@@ -3083,7 +3093,7 @@ app.post("/finishSign", function (req, res) {
 
                   var fileKey = file.key;
                   var flowName = colShare.flowName;
-                  var msg = colShare.msg.toHTML();
+                  var msg = colShare.msg&&colShare.msg.toHTML();
                   var title = getSubStr( '流程'+shareID+flowName+ (msg), 50);
                   var overAllPath = util.format('%s#file=%s&shareID=%d&isSign=1', VIEWER_URL, FILE_HOST+ encodeURIComponent(fileKey), shareID ) ;
 
@@ -3702,6 +3712,7 @@ app.post("/shareFile", function (req, res) {
       v.path = data.filePathS[ v.key.replace(/\./g, '\uff0e') ];
     });
     data.files = files;
+    data.msg = data.msg&&data.msg.toHTML();
 
       if(data.existShareID){
 
@@ -3736,7 +3747,7 @@ app.post("/shareFile", function (req, res) {
                        )
                   }).join(','),
                   data.fromPerson[0].name,
-                  data.msg? ', 附言：'+data.msg.toHTML() : ''
+                  data.msg? ', 附言：'+data.msg : ''
                 )
              },
              "safe":"0",
@@ -3785,6 +3796,7 @@ function insertShareData (data, res, showTab){
               var shareID = result.value.shareID+1;
               data.shareID = shareID;
               data.role = 'share';
+              data.msg = data.msg&&data.msg.toHTML();
 
               col.insert(data, {w:1}, function(err, r){
                 //res.send( {err:err, insertedCount: r.insertedCount } );
@@ -3799,7 +3811,7 @@ function insertShareData (data, res, showTab){
                       var content = util.format('%s创建了/共享%d%s/，相关文档：%s，收件人：%s\n%s',
                           data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                           shareID,
-                          data.msg?'-'+data.msg.toHTML():'',
+                          data.msg?'-'+data.msg:'',
                           // data.files.length,
                           data.files.map(function(v){return '<a href="'+ makeViewURL(v.key, shareID) +'">'+v.title+'</a>'}).join('，'),
                           data.selectRange.map(function(v){
@@ -3814,7 +3826,7 @@ function insertShareData (data, res, showTab){
                       var content = util.format('%s创建了新话题/共享%d%s/，收件人：%s\n%s',
                           data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                           shareID,
-                          data.msg?'-'+data.msg.toHTML():'',
+                          data.msg?'-'+data.msg:'',
                           data.selectRange.map(function(v){
                             return v.depart? ''+v.depart+'-'+v.name+'' : '【'+v.name+'】' }).join('；'),
                           '<a href="'+ treeUrl +'">查看共享</a>'
@@ -3830,7 +3842,7 @@ function insertShareData (data, res, showTab){
                         data.files.map(function(v){return '<a href="'+ treeUrl +'">'+v.title+'</a>'}).join('，'),
                         data.selectRange.map(function(v){
                           return v.depart? ''+v.depart+'-'+v.name+'' : '【'+v.name+'】' }).join('；'),
-                        data.msg ? '，附言：\n'+data.msg.toHTML() : ''
+                        data.msg ? '，附言：\n'+data.msg : ''
                       );
                   }
                   var msg = {
@@ -3864,7 +3876,7 @@ function insertShareData (data, res, showTab){
 
 function sendWXMessage (msg, fromUser) {
 
-  var wxMsg = JSON.parse(JSON.stringify(msg));
+  var wxMsg = JSON.parse(JSON.stringify(msg).toTEXT() );
   var sharePath = JSON.stringify(msg).replace(/<[^>]+>/g,'').match(/\/[^/]+\//);
   sharePath = sharePath? sharePath.pop() : '';
 
@@ -3889,7 +3901,7 @@ function sendWXMessage (msg, fromUser) {
 
     if(sharePath && msg.shareID){
       if(wxMsg.text) {
-        wxMsg.text.content += '\n\n<a href="'+ SHARE_MSG_URL +'#path='+ sharePath +'&shareID='+ msg.shareID +'&msgID='+ (msg.msgID||'') +'">打开会话</a>';
+        wxMsg.text.content = wxMsg.text.content + '\n\n<a href="'+ SHARE_MSG_URL +'#path='+ sharePath +'&shareID='+ msg.shareID +'&msgID='+ (msg.msgID||'') +'">打开会话</a>';
       }
       if(wxMsg.news) {
         wxMsg.news.articles.forEach(function(v){

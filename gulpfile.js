@@ -177,3 +177,76 @@ gulp.task('default', function() {
 	runSequence( 'basket-script', ['s2', 's3', 'css', 'html', 'appCache'], 's1' );
 });
 
+
+
+
+
+
+
+
+gulp.task('shareHTML', function() {
+  var opts = {
+    conditionals: true,
+    spare:true,
+    comments:false,
+    quotes:true
+  };
+
+  return gulp.src('./sharemsgSrc.html')
+    .pipe(concat('sharemsg.html'))
+    .pipe(htmlreplace({
+    	shareBuildCSS:{ src:'build/shareBuildCSS.css', tpl:'<link rel="stylesheet" href="%s" type="text/css">'},
+    	sharemsgJS:{ src:'build/sharemsgJS.js', tpl:'<script type="text/javascript" src="%s"></script>'},
+     }, {keepUnassigned:false} ) )
+    .pipe(replace(/manifest=""/, 'manifest="sharemsg2.manifest"'))
+    .pipe(minifyHtml(opts))
+    .pipe(gulp.dest('./'));
+});
+
+
+
+// replace all.js file basket content with s2.js,s3.js block
+gulp.task('shareAppCache', function(){
+  gulp.src(['sharemsg.manifest'])
+  	.pipe(concat('sharemsg2.manifest'))
+    .pipe(replace(/#VERSION /, '#VERSION b'+(+new Date()) ))
+    .pipe(gulp.dest('./'));
+});
+
+
+
+
+gulp.task('sharemsgJS', function  () {
+	gulp.src([
+	'js/zepto.js',
+	'js/glyphicon.js',
+	'js/cookies.js',
+	'js/reconnecting-websocket.js',
+	'js/ws.js',
+	'js/jweixin-1.1.0.js',
+	'js/sharemsg.js',
+		])
+	.pipe(concat('sharemsgJS.js'))
+	.pipe(uglify())
+	.pipe(gulp.dest('build'))
+});
+
+
+gulp.task('shareBuildCSS', function  () {
+	gulp.src([
+		'css/font-awesome.min.css',
+		'css/share.css',
+		])
+	.pipe(concat('shareBuildCSS.css'))
+	.pipe(minifyCss())
+	.pipe(gulp.dest('build'))
+});
+
+
+// default gulp task
+gulp.task('share', ['shareBuildCSS', 'sharemsgJS', 'shareHTML', 'shareAppCache'], function() {
+
+});
+
+
+

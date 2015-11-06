@@ -32,7 +32,8 @@ var picUrl = urlQuery&&urlQuery.picurl||'';
 window.savedSignData = [];
 
 String.prototype.toHTML = function() {
-    return this.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+	//.replace(/&/g,'&amp;')
+    return this.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
 }
 
 function eve (el, type){

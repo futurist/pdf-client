@@ -1,0 +1,313 @@
+
+body, p, ul, li {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+body,html{
+	height: 100%;
+}
+
+*:focus:not(select,input), *:active {
+    border:none;
+    outline: none;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+
+.clearfix {
+  *zoom: 1;
+}
+
+.clearfix:before,
+.clearfix:after {
+  display: table;
+  line-height: 0;
+  content: "";
+}
+
+.clearfix:after {
+  clear: both;
+}
+
+
+.glyphicon {
+    font-size: 18px;
+    position: relative;
+    top: 1px;
+    display: inline-block;
+    font-family: 'FontAwesome';
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+.msgDate {
+    font: 12px Arial;
+    color: #999;
+}
+.msg_wrap{
+  position: fixed;
+  top: 0px;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #fff;
+}
+
+
+.msgFile ul{
+	width: 100%;
+}
+.msgFile{
+	width: 100%;
+	margin-top:10px;
+}
+.msgFile ul li a.noPreview {
+	color: #000;
+	text-decoration: none;
+}
+.msgFile ul li {
+  text-align: left;
+  padding: 10px 0;
+  border-bottom: 1px solid #fff;
+  font: 14px Arial;
+  color: #666;
+}
+
+
+.msgTree {
+    position: absolute;
+    background-color: white;
+    left: 10px;
+    right: 10px;
+    top: 43px;
+    bottom:150px;
+    overflow: auto;
+}
+
+.msgTree ul li[data-status]{
+	color: red;
+}
+.msgTree ul li p.imgDesc{
+    padding: 10px;
+    background-color: lightyellow;
+}
+.msgTree ul li{
+	padding: 10px 0;
+	border-bottom: 1px solid #eee;
+	font: 14px Arial;
+	color: #666;
+}
+.msgTitle {
+	position: fixed;
+	top:0;
+	z-index: 9;
+	left:0;
+	width: 100%;
+    height: 21px;
+    border-bottom: 1px solid #ccc;
+    background: #eee;
+    text-align: center;
+    line-height: 1;
+    padding: 10px 10px;
+    overflow: hidden;
+}
+.msgTitle.expend {
+	height: 100%;
+	width: 100%;
+	line-height: 2;
+	overflow: scroll;
+}
+
+.msgTitle.expend:after {
+	font-family: "FontAwesome";
+	font-size:10px;
+	display: block;
+	margin:0 auto;
+	content:"\f0f4";
+    position: relative;
+    bottom: -7px;
+    padding: 10px 0 2px 0;
+}
+
+.msgDate{
+	font: 12px Arial;
+    color: #999;
+}
+
+	.fAddShare{
+		display: none;
+	}
+	.msgText{
+		position: fixed;
+		bottom: 8px;
+		  left: 10px;
+		  right:10px;
+	}
+	.inputMsg{
+    	border: 1px solid #ccc;
+		border-radius: 4px;
+		 height: 48px;
+		 width: 365px;
+	     font: 18px/1 Arail;
+	    float: left;
+	    margin-bottom: 10px;
+	}
+
+	.leftButton{
+		float: right;
+		width:65px;
+	}
+
+	.inputBtn2{
+	    width: 58px;
+	    height: 38px;
+        margin: 4px 0;
+        vertical-align: top;
+        background-color: rgb(70, 129, 183);
+	    border: none;
+	    border-radius: 4px;
+        color: white;
+	    font: 18px/1 "黑体";
+	}
+	.inputBtn{
+		float: right;
+	    margin-right: 10px;
+	    width: 60px;
+    	height: 36px;
+        vertical-align: top;
+            background-color: rgb(70,183,103);
+	    border: none;
+	    border-radius: 4px;
+	        color: white;
+	    font: 18px/1 "黑体";
+	}
+	.inputBtn.statusBtn{
+		background-color: rgb(170, 33, 33);
+	}
+	.inputBtn.sendBtn{
+		margin-right: 78px;
+	}
+	.inputBtn.closeBtn{
+		background: none;
+		color: #333;
+		border: 1px solid #aaa;
+	}
+
+
+
+
+.msgTitleMenu.active {
+    color: #EC700C;
+}
+.msgTitleMenu {
+    position: absolute;
+    z-index: 99;
+    top: 10px;
+    right: -10px;
+    float:right;
+    width: 28px;
+    height: 30px;
+    padding-top: 9px;
+    padding-right: 10px;
+    margin-top: -10px;
+    display: none;
+}
+
+.msgTitleMenuPop.active {
+	display: block;
+}
+.msgTitleMenuPop {
+	display: none;
+    position: absolute;
+    z-index: 99;
+    top: 41px;
+    right: 0px;
+    background-color: #fff;
+    border: 1px solid #D0D0D0;
+}
+
+.msgTitleMenuPop li {
+	cursor: pointer;
+    padding: 16px 10px;
+    border-bottom: 1px solid #ccc;
+}
+
+.msgTitleMenuPop li.addMember:before {
+	font-family:'FontAwesome';
+    content: "\f067";
+    font-size: 13px;
+    padding-right: 4px;
+}
+.msgTitleMenuPop li.exitMember:before {
+	font-family:'FontAwesome';
+    content: "\f00d";
+    font-size: 14px;
+    padding-right: 4px;
+    position: relative;
+    top: 1px;
+}
+
+.msgTitleMenuPop li.showContact:before {
+	font-family:'FontAwesome';
+    content: "\f0c0";
+    font-size: 14px;
+    padding-right: 4px;
+    position: relative;
+    top: 1px;
+}
+
+.msgTitleMenuPop li.commonFunc {
+	display: none;
+}
+
+.msgTitleMenuPop li.commonFunc:before {
+	font-family:'FontAwesome';
+    content: "\f0e7";
+    font-size: 14px;
+    padding-right: 4px;
+    position: relative;
+    top: 1px;
+}
+
+.msgTitleMenuPop li.refreshPage:before {
+	font-family:'FontAwesome';
+    content: "\f021";
+    font-size: 14px;
+    padding-right: 4px;
+    position: relative;
+    top: 1px;
+}
+
+
+.msgTitleMenu:before {
+    content: "\f0c9";
+}
+.msgTitle.expend .titleContent:before{
+	content: "\f151";
+}
+
+.titleContent .titleh1{
+	padding-left: 30px;
+}
+.titleContent:before{
+	position: absolute;
+    left: 12px;
+    font: 20px/1 'FontAwesome';
+    content: "\f150";
+}
+.titleContent{
+	width: 100%;
+	margin-right: 40px;
+    word-wrap: break-word;
+    word-break: break-all;
+}
+
+.msgImage{
+	max-width: 300px;
+}
+
+body.openMsg{
+	overflow: hidden;
+}
