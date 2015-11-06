@@ -209,10 +209,8 @@ body,html{
     float:right;
     width: 28px;
     height: 30px;
-    padding-top: 9px;
-    padding-right: 10px;
+    padding: 10px;
     margin-top: -10px;
-    display: none;
 }
 
 .msgTitleMenuPop.active {
@@ -233,13 +231,19 @@ body,html{
     padding: 16px 10px;
     border-bottom: 1px solid #ccc;
 }
-
+.msgTitleMenuPop li.addShareFile:before {
+        font-family:'FontAwesome';
+        content: "\f067";
+        font-size: 13px;
+        padding-right: 4px;
+}
 .msgTitleMenuPop li.addMember:before {
-	font-family:'FontAwesome';
-    content: "\f067";
+    font-family:'FontAwesome';
+    content: "\f007";
     font-size: 13px;
     padding-right: 4px;
 }
+
 .msgTitleMenuPop li.exitMember:before {
 	font-family:'FontAwesome';
     content: "\f00d";

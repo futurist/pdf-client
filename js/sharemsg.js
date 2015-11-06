@@ -250,10 +250,48 @@ function initPage () {
 		sendUserMsg($(this).data('person'), windowTitle);
 	});
 
+	$(document).on('click', function  (e) {
+		if( !$(e.target).is('.msgTitleMenu') ){
+			$('.msgTitleMenuPop,.msgTitleMenu').removeClass('active');
+		}
+	});
+
 	$('.msgTitle').click(function(){
 		if( $(this).find('.titleContent').height()<20 ) return;
 		$(this).toggleClass('expend').width( $(window).width()-20 );
 		$('.msgTitle').scrollTop(0);
+	});
+
+	$('.msgTitleMenu').click(function(){
+		$(this).toggleClass('active');
+		$(this).next().toggleClass('active');
+
+	});
+	$('.addMember').hide();
+
+	$('.exitMember').click(function(){
+
+		$('.msgTitleMenu, .msgTitleMenuPop').removeClass('active');
+
+		var ok;
+		if(ok=window.confirm('确定要退出吗？(以后可以由其它成员邀请加入)') ) {
+
+			if(!rootPerson.name || !ok)return;
+
+			$post(host+'/exitMember', { shareID:shareID, shareName:sharePath, person:rootPerson.userid, personName:rootPerson.name }, function(ret){
+
+				if(!ret) return alert('退出成员错误');
+
+				closeWin();
+
+			} );
+
+		};
+
+	});
+
+	$('.addShareFile').click(function(){
+		alert('消息窗口不支持此功能，请进入文件柜添加文件。');
 	});
 
 	if(!isWeiXin && picUrl){
@@ -573,7 +611,7 @@ function sendShareMsg ( status ) {
 	var data = { person: rootPerson.userid, shareID:shareID, text:val, fileKey:fileKey, path:sharePath?sharePath.split('/'):[], status:status };
 
 	$post(host+'/sendShareMsg', data , function(ret) {
-		
+
 		if(!ret){
 			$('.msg_wrap .inputMsg').val(val);
 			return alert('消息发送错误，请重试');

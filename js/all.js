@@ -361,7 +361,7 @@ function applyTemplate () {
 					global.exitApp();
 				}
 				break;
-				
+
 			case 'shareMsg':
 
 				// Update Message window, when the window is open
@@ -928,7 +928,7 @@ function applyPrint ( onlyDownload ) {
 			} else {
 
 				setJobStatus(sel, sel.title+' 打印任务安排成功', 'jobSuccess');
-				
+
 			}
 			console.log(data);
 		  },
@@ -939,7 +939,7 @@ function applyPrint ( onlyDownload ) {
 
 		  }
 		});
-		
+
 		hidePrintCon();
 
 }
@@ -1677,7 +1677,7 @@ function initShareTo (data, bForceUpdate, isPrepend, isAddNodes) {
 	root= treeObj3? treeObj3.getNodes()[0].children : [];
 	if(isAddNodes || bForceUpdate) root = [];
 	data = [].concat(data);
-	
+
 	$('.bg_mask').hide();
 
 	for(var i=0; i<data.length; i++){
@@ -1838,7 +1838,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 				p = targetNode;
 				var offset = $('#'+p.tId).offset();
 				$(window).scrollTop( offset.top-100 );
-				
+
 				openAction();
 
 			}, 100);
@@ -1899,7 +1899,7 @@ function reloadTree2 (fileKey, shareID, switchTo, openShare, openMessage){
 		}
 		swithTabFunc();
 
-		
+
 	});
 
 	$post(host+'/getShareTo', {person:rootPerson.userid}, function  (data) {
@@ -2302,11 +2302,11 @@ function getFileUrl(targetNode){
 
 function openSetTemplate () {
 	var templateData = [
-		{	
+		{
 			id:1,
 			name:'普通模板'
 		},
-		{	
+		{
 			id:2,
 			name:'标签模板'
 		}
@@ -2802,7 +2802,14 @@ function viewDetail () {
 	$('.msg_wrap').show().data('shareID', shareID);
 	$('body').addClass('openMsg');
 
-	if(!isWeiXin) moveUploaderButton( $('.upHolder2') );
+	if(isWeiXin){
+		$('.upHolder2').appendTo( $('.msgTitleMenuPop .addShareFile') );
+	} else {
+		$('.inputBtn2').val('文件');
+		$('.msgTitleMenuPop .addShareFile').hide();
+	}
+
+	moveUploaderButton( $('.upHolder2') );
 
 	var title = getPath(sel);
 	title = title.split('/').slice(0,2).join('/')+'/';

@@ -563,6 +563,17 @@ span.tmpzTreeMove_arrow:before{
 	.leftButton{
 		float: right;
 		width:65px;
+		position: relative;
+	}
+
+
+	.upHolder2{
+		position: absolute;
+		z-index: 99999999999;
+		overflow:hidden;
+		width:100%;
+		height:46px;
+		top: 0;
 	}
 
 	.inputBtn2{
@@ -784,10 +795,11 @@ span.tmpzTreeMove_arrow:before{
     float:right;
     width: 28px;
     height: 30px;
-    padding-top: 9px;
-    padding-right: 10px;
+    padding: 10px;
     margin-top: -10px;
 }
+
+
 
 .msgTitleMenuPop.active {
 	display: block;
@@ -808,9 +820,15 @@ span.tmpzTreeMove_arrow:before{
     border-bottom: 1px solid #ccc;
 }
 
+.msgTitleMenuPop li.addShareFile:before {
+		font-family:'FontAwesome';
+	    content: "\f067";
+	    font-size: 13px;
+	    padding-right: 4px;
+}
 .msgTitleMenuPop li.addMember:before {
 	font-family:'FontAwesome';
-    content: "\f067";
+    content: "\f007";
     font-size: 13px;
     padding-right: 4px;
 }
