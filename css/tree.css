@@ -1099,6 +1099,7 @@ dl, dd, dt{
   text-align: center;
   text-decoration: none;
   color: #333;
+  margin-top:30px;
 }
 #confirm p.button span{
   padding:0 10px;
@@ -1142,3 +1143,13 @@ p.button>a{
     border: 1px solid #ccc;
 }
 
+.zNodeText{
+  white-space: nowrap;                      
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.content_wrap{
+	width: 100%;
+	overflow: hidden;
+}

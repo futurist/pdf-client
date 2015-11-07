@@ -704,7 +704,7 @@ function pathToObj (v, isOnTop, isOpen) {
 
 		}else{
 			//it's normal folder
-			p.push( node={name:getSubStr(str[i], 50), title: str[i], open:!!isOpen, children:[]} );
+			p.push( node={name:getSubStr(str[i], 500), title: str[i], open:!!isOpen, children:[]} );
 		}
 		p = p[p.length-1].children;
 	}
@@ -2430,7 +2430,7 @@ function onClick2(event, treeId, treeNode, clickFlag) {
 
 	var isContact = $('.company_wrap').data('role')=='contact';
 
-	if( !isContact && !treeNode.isParent ) companyTree.checkNode(treeNode, null, true);
+	if(  !treeNode.isParent ) companyTree.checkNode(treeNode, null, true);
 
 }
 function onDblClick2(event, treeId, treeNode, clickFlag) {
@@ -2566,7 +2566,7 @@ function shareNodePre (){
 }
 
 
-function shareNode (){
+function shareNode ( isTopic ){
 
 	var treeObj = updateTreeObj(null);
 
@@ -2592,11 +2592,12 @@ function shareNode (){
 	var filePathS = {};
 	var dialogRole = $( "#mydialog" ).data('role');
 	$( "#mydialog" ).data('role', null);
-	var isTopic = false;
+
+	if(isTopic) shareID = null;
 
 	var nodes, fileIDS, stuffs, selectRange, json;
 
-	if(dialogRole!='topic') {
+	if(!isTopic && dialogRole!='topic') {
 
 		var files = getAllFiles(sel);
 		if(sel.isParent) files.forEach(function(v){ v.path = v.path.replace( getPath(sel), '/') });
@@ -2667,8 +2668,12 @@ function shareNode (){
 
 	}
 
+	if(isTopic && !msg){
+		msg = '【群】'; //+stuffs.map(function(v){ return v.name }).join(',')
+	}
+
 	if(!isSign){
-		json = {fromPerson: [ rootPerson ], toPerson: stuffs, selectRange:selectRange, fileIDS: fileIDS, filePathS: filePathS, oldShareID:shareID, msg:msg, existShareID: existShareID };
+		json = { isTopic:isTopic, fromPerson: [ rootPerson ], toPerson: stuffs, selectRange:selectRange, fileIDS: fileIDS, filePathS: filePathS, oldShareID:shareID, msg:msg, existShareID: existShareID };
 	} else {
 		json = {fromPerson: [ rootPerson ], toPerson: window.curFlow.flowPerson.slice(0,1), flowName: $('.flowSelect').val(),
 		selectRange: window.curFlow.flowPerson,
@@ -2693,8 +2698,16 @@ function shareNode (){
 			}
 			alert('添加共享文件成功，并已通知该组成员');
 		} else {
-			var alertMsg = isSign? '流程已转交给相关人员，后续更新会消息通知' : '共享成功，已通知此共享相关人员';
-			alert( alertMsg);
+			if(data.isTopic){
+
+				window.location = 'tree.html#path=/共享-'+ data.shareID +'/&shareID='+data.shareID + '&openMessage=1';
+				window.location.reload();
+
+			} else {
+				var alertMsg = isSign? '流程已转交给相关人员，后续更新会消息通知' : '共享成功，已通知此共享相关人员';
+				alert( alertMsg);
+
+			}
 		}
 	});
 
@@ -4196,7 +4209,7 @@ function showContact () {
 	$(window).scrollTop(0);
 
 	var isContact = $('.company_wrap').data('role')=='contact';
-	setCompanyTreeCheck(isContact ? false : true );
+	//setCompanyTreeCheck(isContact ? false : true );
 
 	$('.content_wrap').data('prevPos', prevPos  ).hide();
 	$('.msg_wrap').hide();
@@ -4275,7 +4288,7 @@ function openClient (address) {
 function hideCompanyTree (){
 	$('.clearInput:visible').click();
 	$('.company_wrap').hide().data('role', '');
-	setCompanyTreeCheck(true);
+	//setCompanyTreeCheck(true);
 
 	var prevPos = $('.content_wrap').data('prevPos');
 	$('.content_wrap').show();
@@ -4290,13 +4303,27 @@ function viewContact () {
 	var sel = companyTree.getSelectedNodes().shift();
 	if(!sel) return;
 	var str = '';
-	str += '<p><a href="javascript:openClient(\''+sel.mobile+'\')">'+ sel.name  +'</a></p>';
-	if(sel.client) str += '<p><a href="javascript:openClient(\''+ sel.client +'\')">'+ sel.client +'</a></p>';
-	if(sel.ip) str += '<p><a href="javascript:openClient(\''+ sel.ip +'\')">'+ sel.ip +'</a></p>';
-	str += '<p><a href="tel:'+sel.mobile+'">'+ sel.mobile +'</a></p>';
-	str += '<p><a href="tel:'+ sel.shortPhone +'">'+ sel.shortPhone +'</a></p>';
+	str += '<p><a href="javascript:startChat(\''+sel.userid+'\')">'+ sel.name  +'(点击对话)</a></p>';
+	if(sel.client) str += '<p><a href="javascript:openClient(\''+ sel.client +'\')">'+ sel.client +'(进入共享)</a></p>';
+	if(sel.ip) str += '<p><a href="javascript:openClient(\''+ sel.ip +'\')">'+ sel.ip +'(进入共享)</a></p>';
+	str += sel.mobile&& '<p><a href="tel:'+sel.mobile+'">'+ sel.mobile +'(电话拨号)</a></p>' || '';
+	str += sel.shortPhone&& '<p><a href="tel:'+ sel.shortPhone +'">'+ sel.shortPhone +'(电话拨号)</a></p>' || '';
 	alert(str);
 }
+
+
+function startChat (userid) {
+	if(!userid){
+		var sel = companyTree.getCheckedNodes();
+		if(!sel.length) return;
+		userid = sel.filter(function(v){ return !v.isParent}).map(function(v){return v.userid}).join('|');
+	}
+	console.log(userid);
+	if(!userid) return;
+
+	shareNode(true);
+}
+
 
 
 function isVisible(el){
@@ -4495,6 +4522,7 @@ window.viewDetail = viewDetail;
 window.viewTemplateImage = viewTemplateImage;
 window.getPath = getPath;
 window.openSetTemplate = openSetTemplate;
+window.startChat = startChat;
 
 
 window.alert = alert;

@@ -353,7 +353,7 @@ wss.on('connection', function connection(ws) {
       var suffix = (msg.from? ':'+msg.from: '');
       var clientFullName = msg.clientName+suffix;
 
-      if(WSCLIENT[clientFullName+msg.timeStamp]){
+      if(msg.timeStamp && WSCLIENT[clientFullName+msg.timeStamp]){
       	WSCLIENT[clientFullName+msg.timeStamp].ws.send( JSON.stringify({ role:'exitApp' }) );
       	return;
       }
@@ -398,9 +398,9 @@ wss.on('connection', function connection(ws) {
     }
 
     if(msg.type=='msgDone' && msg.msgID) {
-    	var from = msg.from;
+    	var from = msg.from ? ':'+msg.from : '';
     	var clientName = msg.clientName;
-    	var key = clientName+':'+from+':'+msg.msgID;
+    	var key = clientName+ from+':'+msg.msgID;
     	var cb = REDISQ_CB[key];
     	if(cb){
     		cb();
@@ -1393,7 +1393,7 @@ app.post("/upfile", function (req, res) {
       } else {
 
           var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=0">%s</a>', TREE_URL, ret.key, shareID, getShareName(data, true) ) ;
-          var isPDF = /\.pdf$/i.test(v.key);
+          var isPDF = /\.pdf$/i.test(ret.key);
           var url = util.format('<a href="%s#%s&shareID=%d&isSign=%d">%s</a>',
                       isPDF? VIEWER_URL : TREE_URL,
                       isPDF? 'file='+FILE_HOST+ encodeURIComponent(ret.key) : 'path='+ encodeURIComponent( getShareName(data, true)+ret.key),
@@ -3809,7 +3809,31 @@ app.post("/shareFile", function (req, res) {
 
       } else {
 
-        insertShareData(data, res);
+
+
+        data.isTopic = data.isTopic===undefined? false: data.isTopic;
+        data.allPeople = _.uniq( _.flatten( data.fromPerson.concat(data.toPerson).map(function(v){return v.userid}) ) );
+        
+        if(data.isTopic){
+
+          col.findOne({role:'share', isTopic:true, allPeople:{ $all:data.allPeople } }, function  (err, result) {
+            if(err) return res.end();
+
+            if(!result) insertShareData(data, res);
+            else {
+
+              return res.send(result);
+
+            }
+
+          });
+
+        } else {
+
+          insertShareData(data, res);
+
+        }
+
 
 
       }
@@ -3834,8 +3858,9 @@ app.post("/shareFile", function (req, res) {
 });
 
 
-function insertShareData (data, res, showTab){
 
+
+function insertShareData (data, res, showTab){
 
             col.findOneAndUpdate({role:'config'}, {$inc:{ shareID:1 } }, function  (err, result) {
 
@@ -3851,7 +3876,7 @@ function insertShareData (data, res, showTab){
                   if(!data.isSign){
 
                     // it's not empty topic ,it's file share
-                    if( data.files.length ){
+                    if( !data.isTopic ){
 
                       var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
                       var content = util.format('%s创建了/共享%d%s/，相关文档：%s，收件人：%s\n%s',
@@ -3886,7 +3911,7 @@ function insertShareData (data, res, showTab){
                         data.fromPerson.map(function(v){return '【'+v.depart + '-' + v.name+'】'}).join('|'),
                         data.flowName,
                         data.files.map(function(v){return '<a href="'+ treeUrl +'">'+v.title+'</a>'}).join('，'),
-                        data.selectRange.map(function(v){
+                        data.selectRange.map(function(v) {
                           return v.depart? ''+v.depart+'-'+v.name+'' : '【'+v.name+'】' }).join('；'),
                         data.msg ? '，附言：\n'+data.msg : ''
                       );
@@ -3921,7 +3946,16 @@ function insertShareData (data, res, showTab){
 
 
 function sendWXMessage (msg, fromUser) {
+/*
 
+SEND MSG TEST STRING:
+gwej
+jeiogj<p>fd</p>dfjo
+javascript:alert('aieof');
+console.log(sdfj<10);
+
+
+*/
 
   var wxMsg = JSON.parse( JSON.stringify(msg) );
 
@@ -3949,7 +3983,6 @@ function sendWXMessage (msg, fromUser) {
 
     if(sharePath && msg.shareID){
       if(wxMsg.text) {
-      	console.log( wxMsg.text.content.toTEXT() )
         wxMsg.text.content = wxMsg.text.content.toTEXT() + '\n\n<a href="'+ SHARE_MSG_URL +'#path='+ sharePath +'&shareID='+ msg.shareID +'&msgID='+ (msg.msgID||'') +'">打开会话</a>';
       }
       if(wxMsg.news) {
