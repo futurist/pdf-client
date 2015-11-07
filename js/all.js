@@ -408,6 +408,8 @@ function applyTemplate () {
 
 			case 'share':
 
+				if( msg.allPeople && msg.allPeople.indexOf(rootPerson.userid)==-1 ) return;
+
 				if( $('.msg_wrap').is(':visible') ){
 
 					var shareID = $('.msg_wrap').data('shareID');
@@ -914,13 +916,13 @@ function applyPrint ( onlyDownload ) {
 		$.ajax({
 		  type: 'POST',
 		  url: host+'/printPDF',
-		  data: { server:server, printer:printer, isLabel: /标签模板/i.test(sel.title) , onlyDownload:onlyDownload, fileKey:fileKey, shareID:shareID, person: rootPerson.userid },
+		  data: { server:server, printer:printer, isLabel:sel.isTemplate==2 , onlyDownload:onlyDownload, fileKey:fileKey, shareID:shareID, person: rootPerson.userid },
 		  // type of data we are expecting in return:
 		  dataType: 'json',
 		  timeout: CONVERT_TIMEOUT,
 		  success: function(data){
 		  	showMainWindow();
-		    aObj.find('.jobStatus').remove();
+
 			if(!data || data.errMsg){
 
 				setJobStatus(sel, sel.title+' 打印失败：打印服务故障', 'jobError');
@@ -2622,7 +2624,7 @@ function shareNode ( isTopic ){
 
 	} else {
 		fileIDS = [];
-		isTopic = true;
+		isTopic = isTopic;
 	}
 
 
@@ -2698,9 +2700,10 @@ function shareNode ( isTopic ){
 			}
 			alert('添加共享文件成功，并已通知该组成员');
 		} else {
+			console.log(data);
 			if(data.isTopic){
 
-				window.location = 'tree.html#path=/共享-'+ data.shareID +'/&shareID='+data.shareID + '&openMessage=1';
+				window.location.hash = '#path=/共享-'+ data.shareID +'/&shareID='+data.shareID + '&openMessage=1';
 				window.location.reload();
 
 			} else {
@@ -3149,10 +3152,10 @@ function sendShareMsg ( status ) {
 		}
 
 		if(status){
-			if($('p[data-shareid="'+ p.shareID +'"]').length==0){
+			if($('li[data-shareid="'+ p.shareID +'"] p[data-shareid="'+ p.shareID +'"]').length==0){
 				$('.curSelectedNode').closest('li.level1').find('a.level1').after( $('<p class="status" data-shareid="'+ p.shareID +'"></p>') );
 			}
-			$('p[data-shareid="'+ p.shareID +'"]').html(val+' <span class="msgDate" data-date="'+ (new Date().toISOString()) +'"></span>');
+			$('li[data-shareid="'+ p.shareID +'"] p[data-shareid="'+ p.shareID +'"]').html(val+' <span class="msgDate" data-date="'+ (new Date().toISOString()) +'"></span>');
 			updateMsgTime();
 		}
 		//ret = JSON.parse(ret);

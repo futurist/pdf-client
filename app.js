@@ -353,13 +353,13 @@ wss.on('connection', function connection(ws) {
       var suffix = (msg.from? ':'+msg.from: '');
       var clientFullName = msg.clientName+suffix;
 
-      if(msg.timeStamp && WSCLIENT[clientFullName+msg.timeStamp]){
+      if(msg.timeStamp && WSCLIENT[clientFullName+msg.timeStamp] && WSCLIENT[clientFullName+msg.timeStamp].ws) {
       	WSCLIENT[clientFullName+msg.timeStamp].ws.send( JSON.stringify({ role:'exitApp' }) );
       	return;
       }
 
 
-      if(WSCLIENT[clientFullName]) {
+      if(WSCLIENT[clientFullName] && WSCLIENT[clientFullName].ws ) {
         var prevTimeStamp = WSCLIENT[clientFullName].timeStamp;
         if( prevTimeStamp && prevTimeStamp != msg.timeStamp ){
 
@@ -476,10 +476,33 @@ function wsSendPrinter (msg, printerName, res) {
 
 }
 
+function getShareAllPeople(data){
+
+    if(data.fromPerson && data.toPerson){
+      data.allPeople = _.uniq( _.flatten( data.fromPerson.concat(data.toPerson).map(function(v){return v.userid}) ) );
+    }
+    return data;
+}
+
 
 function wsBroadcast(data) {
-  if( data.role=='upfile' ){
+  if( data.role=='upfile' || data.role=='addToShare' ){
     return wsSendClient(data.person, data);
+  }
+
+  var theData = getShareAllPeople(data.data||data);
+  
+  if(data.data){
+    data.data = theData ;
+  } else {
+    data = theData;
+  }
+
+  if( theData.allPeople ) {
+    theData.allPeople.forEach(function(v){
+      wsSendClient(v, data);
+    });
+    return;
   }
 
   wss.clients.forEach(function each(client) {
@@ -3876,7 +3899,7 @@ function insertShareData (data, res, showTab){
                   if(!data.isSign){
 
                     // it's not empty topic ,it's file share
-                    if( !data.isTopic ){
+                    if( data.files.length ) {
 
                       var treeUrl = TREE_URL + '#path=' + data.files[0].key +'&shareID='+ shareID;
                       var content = util.format('%s创建了/共享%d%s/，相关文档：%s，收件人：%s\n%s',
@@ -3934,6 +3957,7 @@ function insertShareData (data, res, showTab){
                   data.openShare = false;
                   data.openMessage = false;
                   data.showTab = showTab;
+
                   wsBroadcast(data);
 
                 }
