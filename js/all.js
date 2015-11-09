@@ -1522,7 +1522,7 @@ function locateNode (rootNode, path, shareID, switchTo){
 			else showTab(0);
 		}
 		treeObj.selectNode(targetNode);
-		updateMenu(targetNode);
+		if( $('.content_wrap').is(':visible') ) updateMenu(targetNode);
 		if(targetNode.isParent) treeObj.expandNode(targetNode, true);
 		setTimeout(function(){
 			var p;
@@ -1595,7 +1595,7 @@ function init (data, isOnTop, isOpen){
 	} else {
 		$(window).scrollTop(0);
 	}
-	updateMenu(sel);
+	if( $('.content_wrap').is(':visible') ) updateMenu(sel);
 	if(sel){
 		treeObj1.selectNode(sel);
 	}
@@ -2402,7 +2402,7 @@ function showTab (idx) {
 
 	try{
 		var sel = treeObj.getSelectedNodes();
-		updateMenu( sel );
+		if($('.content_wrap').is(':visible')) updateMenu( sel );
 	} catch(e){}
 
 	if(prevIdx==idx){
@@ -3598,6 +3598,15 @@ $(function initPage () {
 			$.fn.zTree.init($("#companyTree"), companySetting, companyNode);
 			companyTree = $.fn.zTree.getZTreeObj('companyTree');
 			companyTree.expandNode( companyTree.getNodes()[0] );
+
+			if(urlQuery.openChat){
+				addGroupChat();
+				window.location.hash = window.location.hash.replace(/&openChat[^&]+/,'');
+				delete urlQuery.openChat;
+				var sel = companyTree.getNodes()[0];
+				companyTree.selectNode(sel);
+			}
+
 		});
 
 		$post(host+'/getFlowList', { }, function  (data) {
@@ -4258,6 +4267,7 @@ function showContact () {
 	}
 
 	treeObj = companyTree;
+
 }
 
 function refreshPage () {
