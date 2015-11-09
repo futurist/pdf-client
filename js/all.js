@@ -858,6 +858,7 @@ function initTemplateFileTree (data) {
 	root= [];
 	data.forEach(function(v){
 		var node = pathToObj( v );
+		root[root.length-1].isTemplate = 1;
 		node.isTemplate = v.isTemplate;
 	});
 
@@ -1614,7 +1615,7 @@ function initShareFrom (data, bForceUpdate, isPrepend, isAddNodes) {
 		var msg = data[i].msg||'';
 		var statusText = data[i].statusText||'';
 		var statusDate = data[i].statusDate||'';
-		var fromPerson = data[i].fromPerson.map(function(v){return v.name});
+		var fromPerson =  (data[i].isSign? [].concat.apply([], data[i].toPerson) : data[i].selectRange).map(function(v){ return v.userid?v.name:'【'+v.name+'】' });
 		var fromPersonStr =  '('+fromPerson.join(',')+')';
 		var toPerson = data[i].toPerson.map(function(v){return v.name});
 		var toPersonStr = toPerson.length>2? '('+toPerson.slice(0,2).join(',')+'...)' :  '('+toPerson.join(',')+')' ;
@@ -1691,7 +1692,7 @@ function initShareTo (data, bForceUpdate, isPrepend, isAddNodes) {
 		var msg = data[i].msg||'';
 		var statusText = data[i].statusText||'';
 		var statusDate = data[i].statusDate||'';
-		var fromPerson = data[i].fromPerson.map(function(v){return v.name});
+		var fromPerson = (data[i].isSign? [].concat.apply([], data[i].toPerson) : data[i].selectRange).map(function(v){ return v.userid?v.name:'【'+v.name+'】' });
 		var fromPersonStr =  '('+fromPerson.join(',')+')';
 		var toPerson = data[i].toPerson.length ? data[i].toPerson.map(function(v){return v.name}) : data[i].toPerson.name;
 
@@ -2370,6 +2371,7 @@ var companySetting = {
 	callback: {
 		beforeClick: beforeClick2,
 		onClick: onClick2,
+		onCheck: onCheck,
 		onDblClick: onDblClick2,
 
 	}
@@ -2428,11 +2430,41 @@ function beforeClick2(treeId, treeNode, clickFlag) {
 }
 
 
+function setParentNodeCheckStatus (p, tree) {
+	if(!tree) tree = $.fn.zTree.getZTreeObj('companyTree');
+	if(p&&p.isParent){
+
+		var full = true;
+		var dirty = false;
+		p.children.forEach(function  (v) {
+			if(!v.checked) full=false;
+			else dirty = true;
+		});
+
+		p.halfCheck = full? false : true;
+		p.checked = dirty? true:false;
+
+		tree.updateNode(p);
+	}
+}
+
+function onCheck(event, treeId, treeNode) {
+
+	if(  treeNode.isParent ){
+		setParentNodeCheckStatus(treeNode);
+	}
+}
+
+
 function onClick2(event, treeId, treeNode, clickFlag) {
 
 	var isContact = $('.company_wrap').data('role')=='contact';
 
-	if(  !treeNode.isParent ) companyTree.checkNode(treeNode, null, true);
+	if(  !treeNode.isParent ){
+		var p = treeNode.getParentNode();
+		companyTree.checkNode(treeNode, null, true);
+		setParentNodeCheckStatus(p);
+	}
 
 }
 function onDblClick2(event, treeId, treeNode, clickFlag) {
@@ -2514,7 +2546,7 @@ function shareNodePre (){
 	var nodes = companyTree.getCheckedNodes();
 	var stuffs =  getAllFiles(nodes);
 
-	stuffs = stuffs.map( function(v){
+	stuffs = nodes.filter(function(v){ return !v.isParent}).map( function(v){
 		return {name: v.name, userid: v.userid, depart: v.getParentNode().name }
 	} );
 
@@ -2542,7 +2574,7 @@ function shareNodePre (){
 		nodes = companyTree.getCheckedNodes();
 		stuffs =  getAllFiles(nodes);
 
-		stuffs = stuffs.map( function(v) {
+		stuffs = nodes.filter(function(v){ return !v.isParent}).map( function(v) {
 			return {name: v.name, userid: v.userid, depart: v.getParentNode().name }
 		} );
 
@@ -2602,8 +2634,10 @@ function shareNode ( isTopic ){
 	if(!isTopic && dialogRole!='topic') {
 
 		var files = getAllFiles(sel);
-		if(sel.isParent) files.forEach(function(v){ v.path = v.path.replace( getPath(sel), '/') });
-		else sel.path = '/';
+		if(sel){
+			if(sel.isParent) files.forEach(function(v){ v.path = v.path.replace( getPath(sel), '/') });
+			else sel.path = '/';
+		}
 
 		//files.sort( function(a,b){ return a.key>b.key } );
 
@@ -2634,7 +2668,7 @@ function shareNode ( isTopic ){
 		nodes = companyTree.getCheckedNodes();
 		stuffs =  getAllFiles(nodes);
 
-		stuffs = stuffs.map( function(v){
+		stuffs = nodes.filter(function(v){ return !v.isParent}).map( function(v){
 			return {name: v.name, userid: v.userid, depart: v.getParentNode().name }
 		} );
 
@@ -2654,6 +2688,7 @@ function shareNode ( isTopic ){
 		selectRange=[];
 		var stuffKeys = ['userid', 'name'];
 		nodes.forEach(function(v){
+			if( v.isParent && v.check_Child_State<2 ) return true;
 			var obj = {};
 			if(v.isParent){
 				obj.name = v.name;
@@ -2665,8 +2700,6 @@ function shareNode ( isTopic ){
 			}
 			selectRange.push(obj);
 		});
-
-
 
 	}
 
@@ -2703,7 +2736,7 @@ function shareNode ( isTopic ){
 			console.log(data);
 			if(data.isTopic){
 
-				window.location.hash = '#path=/共享-'+ data.shareID +'/&shareID='+data.shareID + '&openMessage=1';
+				window.location.hash = '#path='+ encodeURIComponent('/共享-'+ data.shareID +'/') + '&shareID='+data.shareID + '&openMessage=1';
 				window.location.reload();
 
 			} else {
@@ -3561,6 +3594,7 @@ $(function initPage () {
 		$post(host+'/getCompanyTree', { company:COMPANY_NAME }, function  (data) {
 			data = JSON.parse( data );
 			companyNode = sortCompanyNode(data);
+			//companyNode = data;
 			$.fn.zTree.init($("#companyTree"), companySetting, companyNode);
 			companyTree = $.fn.zTree.getZTreeObj('companyTree');
 			companyTree.expandNode( companyTree.getNodes()[0] );
@@ -4315,13 +4349,16 @@ function viewContact () {
 }
 
 
+function addGroupChat () {
+	showContact();
+}
+
 function startChat (userid) {
 	if(!userid){
 		var sel = companyTree.getCheckedNodes();
 		if(!sel.length) return;
 		userid = sel.filter(function(v){ return !v.isParent}).map(function(v){return v.userid}).join('|');
 	}
-	console.log(userid);
 	if(!userid) return;
 
 	shareNode(true);
@@ -4526,6 +4563,7 @@ window.viewTemplateImage = viewTemplateImage;
 window.getPath = getPath;
 window.openSetTemplate = openSetTemplate;
 window.startChat = startChat;
+window.addGroupChat = addGroupChat;
 
 
 window.alert = alert;

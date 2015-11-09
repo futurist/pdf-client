@@ -45,6 +45,8 @@ qiniu.conf.ACCESS_KEY = '2hF3mJ59eoNP-RyqiKKAheQ3_PoZ_Y3ltFpxXP0K';
 qiniu.conf.SECRET_KEY = 'xvZ15BIIgJbKiBySTV3SHrAdPDeGQyGu_qJNbsfB';
 QiniuBucket = 'bucket01';
 
+FINGER_TTL = 365;
+
 FILE_HOST = 'http://7xkeim.com1.z0.glb.clouddn.com/';
 TREE_URL = "http://1111hui.com/pdf/client/tree.html";
 VIEWER_URL = "http://1111hui.com/pdf/webpdf/viewer.html";
@@ -756,7 +758,7 @@ app.post("/getFinger", function (req, res) {
   var reqData = getWsData(msgid);
   if(!reqData) return res.send('');
   var finger = reqData.finger;
-  var condition = {finger:finger, role:'finger', status:{$ne:-1}, date:{$gt: new Date(moment().subtract(14, 'days')) } };
+  var condition = {finger:finger, role:'finger', status:{$ne:-1}, date:{$gt: new Date(moment().subtract(FINGER_TTL, 'days')) } };
 
   res.cookie('finger', finger);
 
@@ -929,7 +931,12 @@ app.post("/getJSTicket", function (req, res) {
 
 
 function getShareName ( colShare, addSlash ) {
-  var a= (colShare.isSign?'流程':'共享')+colShare.shareID+ (colShare.msg?'['+colShare.msg+']':'' ) + '('+colShare.fromPerson[0].name + '>'+(colShare.toPerson.slice(0,3)).map(function(v){return v.name}).join(',')+ (colShare.toPerson.length>3?'...':'') +')' ;
+  var toArray = (colShare.isSign? [].concat.apply([], colShare.toPerson) : colShare.selectRange);
+  var toStr = toArray.slice(0,3).map(function(v){ return v.userid?v.name:'【'+v.name+'】' }).join(',');
+  var a= (colShare.isSign?'流程':'共享')+colShare.shareID;
+  a += '('+colShare.fromPerson[0].name + '>'+toStr+ (toArray.length>3?'...':'') +')' ;
+  a += (colShare.msg?''+colShare.msg+'':'' );
+
   if(addSlash) a='/'+a+'/';
   return a;
 }
@@ -1635,7 +1642,7 @@ app.post("/exitMember", function (req, res) {
     var personName = data.personName ;
 
 
-    col.findOneAndUpdate({role:'share', shareID:shareID }, { $pull: { 'toPerson': { userid: person }  }  }, {returnOriginal:false},
+    col.findOneAndUpdate({role:'share', shareID:shareID }, { $pull: { 'toPerson': { userid: person }, 'allPeople': person } }, {returnOriginal:false},
         function(err, result) {
 
           if(err) return res.send('');
@@ -1680,7 +1687,11 @@ app.post("/addMember", function (req, res) {
     var stuffs = data.stuffs ;
     var personName = data.personName ;
 
-    col.findOneAndUpdate({role:'share', shareID:shareID }, { $addToSet: { 'toPerson': { $each: stuffs }  }  }, {returnOriginal:false},
+    var stuffIds = stuffs.filter(function(v){return v.userid}).map(function(v){
+      return v.userid;
+    });
+
+    col.findOneAndUpdate({role:'share', shareID:shareID }, { $addToSet: { 'toPerson': { $each: stuffs }, 'allPeople': { $each: stuffIds }  }  }, {returnOriginal:false},
         function(err, result) {
 
           if(err) return res.send('');
@@ -2709,7 +2720,7 @@ app.post("/getShareFrom", function (req, res) {
   var condition = { 'fromPerson.userid': person, role:'share', status:{$ne:-1} };
   if(startShareID) condition.shareID = {$lt: startShareID };
 
-  col.find( condition , {limit:50, fields:{ fileIDS:0, filePathS:0, selectRange:0, 'files.drawData':0,'files.inputData':0,'files.signIDS':0}, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
+  col.find( condition , {limit:50, fields:{ fileIDS:0, filePathS:0, 'files.drawData':0,'files.inputData':0,'files.signIDS':0}, timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
       if(err || !docs) {
         return res.send('error');
@@ -2732,7 +2743,7 @@ app.post("/getShareTo", function (req, res) {
   var condition = { $or:[ {'toPerson.userid':person}, { 'toPerson':{$elemMatch: {$elemMatch:{'userid': person } } } } ], role:'share', status:{$ne:-1} };
   if(startShareID) condition.shareID = {$lt: startShareID };
 
-  col.find( condition , {limit:50, fields:{fileIDS:0, filePathS:0, selectRange:0, 'files.drawData':0,'files.inputData':0,'files.signIDS':0},  timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
+  col.find( condition , {limit:50, fields:{fileIDS:0, filePathS:0, 'files.drawData':0,'files.inputData':0,'files.signIDS':0},  timeout:true} ).sort({shareID:-1}).toArray(function(err, docs){
       clearTimeout(connInter); if(timeout)return;
       if(err || !docs) {
         return res.send('error');
@@ -3127,7 +3138,7 @@ app.post("/finishSign", function (req, res) {
                        "content":
                        util.format('%s 文件 %s 增加了新的签名：%s, <a href="%s">查看文件</a>',
 
-                          (colShare.isSign?'流程':'共享') + colShare.shareID + '('+ colShare.fromPerson[0].name + ' '+ (colShare.isSign?colShare.flowName : colShare.msg) +')',
+                          getShareName(colShare, true),
 
                           colShare.files[fileIdx].title,
 
@@ -3708,9 +3719,9 @@ function SendShareMsg(req, res) {
         }
     } else {
 
-      var link = getShareName(data, true);
     }
 
+      var link = getShareName(data, true);
 
      var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, encodeURIComponent(link), shareID, link ) ;
 
@@ -4570,9 +4581,9 @@ function updateCompanyTree () {
             return _.where(departs, { id: depID} )[0].name;
           });
 
-          s.pId = s.department[0];
+          s.pId = v.id;
           s.departmentNames = namedDep;
-          s.depart = namedDep?namedDep[0]:'';
+          s.depart = namedDep? v.name :'';
           if(s.status==1){
 	          companyTree.push(s);
 	          if( ! _.where(stuffList, {userid:s.userid }).length ) stuffList.push(s);
