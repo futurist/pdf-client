@@ -931,10 +931,10 @@ app.post("/getJSTicket", function (req, res) {
 
 
 function getShareName ( colShare, addSlash ) {
-  var toArray = (colShare.isSign? [].concat.apply([], colShare.toPerson) : colShare.selectRange);
+  var toArray = (colShare.isSign? [].concat.apply([], colShare.toPerson).filter(function(v){return v.userid!=colShare.fromPerson[0].userid}) : colShare.selectRange);
   var toStr = toArray.slice(0,3).map(function(v){ return v.userid?v.name:'【'+v.name+'】' }).join(',');
   var a= (colShare.isSign?'流程':'共享')+colShare.shareID;
-  a += '('+colShare.fromPerson[0].name + '>'+toStr+ (toArray.length>3?'...':'') +')' ;
+  a += '('+ colShare.fromPerson[0].name + '-'+toStr+ (toArray.length>3?'...':'') +')' ;
   a += (colShare.msg?''+colShare.msg+'':'' );
 
   if(addSlash) a='/'+a+'/';
@@ -2451,6 +2451,8 @@ app.post("/saveInputData", function (req, res) {
   var textID = req.body.textID;
   var value = req.body.value;
   var file = req.body.file;
+  var html = req.body.html;
+  var flowPos = req.body.flowPos;
   var shareID = parseInt( req.body.shareID );
   try{
     var filename = file.replace(FILE_HOST, '');
@@ -2458,17 +2460,31 @@ app.post("/saveInputData", function (req, res) {
     return res.send("");
   }
   if(!shareID){
-    var obj = {};
-    obj['inputData.'+textID.replace(/\./g, '\uff0e')] = value;
-    col.update({role:'upfile', 'key':filename }, { $set: obj  }, function(err, result){
+    var rootKey = 'inputData.'+textID.replace(/\./g, '\uff0e');
+
+    var obj1 = {};
+    obj1[rootKey+'.html'] = html;
+
+    var obj2 = {};
+    obj2[rootKey+'.val'] = value;
+
+    col.update({role:'upfile', 'key':filename }, { $set:obj1, $push: obj2 }, function(err, result){
     	return res.send("OK");
     });
   } else {
   	// have to replace keys that contains dot(.) in keyname,
   	// http://stackoverflow.com/questions/12397118/mongodb-dot-in-key-name
-    var obj = {};
-    obj['files.$.inputData.'+textID.replace(/\./g, '\uff0e')] = value;
-    col.update({ role:'share', shareID:shareID, 'files.key':filename }, { $set: obj  }, function(err, result){
+    var rootKey = 'files.$.inputData.'+textID.replace(/\./g, '\uff0e');
+
+    var obj1= {};
+    obj1[rootKey+'.html'] = html;
+
+    var obj2 = {};
+    obj2[rootKey+'.val'] = value;
+
+    col.updateOne({ role:'share', shareID:shareID, 'files.key':filename, curFlowPos:flowPos, isFinish:{$in:[null,'',false]} }, 
+                  { $set:obj1, $push: obj2  }, function(err, result){
+      if(err || !result.result.nModified) return res.send("ERR_NOPERMISSION");
     	return res.send("OK");
     });
   }
@@ -3688,7 +3704,7 @@ function SendShareMsg(req, res) {
           return res.send('');	//此共享已删除
         }
 
-      var users = data.fromPerson.concat(data.toPerson).filter(function(v){return v.userid==person});
+      var users = _.flatten( data.fromPerson.concat(data.toPerson) ).filter(function(v){return v.userid==person});
       if(!users.length){
         return res.send('');	//没有此组权限
       }
@@ -3726,8 +3742,8 @@ function SendShareMsg(req, res) {
      var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, encodeURIComponent(link), shareID, link ) ;
 
       var msg = {
-       "touser": data.toPerson.concat(data.fromPerson).map(function(v){return v.userid}).join('|'),
-       "touserName": data.toPerson.concat(data.fromPerson).map(function(v){return v.name}).join('|'),
+       "touser": _.flatten( data.fromPerson.concat(data.toPerson) ).map(function(v){return v.userid}).join('|'),
+       "touserName": _.flatten( data.fromPerson.concat(data.toPerson) ).map(function(v){return v.name}).join('|'),
        "msgtype": "text",
        "text": {
          "content":
@@ -4290,12 +4306,29 @@ wechat(config, wechat
 //   Event: 'click',
 //   EventKey: 'file_msg' }
 
+	console.log(message)
+
+	if(message.FromUserName == WX_COMPANY_ID) return res.reply('');
+
 	if(message.Event=='subscribe' || message.Event=='unsubscribe' ){
 		console.log(message);
 		updateCompanyTree();
+		return res.reply('');
 	}
 
-  return res.reply(message);
+	var msg='';
+	if(message.Event=='enter_agent' ){
+		switch(message.AgentID){
+			case '1':
+			case '3':
+				msg = util.format('使用方法：\n\n1、底部输入姓名、短号、拼音，会返给你结果\n\n2、<a href="%s">打开企业通讯录搜索查看</a>','http://1111hui.com/pdf/client/tree.html#openChat=1' );
+				return res.reply(msg);
+				break;
+		}
+	}
+
+  return res.reply('');
+  //res.reply(message);
 })
 .image(function (message, req, res, next) {
 //**** message format:
@@ -4367,60 +4400,87 @@ wechat(config, wechat
   //console.log(message);
 
   var person = message.FromUserName;
-  if (person==WX_COMPANY_ID) return;
+  if (person==WX_COMPANY_ID) return res.reply('');
 
-  var userInfo = getUserInfo(person);
-  if(message.MsgType=='text' && message.Content && userInfo ) {
+  if( message.AgentID<2 ){
 
-    var re = /\s*@\d+\s*$|^\s*@\d+\s*/;
-    var p = message.Content.match(re);
-    var shareID = p? parseInt( p.pop().replace(/\s*@/,'') ) :'';
-    var content = message.Content.replace(re, '');
 
-    var condition = {role:'shareMsg', shareID:{$gt:0}, WXOnly:{$in: [null, false]} ,
-             touser: new RegExp('^'+ person +'\\||\\|'+ person +'\\||\\|'+ person +'$') };
+	  var userInfo = getUserInfo(person);
+	  if(message.MsgType=='text' && message.Content && userInfo ) {
 
-    if(shareID) condition.shareID = shareID;
+	    var re = /\s*@\d+\s*$|^\s*@\d+\s*/;
+	    var p = message.Content.match(re);
+	    var shareID = p? parseInt( p.pop().replace(/\s*@/,'') ) :'';
+	    var content = message.Content.replace(re, '');
 
-    col.findOne( condition , { sort: {date : -1}, limit:1, fields:{_id:0, fromUser:0} },
-      function  (err, msg) {
+	    var condition = {role:'shareMsg', shareID:{$gt:0}, WXOnly:{$in: [null, false]} ,
+	             touser: new RegExp('^'+ person +'\\||\\|'+ person +'\\||\\|'+ person +'$') };
 
-        //console.log(condition, err, msg);
-        if(err||!msg) return;
-        if(!msg.shareID) return;
+	    if(shareID) condition.shareID = shareID;
 
-        shareID = msg.shareID;
+	    col.findOne( condition , { sort: {date : -1}, limit:1, fields:{_id:0, fromUser:0} },
+	      function  (err, msg) {
 
-        if(0 && !shareID) {
+	        //console.log(condition, err, msg);
+	        if(err||!msg) return;
+	        if(!msg.shareID) return;
 
-        var sharePath = JSON.stringify(msg).replace(/<[^>]+>/g,'').match(/\/[^/]+\//);
-        sharePath = sharePath? sharePath.pop() : '';
+	        shareID = msg.shareID;
 
-      var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, encodeURIComponent(sharePath), msg.shareID, sharePath ) ;
+	        if(0 && !shareID) {
 
-          msg.MsgId = message.MsgId;
+	        var sharePath = JSON.stringify(msg).replace(/<[^>]+>/g,'').match(/\/[^/]+\//);
+	        sharePath = sharePath? sharePath.pop() : '';
 
-          msg.text.content =
-            util.format('%s 对%s 留言：%s',
-                  userInfo.name,
-                  overAllPath,
-                  content
-                );
+	      var overAllPath = util.format('<a href="%s#path=%s&shareID=%d&openMessage=1">%s</a>', TREE_URL, encodeURIComponent(sharePath), msg.shareID, sharePath ) ;
 
-        sendWXMessage(msg, person );
+	          msg.MsgId = message.MsgId;
 
-      } else {
+	          msg.text.content =
+	            util.format('%s 对%s 留言：%s',
+	                  userInfo.name,
+	                  overAllPath,
+	                  content
+	                );
 
-        var req = {body:{ person: person, shareID:shareID, text:content }};
-        var res = { send:function(){} };
+	        sendWXMessage(msg, person );
 
-        SendShareMsg(req, res);
+	      } else {
 
-      }
+	        var req = {body:{ person: person, shareID:shareID, text:content }};
+	        var res = { send:function(){} };
 
-      }  );
+	        SendShareMsg(req, res);
+
+	      }
+
+	      }  );
+
+	  }
+
+
+  } else if(message.AgentID == '3' ){
+
+  		var keyword = message.Content;
+  		if(STUFF_LIST){
+  			var str = ['查找 "'+ keyword +'" 结果如下：'];
+  			STUFF_LIST.forEach(function(p){
+
+  				var text = (p.title||p.name||'')+' '+(p.userid||'')+' '+(p.mobile||'')+' '+(p.shortPhone||'');
+				if( ( text ).match( new RegExp(keyword, 'i')) ){
+					
+					str.push( 
+						util.format('　姓名：%s\n　部门：%s\n　电话：%s\n　短号：<a href="tel:%s">%s</a>\n', p.name, p.depart, p.mobile, p.shortPhone, p.shortPhone)
+					);
+				}
+
+  			});
+
+  			return res.reply( str.join('\n\n') );
+  		}
 
   }
+
 
   res.reply('');
 

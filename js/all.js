@@ -3588,8 +3588,10 @@ $(function initPage () {
 			}
 		}
 
-		$('.bg_mask').show();
-		getFilesData();
+		if(!urlQuery.openChat){
+			$('.bg_mask').show();
+			getFilesData();
+		}
 
 		$post(host+'/getCompanyTree', { company:COMPANY_NAME }, function  (data) {
 			data = JSON.parse( data );
@@ -3599,10 +3601,10 @@ $(function initPage () {
 			companyTree = $.fn.zTree.getZTreeObj('companyTree');
 			companyTree.expandNode( companyTree.getNodes()[0] );
 
-			if(urlQuery.openChat){
+			if(urlQuery.openChat) {
 				addGroupChat();
 				window.location.hash = window.location.hash.replace(/&openChat[^&]+/,'');
-				delete urlQuery.openChat;
+				// delete urlQuery.openChat;
 				var sel = companyTree.getNodes()[0];
 				companyTree.selectNode(sel);
 			}
@@ -4332,7 +4334,23 @@ function openClient (address) {
 
 }
 
+
+function closeWin () {
+	isWeiXin? wx.closeWindow() : window.close();
+	setTimeout(function(){
+		closeWin();
+	},300);
+}
+
+
 function hideCompanyTree (){
+
+	if(urlQuery.openChat){
+
+		return closeWin();
+
+	}
+
 	$('.clearInput:visible').click();
 	$('.company_wrap').hide().data('role', '');
 	//setCompanyTreeCheck(true);
@@ -4397,7 +4415,7 @@ function debounce(fun, mil){
 
 function searchByName (keyword) {
 
-	if(treeObj.prevKeyword == keyword) return;
+	if((treeObj.prevKeyword||'') == keyword) return;
 
 	var allNodes = treeObj.getNodesByFilter( function(v){return true} );
 
