@@ -32,7 +32,7 @@ var QREncoder = require('qr').Encoder;
 var mime = require('mime');
 var handlebars = require('express-handlebars');
 var flash = require('connect-flash');
-
+var pinyin = require("pinyin");
 
 var redis = require("redis");
 var redisq = require('redisq');
@@ -53,8 +53,6 @@ VIEWER_URL = "http://1111hui.com/pdf/webpdf/viewer.html";
 SHARE_MSG_URL = "http://1111hui.com/pdf/client/sharemsg.html";
 IMAGE_UPFOLDER = 'uploads/' ;
 var regex_image= /(gif|jpe?g|png|bmp)$/i;
-
-
 
 var fileStorage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -4235,6 +4233,22 @@ var config = {
   corpId: WX_COMPANY_ID
 };
 
+
+function setLastAppMessage(userid, AgentID, msg){
+	var user = getUserInfo(userid);
+	if(!user) return;
+	if(!user.lastAppMessage) user.lastAppMessage = {};
+	user.lastAppMessage[AgentID] = msg;
+}
+
+function getLastAppMessage(userid, AgentID){
+	var user = getUserInfo(userid);
+	if(!user) return;
+	if(!user.lastAppMessage) user.lastAppMessage = {};
+	return user.lastAppMessage[AgentID];
+}
+
+
 var wechat = require('wechat-enterprise');
 app.use('/wx',
 wechat(config, wechat
@@ -4306,7 +4320,7 @@ wechat(config, wechat
 //   Event: 'click',
 //   EventKey: 'file_msg' }
 
-	console.log(message)
+	//console.log(message)
 
 	if(message.FromUserName == WX_COMPANY_ID) return res.reply('');
 
@@ -4319,10 +4333,18 @@ wechat(config, wechat
 	var msg='';
 	if(message.Event=='enter_agent' ){
 		switch(message.AgentID){
-			case '1':
+			//case '1':
 			case '3':
-				msg = util.format('使用方法：\n\n1、底部输入姓名、短号、拼音，会返给你结果\n\n2、<a href="%s">打开企业通讯录搜索查看</a>','http://1111hui.com/pdf/client/tree.html#openChat=1' );
-				return res.reply(msg);
+				var lastMsg = getLastAppMessage( message.FromUserName, message.AgentID);
+
+				if(lastMsg && lastMsg.role=='hint' ) return res.reply('');
+
+				msg = util.format('使用方法：\n\n1)发送姓名、短号、拼音首字母搜索\n\n2)<a href="%s">点此打开通讯录</a>','http://1111hui.com/pdf/client/tree.html#openChat=1' );
+
+				var sendMsg = {type: "text", role:'hint', content: msg };
+				setLastAppMessage( message.FromUserName, message.AgentID, sendMsg );
+
+				return res.reply(sendMsg);
 				break;
 		}
 	}
@@ -4461,22 +4483,30 @@ wechat(config, wechat
 
   } else if(message.AgentID == '3' ){
 
-  		var keyword = message.Content;
+  		var keyword = message.Content.trim();
   		if(STUFF_LIST){
   			var str = ['查找 "'+ keyword +'" 结果如下：'];
   			STUFF_LIST.forEach(function(p){
+				var name = (p.name||'');
+				var spell = pinyin(name, {heteronym: true, segment: false, style: pinyin.STYLE_FIRST_LETTER });
+				var spellStr = allPossibleCases(spell).join(' ');
 
-  				var text = (p.title||p.name||'')+' '+(p.userid||'')+' '+(p.mobile||'')+' '+(p.shortPhone||'');
+  				var text = name +' '+( spellStr ||'')+' '+(p.mobile||'')+' '+(p.shortPhone||'');
 				if( ( text ).match( new RegExp(keyword, 'i')) ){
 					
 					str.push( 
-						util.format('　姓名：%s\n　部门：%s\n　电话：%s\n　短号：<a href="tel:%s">%s</a>\n', p.name, p.depart, p.mobile, p.shortPhone, p.shortPhone)
+						util.format('姓名：%s\n部门：%s\n电话：%s\n短号：%s\n', p.name, p.depart, p.mobile,  
+						p.shortPhone? '<a href="tel:'+p.shortPhone+'">'+p.shortPhone+'</a>' : '' )
 					);
 				}
 
   			});
+			
+			if(str.length==1) str.push('/衰没找到结果，换个词试试');
+			var sendMsg = {type: "text", role:'search_result', content: str.join('\n\n') };
+			setLastAppMessage( message.FromUserName, message.AgentID, sendMsg );
 
-  			return res.reply( str.join('\n\n') );
+  			return res.reply( sendMsg );
   		}
 
   }
@@ -4589,6 +4619,11 @@ var COMPANY_TREE = null
 var STUFF_LIST = null;
 
 
+BLACK_LIST_STUFF = {
+  mobile:['gary', 'hongyinghai'],
+  shortPhone:['gary', 'hongyinghai']
+}
+
 
 // combine Stuff Data from WX CompanyTree and Custom Stuff Data
 function combineStuffData(doc){
@@ -4615,6 +4650,12 @@ function combineStuffData(doc){
       } );
     }
 
+    _.each( BLACK_LIST_STUFF, function(list, k) {
+      if(  list.indexOf( v.userid ) > -1 ) {
+        v[k]='';
+      }
+    } )
+
   });
   col.updateOne( {role:'stuff'}, {$push:{ stuffList: {$each:emptyStuff} }} );
 }
@@ -4630,6 +4671,9 @@ function updateCompanyTree () {
 
     departs.forEach(function  (v) {
       api.getDepartmentUsersDetail(1, 1, 0, function  (err, users) {
+        if(!users){
+          return setTimeout(function(){ updateCompanyTree() }, 300);
+        }
         i++;
         //v.children = users.userlist;
         v.pId = v.parentid;
@@ -4773,9 +4817,25 @@ app.post("/getPrintList", function (req, res) {
 
 
 
+// http://stackoverflow.com/questions/4331092/finding-all-combinations-of-javascript-array-values
 
+// var allArrays = [['a', 'b'], ['c'], ['d', 'e', 'f']]
 
+function allPossibleCases(arr) {
+  if (arr.length == 1) {
+    return arr[0];
+  } else {
+    var result = [];
+    var allCasesOfRest = allPossibleCases(arr.slice(1));  // recur with the rest of array
+    for (var i = 0; i < allCasesOfRest.length; i++) {
+      for (var j = 0; j < arr[0].length; j++) {
+        result.push(arr[0][j] + allCasesOfRest[i]);
+      }
+    }
+    return result;
+  }
 
+}
 
 
 

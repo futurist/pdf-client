@@ -1,15 +1,5 @@
 [
-        {
-            "userid": "gary",
-            "client": "pc-gary",
-            "ip": "",
-            "level": 80,
-            "userRole": [
-                "boss"
-            ],
-            "shortPhone": "664148",
-            "color": "#0000CD"
-        },
+
         {
             "userid": "yangjiming",
             "client": "pc33",
